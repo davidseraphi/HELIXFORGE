@@ -1,0 +1,191 @@
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+  residencyRegion: "eu-west"
+  environment: "prod"
+
+image:
+  repository: helixforge/helix-core
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+replicaCount: 2
+
+autoscaling:
+  enabled: true
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+services:
+  gateway:
+    enabled: true
+    port: 8080
+    replicas: 2
+  agentHub:
+    enabled: true
+    port: 8081
+    replicas: 2
+  vaultService:
+    enabled: true
+    port: 8082
+    replicas: 2
+  billingService:
+    enabled: true
+    port: 8083
+    replicas: 2
+  observabilityService:
+    enabled: true
+    port: 8084
+    replicas: 1
+  authAdapter:
+    enabled: true
+    port: 8085
+    replicas: 2
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 1000m
+    memory: 512Mi
+
+# HTTP probes hit service_kit /healthz and /readyz on each core binary.
+probes:
+  readiness:
+    path: /readyz
+    initialDelaySeconds: 3
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3
+  liveness:
+    path: /healthz
+    initialDelaySeconds: 5
+    periodSeconds: 20
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+postgres:
+  host: helix-postgres
+  port: 5432
+  database: helixforge
+
+dbPool:
+  maxConnections: 10
+  minConnections: 2
+  acquireTimeoutSecs: 5
+  idleTimeoutSecs: 600
+  maxLifetimeSecs: 1800
+  testBeforeAcquire: true
+
+nats:
+  url: nats://helix-nats:4222
+  requireTls: false
+  tlsFirst: false
+  retryOnInitialConnect: false
+  connectionTimeoutSecs: 5
+  maxReconnects: 0
+  jsRetryAttempts: 5
+  jsRetryBackoffMs: 500
+  credsFile: ""
+  tlsCaFile: ""
+  tlsCertFile: ""
+  tlsKeyFile: ""
+
+minio:
+  endpoint: http://helix-minio:9000
+  bucket: helixforge
+
+ory:
+  kratosPublic: http://kratos-public:80
+  kratosAdmin: http://kratos-admin:80
+
+otel:
+  # Empty = no OTLP export; set to collector (e.g. http://otel-collector:4317)
+  endpoint: ""
+
+# Required secrets — chart fails template if empty (unless externalSecretName set).
+# Inject via sealed-secrets / ExternalSecrets / --set-file; never commit real values.
+secrets:
+  databaseUrl: ""
+  vaultMasterKey: ""
+  # When set, chart does not create Secret; deployments reference this name.
+  externalSecretName: ""
+
+# Gateway product discovery (K8s DNS suffix for product pods)
+gateway:
+  # e.g. "svc.cluster.local" → http://{slug}.svc.cluster.local:{port}
+  productHost: ""
+
+cors:
+  allowCredentials: false
+  origins: ""
+
+rateLimit:
+  rps: 100
+  backend: postgres
+  pgFallback: false
+
+audit:
+  hmacSecret: ""
+  operatorKey: ""
+
+payment:
+  provider: local_sim
+  stripeSecretKey: ""
+  stripeForceSim: false
+
+webhook:
+  secret: ""
+  allowUnsigned: false
+
+kms:
+  mode: local
+  url: http://vault-service:8082
+  fallback: false
+
+# Dev controls are disabled by default in Helm-deployed environments.
+dev:
+  allowDevHeaders: false
+  platform: false
+
+ingress:
+  enabled: false
+  className: nginx
+  host: helix.example.com
+  tls: true
+  annotations: {}
+
+migration:
+  # Pre-install/pre-upgrade Job that runs helix_db migrations before the core
+  # services start. It reuses the application image by default, which embeds
+  # the migration files and the `helix-migrate` binary, so no extra volume mounts
+  # are required.
+  enabled: true
+  # Override to use a different migrations image (e.g. a slim sqlx-cli image
+  # with migration files baked in). When unset the main app image is used.
+  image: ""
+  # Override the migration command. The default binary reads DATABASE_URL and
+  # runs embedded migrations.
+  command: []
+
+serviceAccount:
+  create: true
+  name: helix-core
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  fsGroup: 65532
+
+networkPolicy:
+  enabled: true
+
+# Service mesh (Linkerd/Istio) — transport mTLS; see ADR-0011
+mesh:
+  enabled: false
+  provider: linkerd   # or istio

@@ -1,0 +1,35 @@
+{
+  "name": "helixforge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "HelixForge sovereign monorepo — 20 products on HelixCore",
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "dev:console": "pnpm --filter @helixforge/console dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "cargo test --workspace",
+    "test:js": "turbo run test --filter='./apps/*' --filter='./packages/*'",
+    "infra:up": "docker compose up -d postgres nats minio minio-init",
+    "infra:down": "docker compose down",
+    "infra:ory": "docker compose --profile ory up -d",
+    "core:gateway": "cargo run -p gateway",
+    "core:agent-hub": "cargo run -p agent_hub",
+    "core:vault": "cargo run -p vault_service",
+    "core:billing": "cargo run -p billing_service",
+    "core:obs": "cargo run -p observability_service",
+    "core:auth": "cargo run -p auth_adapter",
+    "product:collab": "cargo run -p helix_collab_api",
+    "fmt": "cargo fmt --all",
+    "clippy": "cargo clippy --workspace --all-targets -- -D warnings"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

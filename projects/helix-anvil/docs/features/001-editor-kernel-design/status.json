@@ -1,0 +1,35 @@
+{
+  "id": "001-editor-kernel-design",
+  "title": "Native editor kernel design (pre-code)",
+  "status": "planned",
+  "updated_at": "2026-07-15",
+  "owner_model_tier": "opus-plan",
+  "current_step": "T-000 — Clarify/analyze gate (not started; blocked until 000 done)",
+  "tasks_total": 8,
+  "tasks_done": 0,
+  "blocked_on": ["000-substrate"],
+  "allowed_edit_paths": [
+    "docs/features/001-editor-kernel-design/**",
+    "docs/architecture/**",
+    "BUILD_SPEC.md",
+    "DECISION_LOG.md",
+    "NEXT_ACTION.md",
+    "PROJECT_STATE.json"
+  ],
+  "forbidden_edit_paths": [
+    ".env*",
+    "src/**",
+    "crates/**"
+  ],
+  "touches_gated_paths": [],
+  "promotes_to": [],
+  "verification_commands": [
+    "python tools/context/check_context_drift.py"
+  ],
+  "review_status": {
+    "tier0": "pending",
+    "tier1": "n/a",
+    "tier2": "n/a",
+    "tier3": "n/a"
+  }
+}

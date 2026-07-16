@@ -1,0 +1,36 @@
+[package]
+name = "helix_db"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "HelixForge Postgres pool, migrations, and durable repositories"
+
+[[bin]]
+name = "helix-audit-rehash"
+path = "src/bin/helix_audit_rehash.rs"
+
+[[bin]]
+name = "helix-migrate"
+path = "src/bin/helix_migrate.rs"
+
+[dependencies]
+shared_core = { workspace = true }
+audit_log = { workspace = true }
+billing_client = { workspace = true }
+vault_client = { workspace = true }
+agent_framework = { workspace = true }
+sqlx = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+async-trait = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
+zeroize = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

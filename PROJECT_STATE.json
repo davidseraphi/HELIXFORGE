@@ -1,0 +1,369 @@
+{
+  "schema_version": "1.0.0",
+  "project": "helixforge",
+  "stage": "prototype",
+  "updated_at": "2026-07-16",
+  "active_slice": "category-defining-product-program",
+  "active_goal": "CATEGORY-DEFINING-PROGRAM",
+  "active_phase": "helixcore_full_review_recorded",
+  "previous_goal": "FOUNDATION_INTEGRITY_011",
+  "review_gate": "HELIXCORE_FULL_REVIEW_RECORDED",
+  "category_defining_program": {
+    "status": "foundation_integrity_umbrella_011.7_closed",
+    "root": "docs/product-program",
+    "manifest": "docs/product-program/PROGRAM_MANIFEST.json",
+    "shared_contract": "docs/product-program/SHARED_PRODUCT_CONTRACT.md",
+    "roadmap": "docs/product-program/FIVE_YEAR_ROADMAP.md",
+    "kimi_prompt": "docs/product-program/KIMI_MASTER_BUILD_PROMPT.md",
+    "spec_count": 23,
+    "catalog_products": 21,
+    "includes": [
+      "helix-core",
+      "helix-anvil-standalone"
+    ],
+    "implementation_started": true,
+    "next_gate": "CI re-proof of installer / live-restore roundtrip for HELIXCORE-FULL PASS"
+  },
+  "second_wave": {
+    "roadmap": "docs/SECOND_WAVE.md",
+    "status": "paused_by_category_defining_program",
+    "current": "helix-insights",
+    "completed": [
+      "helix-flow"
+    ],
+    "order": [
+      "helix-flow",
+      "helix-insights",
+      "helix-commerce",
+      "helix-edu",
+      "helix-capital",
+      "helix-well",
+      "helix-network",
+      "helix-forge-studio",
+      "helix-synthbio",
+      "...primes...",
+      "helix-pulse"
+    ],
+    "anvil": "portfolio_last"
+  },
+  "historical_helixcode_review": {
+    "date": "2026-07-14",
+    "recorded_status": "PASS_WITH_FOLLOWUPS_RESIDUALS_CLOSED",
+    "p0_closed_in_recorded_scope": true,
+    "p1_closed_in_recorded_scope": true,
+    "residuals_closed_in_recorded_scope": true,
+    "acceptance_polish_recorded": true,
+    "optional_limits_recorded": true,
+    "session": "cc9ad7d1-d840-4d6c-82e2-4adff5f621e1",
+    "report": "docs/reviews/HELIXCODE_ENDSTATE/KIMI_REPORT.md",
+    "current_validity": "unverified_after_later_tree_changes"
+  },
+  "historical_helixcore_checkpoint": {
+    "date": "2026-07-14",
+    "scope": "targeted HelixCore phases 4-7 and deep smoke",
+    "result": "PASS_IN_RECORDED_SCOPE",
+    "current_validity": "unverified_after_later_tree_changes"
+  },
+  "foundation_integrity_current_gate": "011.7_CLOSED",
+  "full_workspace_current_status": "fmt_clippy_test_helm_verify_helixcore_full_pass_helixcore_full_p0_p1_p2_closed_locally_ci_reproof_pending",
+  "core_services": [
+    "gateway",
+    "agent-hub",
+    "vault-service",
+    "billing-service",
+    "observability-service",
+    "auth-adapter"
+  ],
+  "product_count": 21,
+  "build_last_product": "helix-pulse",
+  "registered_product_services": [
+    "helix-collab",
+    "helix-code",
+    "helix-flow",
+    "helix-insights",
+    "helix-commerce",
+    "helix-edu",
+    "helix-capital",
+    "helix-well",
+    "helix-network",
+    "helix-forge-studio",
+    "helix-synthbio",
+    "helix-lex-prime",
+    "helix-cura-prime",
+    "helix-terra-prime",
+    "helix-climate-prime",
+    "helix-orbit-prime",
+    "helix-quantum-forge",
+    "helix-vita-prime",
+    "helix-grid-prime",
+    "helix-nova-labs",
+    "helix-pulse"
+  ],
+  "durability_gate_proven_products": [],
+  "durability_gate_definition": "fresh crash, concurrency, restore, and Windows/macOS/Linux proof under Foundation Integrity",
+  "deferred_products": {
+    "helix-pulse": {
+      "order": 21,
+      "port": 8121,
+      "phase": "p0_scaffold",
+      "build_after": [
+        "helixcore-full",
+        "products-1-20"
+      ],
+      "cluster": "p3_deferred"
+    }
+  },
+  "related_portfolio_projects": {
+    "helixanvil": {
+      "path": "projects/helix-anvil",
+      "intended_path": null,
+      "current_scaffold": "projects/helix-anvil",
+      "location_status": "canonical_home_chosen_portfolio_last",
+      "role": "standalone native from-scratch IDE (substrate project; not HelixForge catalog product)",
+      "sequencing": "LAST portfolio project \u2014 after HelixForge monorepo endgame (incl. helix-pulse). Do not create, move, merge, rename, delete, activate, or implement Anvil until the founder chooses its canonical location."
+    }
+  },
+  "next_monorepo_options": [
+    "foundation_integrity_umbrella_and_first_child_packet (required before product depth)",
+    "resume lead product G1 only after Foundation Integrity G0 proof"
+  ],
+  "stack": {
+    "backend": "rust-axum",
+    "frontend": "next15",
+    "auth": "ory-kratos-hydra",
+    "data": [
+      "postgres",
+      "timescaledb",
+      "minio",
+      "nats"
+    ]
+  },
+  "ratified_specs": [],
+  "last_smoke": {
+    "date": "2026-07-15",
+    "service": "helix-flow-w1",
+    "postgres": true,
+    "minio": true,
+    "nats": true,
+    "path": "scripts/helix_flow_smoke.ps1 PASS \u2014 execute 3 steps + fail path"
+  },
+  "helix_code_extreme": {
+    "phase": "endstate",
+    "status": "endstate_complete_residuals_signed_dap",
+    "review_gate": "KIMI_PASS_WITH_FOLLOWUPS",
+    "review_packet": "docs/reviews/HELIXCODE_ENDSTATE/",
+    "kimi_session": "90857a99-9442-467c-b39e-835a8b6f94a1",
+    "kimi_p0_followups": [],
+    "kimi_p0_closed_items": [
+      "smart_http_branch_protection",
+      "deny_force_push_enforce",
+      "required_status_checks_on_merge"
+    ],
+    "org_codesign": {
+      "keys_dir": "Desktop/.keys/helixforge/code-signing",
+      "script": "scripts/helix_code_org_codesign.ps1",
+      "pack_signed": true,
+      "subject": "CN=HelixForge Org Code Signing, O=HelixForge, C=US"
+    },
+    "dap": {
+      "client": "projects/helix-code/backend/src/domain/dap_client.rs",
+      "adapters": [
+        "lldb-dap",
+        "gdb --interpreter=dap"
+      ],
+      "surface": [
+        "initialize",
+        "launch",
+        "setBreakpoints",
+        "configurationDone",
+        "continue",
+        "next",
+        "stepIn",
+        "stepOut",
+        "pause",
+        "threads",
+        "stackTrace",
+        "scopes",
+        "variables",
+        "evaluate",
+        "disconnect"
+      ],
+      "host_note": "Windows LLVM lldb-dap needs python311.dll; scoop gdb may lack dap UI"
+    },
+    "migrations": [
+      "0024_code_extreme.sql",
+      "0025_code_e2_runners.sql",
+      "0026_code_e4_agents.sql",
+      "0027_code_e5_sealed.sql",
+      "0028_code_openmls_docker.sql",
+      "0029_code_endstate.sql",
+      "0030_code_residuals.sql"
+    ],
+    "git_backend": "gix+cli",
+    "gitoxide": "0.85",
+    "smart_http": true,
+    "sandbox_runner": true,
+    "ci_artifacts_minio": true,
+    "container_isolation": true,
+    "isolation_env": "HELIX_CODE_ISOLATION=host|docker|auto",
+    "docker_ci_image": "helixforge/helix-code-ci:local",
+    "docker_ci_dockerfile": "projects/helix-code/docker/Dockerfile.ci",
+    "lsp": true,
+    "agent_mesh": true,
+    "agent_patch_apply": true,
+    "sealed_hva4": true,
+    "crypto_groups": true,
+    "openmls": true,
+    "openmls_durable": true,
+    "cleartext_forbidden_minio": true,
+    "web": {
+      "package": "@helixforge/helix-code-web",
+      "port": 3102,
+      "stack": [
+        "next15",
+        "monaco-editor",
+        "code-oss-shell"
+      ],
+      "lsp_markers": true,
+      "lsp_completion": true,
+      "lsp_definition": true,
+      "multi_tab": true,
+      "split_editor_groups": true,
+      "command_palette": true,
+      "quick_open": true,
+      "search_view": true,
+      "scm_view": true,
+      "electron": true,
+      "electron_entry": "projects/helix-code/web/electron/main.cjs"
+    },
+    "planes": [
+      "repos",
+      "refs",
+      "tree",
+      "blob",
+      "commit",
+      "batch_commit",
+      "files_index",
+      "content_search",
+      "smart_http",
+      "workspaces",
+      "pipelines",
+      "sandbox",
+      "artifacts",
+      "agent_jobs",
+      "agent_mesh",
+      "sealed_objects",
+      "crypto_groups",
+      "openmls",
+      "container_isolation",
+      "monaco_web",
+      "code_oss",
+      "split_editor_groups",
+      "electron_shell",
+      "lsp"
+    ],
+    "smoke": "PASS",
+    "unit": "10/10 PASS",
+    "web_typecheck": "PASS",
+    "next": "Foundation Integrity umbrella approval, then one explicitly activated child packet; HELIXANVIL remains portfolio-last and location-blocked"
+  },
+  "helix_collab_full_depth": {
+    "openmls_rfc9420": true,
+    "mls_durable_postgres": true,
+    "minio_attachment_bodies": true,
+    "attachment_delete": true,
+    "passkey_v2_client_data": true,
+    "offline_merge_ui": true,
+    "residency_hard_enforce": true,
+    "migrations": [
+      "0022_collab_sovereign.sql",
+      "0023_collab_full_depth.sql"
+    ],
+    "smoke": "PASS",
+    "unit": [
+      "alice_bob_roundtrip",
+      "durable_blob_survives_engine_restart"
+    ]
+  },
+  "helix_collab_client_e2ee_pm": {
+    "client_e2ee_hc1": true,
+    "server_blind": true,
+    "prosemirror": true,
+    "y_prosemirror_crdt": true,
+    "migration": "0021_collab_client_e2ee.sql",
+    "smoke": "PASS"
+  },
+  "helix_collab_sealed_crdt": {
+    "ws_crdt_sealed_update": true,
+    "ws_crdt_sealed_sync": true,
+    "rest_sealed_crdt": true,
+    "server_never_decodes_yjs": true,
+    "smoke": "PASS"
+  },
+  "helix_collab_deeper": {
+    "e2ee_at_rest": true,
+    "anchored_comments": true,
+    "resolve_threads": true,
+    "activity_feed": true,
+    "typing_ws": true,
+    "pin_archive": true,
+    "migration": "0020_collab_deeper.sql",
+    "smoke": "PASS"
+  },
+  "helix_collab_polish2": {
+    "dirty_autosave": true,
+    "duplicate_archive_ui": true,
+    "comment_filter_edit_jump": true,
+    "keyboard_shortcuts": true,
+    "folder_rename_ui": true,
+    "smoke": "PASS"
+  },
+  "fixes_kimi_1_11": {
+    "aetherid_fail_closed": true,
+    "service_kit_cors_local_memory": true,
+    "tenant_isolation": true,
+    "audit_rehash_restricted": true,
+    "vault_argon2_aad_kms": true,
+    "gateway_discovery_timeouts": true,
+    "nats_postgres_policy": true,
+    "billing_idempotency_webhook_i64": true,
+    "agent_timeouts_cancel": true,
+    "dockerfile_helm_secrets": true,
+    "tests_expanded": true
+  },
+  "risks": [
+    "Bare cargo defaults to gnu host without gcc; use RUSTUP_TOOLCHAIN=stable-x86_64-pc-windows-msvc",
+    "Products 10-20 are template parent/child slices, not domain-deep",
+    "Product web UIs are package shells; console is the live UI",
+    "Workspace has no git root yet",
+    "Local smoke requires HELIX_ALLOW_DEV_HEADERS=1 at service process start",
+    "Stripe still stubbed; JetStream not fully wired; Terraform modules still thin"
+  ],
+  "helixcore_full_review": {
+    "report": "docs/reviews/HELIXCORE_FULL/KIMI_REPORT.md",
+    "local_status": "PASS_WITH_FOLLOWUPS",
+    "p0_closed": true,
+    "p1_closed": true,
+    "p2_closed": true,
+    "ci_reproof_pending": true,
+    "last_local_verification": {
+      "date": "2026-07-16",
+      "fmt": true,
+      "clippy": true,
+      "test_workspace_all_features": true,
+      "helm_template": true,
+      "gateway_starts_with_local_dev_unsafe": true,
+      "verify_helixcore_full_ps1": {
+        "passed": true,
+        "steps": [
+          "core_services_healthz",
+          "helixcore_deep_smoke",
+          "migrate_export",
+          "migrate_restore_isolated",
+          "cargo_test_helix_db_against_restored_db",
+          "cleanup"
+        ]
+      }
+    }
+  }
+}

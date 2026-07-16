@@ -1,0 +1,4 @@
+# Per-platform toolchain and target selection is handled by rust-toolchain.toml
+# plus the CI matrix. On Windows hosts where rustup defaults to the GNU host,
+# build with:
+#   RUSTUP_TOOLCHAIN=stable-x86_64-pc-windows-msvc cargo build --workspace

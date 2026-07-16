@@ -1,0 +1,47 @@
+[package]
+name = "helix_collab_api"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "HelixCollab API — real-time collaborative workspace"
+
+[[bin]]
+name = "helix_collab_api"
+path = "src/main.rs"
+
+[dependencies]
+service_kit = { workspace = true }
+shared_core = { workspace = true }
+agent_framework = { workspace = true }
+helix_db = { workspace = true }
+audit_log = { workspace = true }
+nats_client = { workspace = true }
+tokio = { workspace = true }
+axum = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+futures = { workspace = true }
+dashmap = { workspace = true }
+parking_lot = { workspace = true }
+auth_client = { workspace = true }
+base64 = { workspace = true }
+yrs = { workspace = true }
+vault_client = { workspace = true }
+hex = { workspace = true }
+sha2 = { workspace = true }
+chrono = { workspace = true }
+openmls = { workspace = true }
+openmls_rust_crypto = { workspace = true }
+openmls_basic_credential = { workspace = true }
+openmls_memory_storage = { workspace = true }
+openmls_traits = { workspace = true }
+tls_codec = { workspace = true }
+p256 = { workspace = true }
+ecdsa = { workspace = true }
+rand = { workspace = true }
+sqlx = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

@@ -1,0 +1,21 @@
+# Optional mesh injection annotations applied via values.
+# Prefer Linkerd or Istio for production mTLS rather than app-level crypto.
+{{- if .Values.mesh.enabled }}
+# Documentation ConfigMap — actual injection is via namespace labels / pod annotations
+# set on deployments through values.mesh.injectAnnotation.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: helix-core-mesh-policy
+  labels:
+    app.kubernetes.io/part-of: helix-core
+data:
+  strategy: |
+    Mesh provider: {{ .Values.mesh.provider | default "linkerd" }}
+    Mode: {{ .Values.mesh.mode | default "sidecar" }}
+    App protocol: HTTP/HTTPS between gateway and core services.
+    SPIFFE identity: deferred; mesh workload identity is source of truth.
+  notes: |
+    Set mesh.injectAnnotation on deployments (see deployment.yaml patch).
+    NetworkPolicy remains deny-by-default between products and data plane.
+{{- end }}

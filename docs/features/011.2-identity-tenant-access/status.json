@@ -1,0 +1,8 @@
+{
+  "id": "011.2-identity-tenant-access",
+  "title": "Stable identity, safe registration, tenant separation, and per-resource access",
+  "status": "completed",
+  "updated_at": "2026-07-15",
+  "parent": "011-foundation-integrity",
+  "blocked_by": null
+}

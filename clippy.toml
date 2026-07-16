@@ -1,0 +1,4 @@
+# HelixForge clippy configuration
+# Many repository constructors and domain handlers carry several identity/audit
+# fields; a blanket 7-argument limit creates noise without improving safety.
+too-many-arguments-threshold = 20

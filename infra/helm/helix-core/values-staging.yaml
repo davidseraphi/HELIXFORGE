@@ -1,0 +1,39 @@
+# Staging overrides for helix-core.
+global:
+  environment: "staging"
+  residencyRegion: "eu-west"
+
+replicaCount: 1
+
+services:
+  gateway:
+    replicas: 1
+  agentHub:
+    replicas: 1
+  vaultService:
+    replicas: 1
+  billingService:
+    replicas: 1
+  observabilityService:
+    replicas: 1
+  authAdapter:
+    replicas: 1
+
+autoscaling:
+  enabled: false
+
+ingress:
+  enabled: true
+  host: api.staging.helixforge.example
+  tls: true
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-staging"
+
+cors:
+  allowCredentials: true
+  origins: "https://console.staging.helixforge.example"
+
+secrets:
+  databaseUrl: ""
+  vaultMasterKey: ""
+  externalSecretName: "helix-core-staging-secrets"

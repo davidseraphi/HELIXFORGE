@@ -1,0 +1,180 @@
+# HelixForge local development stack
+# Usage: docker compose up -d
+# Then: cargo run -p gateway (and other services)
+
+name: helixforge
+
+services:
+  postgres:
+    # Standard Timescale image honors POSTGRES_* env (HA image uses a different auth model).
+    image: timescale/timescaledb:latest-pg16
+    environment:
+      POSTGRES_USER: helix
+      POSTGRES_PASSWORD: helix
+      POSTGRES_DB: helixforge
+    ports:
+      # Host port avoids clashing with local Postgres (often 5432/5433).
+      - "${HELIX_POSTGRES_PORT:-55432}:5432"
+    volumes:
+      - helix_pg:/var/lib/postgresql/data
+      - ./deploy/local/init-db.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U helix -d helixforge"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  nats:
+    image: nats:2.10-alpine
+    command: ["-js", "-m", "8222"]
+    ports:
+      - "${HELIX_NATS_PORT:-4222}:4222"
+      - "${HELIX_NATS_MONITOR_PORT:-8222}:8222"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: helixminio
+      MINIO_ROOT_PASSWORD: helixminio_secret
+    ports:
+      - "${HELIX_MINIO_PORT:-9000}:9000"
+      - "${HELIX_MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - helix_minio:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 helixminio helixminio_secret;
+      mc mb -p local/helixforge || true;
+      mc mb -p local/helix-collab || true;
+      mc mb -p local/helix-code || true;
+      mc anonymous set download local/helixforge || true;
+      exit 0;
+      "
+
+  # Optional Ory stack (comment out if not needed for first boot)
+  kratos-migrate:
+    image: oryd/kratos:v1.2.0
+    container_name: helix-kratos-migrate
+    volumes:
+      - ./deploy/local/kratos:/etc/config/kratos:ro
+    command: migrate sql -e --yes
+    environment:
+      DSN: postgres://helix:helix@postgres:5432/kratos?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles: ["ory"]
+
+  kratos:
+    image: oryd/kratos:v1.2.0
+    container_name: helix-kratos
+    ports:
+      - "4433:4433"
+      - "4434:4434"
+    volumes:
+      - ./deploy/local/kratos:/etc/config/kratos:ro
+    command: serve -c /etc/config/kratos/kratos.yml --dev --watch-courier
+    environment:
+      DSN: postgres://helix:helix@postgres:5432/kratos?sslmode=disable
+      SECRETS_COOKIE: helixforge-dev-cookie-secret-change-me-32b
+      SECRETS_CIPHER: helixforge-dev-cipher-secret-32b
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kratos-migrate:
+        condition: service_completed_successfully
+      mailslurper:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4433/health/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    profiles: ["ory"]
+
+  mailslurper:
+    image: oryd/mailslurper:latest-smtps
+    container_name: helix-mailslurper
+    ports:
+      - "4436:4436"
+      - "4437:4437"
+    profiles: ["ory"]
+
+  hydra-migrate:
+    image: oryd/hydra:v2.2.0
+    container_name: helix-hydra-migrate
+    volumes:
+      - ./deploy/local/hydra:/etc/config/hydra:ro
+    command: migrate sql -e --yes -c /etc/config/hydra/hydra.yml
+    environment:
+      DSN: postgres://helix:helix@postgres:5432/hydra?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles: ["ory"]
+
+  hydra:
+    image: oryd/hydra:v2.2.0
+    container_name: helix-hydra
+    ports:
+      - "4444:4444"
+      - "4445:4445"
+    volumes:
+      - ./deploy/local/hydra:/etc/config/hydra:ro
+    command: serve all -c /etc/config/hydra/hydra.yml --dev
+    environment:
+      DSN: postgres://helix:helix@postgres:5432/hydra?sslmode=disable
+      SECRETS_SYSTEM: helixforge-hydra-system-secret-32b
+      URLS_SELF_ISSUER: http://127.0.0.1:4444/
+    depends_on:
+      postgres:
+        condition: service_healthy
+      hydra-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4444/health/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    profiles: ["ory"]
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.57
+    container_name: helix-jaeger
+    ports:
+      - "16686:16686"
+      - "4317:4317"
+      - "4318:4318"
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    profiles: ["observability"]
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: helix-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./deploy/local/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    profiles: ["observability"]
+
+volumes:
+  helix_pg:
+  helix_minio:

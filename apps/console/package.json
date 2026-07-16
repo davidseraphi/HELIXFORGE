@@ -1,0 +1,25 @@
+{
+  "name": "@helixforge/console",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build --no-lint",
+    "start": "next start -p 3000",
+    "lint": "echo 'next lint is deprecated; use typecheck instead'",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@helixforge/ui": "workspace:*",
+    "@helixforge/sdk-ts": "workspace:*",
+    "next": "^15.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.7.0"
+  }
+}

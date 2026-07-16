@@ -1,0 +1,173 @@
+[workspace]
+resolver = "2"
+members = [
+  "crates/shared-core",
+  "crates/agent-framework",
+  "crates/vault-client",
+  "crates/auth-client",
+  "crates/nats-client",
+  "crates/audit-log",
+  "crates/billing-client",
+  "crates/observability",
+  "crates/helix-db",
+  "crates/job-engine",
+  "crates/service-kit",
+  "services/gateway",
+  "services/agent-hub",
+  "services/vault-service",
+  "services/billing-service",
+  "services/observability-service",
+  "services/auth-adapter",
+  "projects/helix-collab/backend",
+  "projects/helix-code/backend",
+  "projects/helix-flow/backend",
+  "projects/helix-insights/backend",
+  "projects/helix-commerce/backend",
+  "projects/helix-edu/backend",
+  "projects/helix-capital/backend",
+  "projects/helix-well/backend",
+  "projects/helix-network/backend",
+  "projects/helix-forge-studio/backend",
+  "projects/helix-synthbio/backend",
+  "projects/helix-lex-prime/backend",
+  "projects/helix-cura-prime/backend",
+  "projects/helix-terra-prime/backend",
+  "projects/helix-climate-prime/backend",
+  "projects/helix-orbit-prime/backend",
+  "projects/helix-quantum-forge/backend",
+  "projects/helix-vita-prime/backend",
+  "projects/helix-grid-prime/backend",
+  "projects/helix-nova-labs/backend",
+  "projects/helix-pulse/backend",
+  "tools/quality/release-gate",
+]
+default-members = [
+  "crates/shared-core",
+  "crates/service-kit",
+  "services/gateway",
+  "services/agent-hub",
+  "services/vault-service",
+  "services/billing-service",
+  "services/observability-service",
+  "services/auth-adapter",
+  "projects/helix-collab/backend",
+]
+
+[workspace.package]
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/helixforge/helixforge"
+rust-version = "1.85"
+authors = ["HelixForge <platform@helixforge.local>"]
+homepage = "https://helixforge.local"
+
+[workspace.dependencies]
+# Internal
+shared_core = { path = "crates/shared-core" }
+agent_framework = { path = "crates/agent-framework" }
+vault_client = { path = "crates/vault-client" }
+auth_client = { path = "crates/auth-client" }
+nats_client = { path = "crates/nats-client" }
+audit_log = { path = "crates/audit-log" }
+billing_client = { path = "crates/billing-client" }
+observability = { path = "crates/observability" }
+helix_db = { path = "crates/helix-db" }
+job_engine = { path = "crates/job-engine" }
+service_kit = { path = "crates/service-kit" }
+
+# Async / web
+tokio = { version = "1.43", features = ["full"] }
+axum = { version = "0.8", features = ["macros", "ws", "multipart"] }
+tower = { version = "0.5", features = ["full"] }
+tower-http = { version = "0.6", features = ["cors", "trace", "request-id", "util", "compression-gzip", "limit"] }
+hyper = { version = "1.6", features = ["full"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+
+# Data
+sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls", "postgres", "uuid", "chrono", "json", "migrate"] }
+uuid = { version = "1.12", features = ["v4", "v5", "v7", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+bytes = "1.9"
+
+# NATS
+async-nats = "0.39"
+
+# Errors / tracing
+thiserror = "2.0"
+anyhow = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+tracing-opentelemetry = "0.28"
+opentelemetry = "0.27"
+opentelemetry_sdk = { version = "0.27", features = ["rt-tokio"] }
+opentelemetry-otlp = { version = "0.27", features = ["grpc-tonic"] }
+
+# Crypto / security
+sha2 = "0.10"
+blake3 = "1.5"
+hmac = "0.12"
+hex = "0.4"
+base64 = "0.22"
+jsonwebtoken = "9.3"
+argon2 = "0.5"
+zeroize = { version = "1.8", features = ["derive"] }
+aes-gcm = "0.10"
+getrandom = "0.2"
+
+# HTTP client
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
+
+# Config / utils
+dotenvy = "0.15"
+subtle = "2"
+clap = { version = "4.5", features = ["derive", "env"] }
+futures = "0.3"
+tokio-tungstenite = { version = "0.26", features = ["rustls-tls-webpki-roots"] }
+async-trait = "0.1"
+parking_lot = "0.12"
+dashmap = "6.1"
+once_cell = "1.20"
+regex = "1.11"
+url = { version = "2.5", features = ["serde"] }
+http = "1.2"
+mime = "0.3"
+rand = "0.8"
+time = { version = "0.3", features = ["serde"] }
+
+# CRDT (HelixCollab optional realtime)
+yrs = "0.21"
+
+# OpenMLS (RFC 9420) for HelixCollab sealed rooms
+openmls = { version = "0.8", default-features = false, features = ["openmls_rust_crypto"] }
+openmls_rust_crypto = "0.5"
+openmls_basic_credential = "0.5"
+openmls_memory_storage = { version = "0.5", features = ["persistence", "base64"] }
+openmls_traits = "0.5"
+tls_codec = "0.4"
+
+# ECDSA (device / passkey verification without OpenSSL)
+p256 = { version = "0.13", features = ["ecdsa", "pkcs8"] }
+ecdsa = "0.16"
+
+# HelixCode extreme — gitoxide object plane (pack/smart HTTP still use system git)
+# Default features include sha1 hashing (required by gix-hash).
+gix = { version = "0.85", features = ["max-performance-safe"] }
+
+# Testing
+tokio-test = "0.4"
+wiremock = "0.6"
+tempfile = "3.15"
+proptest = "1.6"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
+panic = "abort"
+
+[profile.dev]
+debug = 1

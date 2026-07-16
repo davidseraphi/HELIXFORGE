@@ -1,0 +1,12 @@
+{
+  "project": "helix-anvil",
+  "profiles": {
+    "quick": {
+      "description": "Substrate Tier-0 under 5 minutes",
+      "commands": [
+        "python tools/context/check_context_drift.py",
+        "python tools/quality/validate_bug_packets.py"
+      ]
+    }
+  }
+}

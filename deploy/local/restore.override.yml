@@ -1,0 +1,12 @@
+services:
+  postgres:
+    ports: !override
+      - "55433:5432"
+  nats:
+    ports: !override
+      - "4223:4222"
+      - "8223:8222"
+  minio:
+    ports: !override
+      - "9002:9000"
+      - "9003:9001"

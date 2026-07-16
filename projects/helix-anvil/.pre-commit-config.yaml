@@ -1,0 +1,30 @@
+# Tier-0 local floor for HelixAnvil substrate.
+# Install: pip install pre-commit && pre-commit install
+minimum_pre_commit_version: "3.5.0"
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ["--maxkb=1024"]
+
+  - repo: local
+    hooks:
+      - id: helix-anvil-drift
+        name: HelixAnvil substrate drift
+        entry: python tools/context/check_context_drift.py
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: helix-anvil-bugs
+        name: HelixAnvil bug packets
+        entry: python tools/quality/validate_bug_packets.py
+        language: system
+        pass_filenames: false
+        always_run: true

@@ -1,0 +1,131 @@
+{
+  "project": {
+    "name": "HelixAnvil",
+    "slug": "helix-anvil",
+    "one_liner": "Completely native IDE built from scratch — sovereign editor kernel for the portfolio.",
+    "domain": "developer tooling / native IDE"
+  },
+  "schema_version": "1.1.0",
+  "generated_at": "2026-07-15",
+  "current_stage": "substrate",
+
+  "strategic_posture": {
+    "north_star": "Own a from-scratch native IDE: document model, commands, and desktop shell under portfolio control — not a foreign editor skin.",
+    "hard_promise": "Edit coordinates and the text kernel are HelixAnvil’s; engines attach at boundaries.",
+    "wedge": "Native multi-file code editor usable for HelixForge/Rust work on Windows before forge mesh or multiplayer.",
+    "what_it_is_not": [
+      "Not HelixCode (forge/repos/CI)",
+      "Not HelixCollab (sealed collab docs)",
+      "Not Electron/Monaco-as-identity",
+      "Not a HelixForge monorepo catalog product"
+    ]
+  },
+
+  "source_of_truth_order": [
+    "Live files, tests, and current commands",
+    "PROJECT_STATE.json",
+    "constitution.md",
+    "BUILD_SPEC.md",
+    "ratified specs (specs/)",
+    "VISION.md",
+    "DECISION_LOG.md",
+    "Active feature packet",
+    "NEXT_ACTION.md",
+    "Generated context (AGENT_CONTEXT.md, SOURCE_MAP.md)",
+    "Raw evidence"
+  ],
+
+  "canonical_docs": [
+    { "path": "AGENTS.md", "role": "agent-rules", "status": "current", "must_read": true },
+    { "path": "CLAUDE.md", "role": "claude-shim", "status": "current" },
+    { "path": "GEMINI.md", "role": "gemini-shim", "status": "current" },
+    { "path": "constitution.md", "role": "immutable-principles", "status": "current", "must_read": true },
+    { "path": "VISION.md", "role": "vision", "status": "current", "must_read": true },
+    { "path": "BUILD_SPEC.md", "role": "implementation-contract", "status": "current", "must_read": true },
+    { "path": "REVIEW.md", "role": "review-gates", "status": "current" },
+    { "path": "NEXT_ACTION.md", "role": "continuation-pointer", "status": "current", "must_read": true },
+    { "path": "DECISION_LOG.md", "role": "decision-journal", "status": "current" },
+    { "path": "PROJECT_STATE.json", "role": "machine-state", "status": "current", "must_read": true },
+    { "path": "docs/quality/BUG_OPERATING_SYSTEM.md", "role": "bug-os-doctrine", "status": "current" },
+    { "path": "docs/context/AGENT_CONTEXT.md", "role": "generated-orientation", "status": "current" }
+  ],
+
+  "historical_docs": [],
+
+  "active_feature_packets": [
+    {
+      "id": "000-substrate",
+      "path": "docs/features/000-substrate",
+      "title": "Substrate install + portfolio registration",
+      "status": "done",
+      "owner_model_tier": "sonnet",
+      "promotes_to": []
+    },
+    {
+      "id": "001-editor-kernel-design",
+      "path": "docs/features/001-editor-kernel-design",
+      "title": "Native editor kernel design (pre-code)",
+      "status": "planned",
+      "owner_model_tier": "opus-plan",
+      "promotes_to": []
+    }
+  ],
+
+  "current_focus": {
+    "packet_id": "001-editor-kernel-design",
+    "summary": "Design native editor kernel boundaries (pre-code). HelixCode extreme runs in HelixForge in parallel."
+  },
+
+  "next_product_slice": {
+    "packet_id": "001-editor-kernel-design",
+    "summary": "Design buffer kernel, shell choice, and first code packet boundaries before any native binary."
+  },
+
+  "do_not_start": [
+    {
+      "item": "Full native IDE implementation (buffer/LSP/workspace)",
+      "reason": "Packet 000 substrate first; design in 001; code only after 001 clarify gate — HelixCode extreme proceeds in HelixForge in parallel after this scaffold."
+    },
+    {
+      "item": "Re-register as HelixForge PRODUCT_CATALOG product",
+      "reason": "Founder protocol: standalone project via substrate, not monorepo product embed."
+    },
+    {
+      "item": "Electron or Monaco-as-identity shell",
+      "reason": "Constitution Article VII."
+    }
+  ],
+
+  "commands": {
+    "drift": "python tools/context/check_context_drift.py",
+    "index": "python tools/context/build_document_index.py",
+    "context": "python tools/context/build_context_pack.py",
+    "bugs": "python tools/quality/validate_bug_packets.py",
+    "schema": "python tools/context/check_context_drift.py --schema"
+  },
+
+  "gates": [
+    {
+      "name": "Tier-0 substrate drift",
+      "command": "python tools/context/check_context_drift.py",
+      "blocking": true
+    },
+    {
+      "name": "Bug packet validator",
+      "command": "python tools/quality/validate_bug_packets.py",
+      "blocking": true
+    }
+  ],
+
+  "agent_rules": [
+    "Never modify files outside allowed_edit_paths for the active feature packet.",
+    "Read PROJECT_STATE.json and the active packet before writing any code.",
+    "Run all gates before marking a packet done.",
+    "Secrets only in ~/Desktop/.keys/helix-anvil/.env.local — never in-repo.",
+    "Do not implement the IDE binary until packet 001 design is clarified and a subsequent implementation packet is active.",
+    "Do not add HelixAnvil as a HelixForge monorepo catalog product.",
+    "Long-running GUI/dev processes run in user-owned terminals only."
+  ],
+
+  "ratified_specs": []
+}

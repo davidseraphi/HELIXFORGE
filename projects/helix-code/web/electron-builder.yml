@@ -1,0 +1,23 @@
+appId: local.helixforge.helix-code
+productName: HelixCode
+copyright: Copyright © HelixForge
+directories:
+  output: dist-electron
+  buildResources: build
+files:
+  - electron/**/*
+  - package.json
+extraMetadata:
+  main: electron/main.cjs
+win:
+  target:
+    - target: dir
+      arch:
+        - x64
+  artifactName: HelixCode-${version}-win-${arch}
+  icon: build/icon.ico
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+# Local packs do not publish; runtime auto-update uses HELIX_CODE_UPDATE_URL + electron-updater.
+publish: null

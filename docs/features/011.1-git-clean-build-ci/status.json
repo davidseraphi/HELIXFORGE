@@ -1,0 +1,27 @@
+{
+  "id": "011.1-git-clean-build-ci",
+  "title": "Repository boundary, clean build, and native CI design",
+  "status": "done",
+  "updated_at": "2026-07-15",
+  "parent": "011-foundation-integrity",
+  "proof": {
+    "date": "2026-07-15",
+    "environment": "Windows 11, stable-x86_64-pc-windows-msvc (local rustup override)",
+    "checks": [
+      { "command": "git init -b main", "result": "Repository initialized at project root" },
+      { "command": "cargo build --workspace", "result": "pass" },
+      { "command": "cargo test --workspace --all-features", "result": "pass" },
+      { "command": "cargo clippy --workspace --all-targets -- -D warnings", "result": "pass" },
+      { "command": "cargo fmt --all -- --check", "result": "pass" },
+      { "command": "pnpm --filter @helixforge/console typecheck", "result": "pass" },
+      { "command": "pnpm --filter @helixforge/helix-code-web typecheck", "result": "pass" },
+      { "command": "pnpm --filter @helixforge/helix-collab-web typecheck", "result": "pass" },
+      { "command": "helm lint infra/helm/helix-core", "result": "pass" }
+    ],
+    "notes": [
+      "terraform validate could not be reproduced on this machine because terraform is not in PATH; the CI workflow includes a native Ubuntu terraform-validate job.",
+      "Windows-only global target pinning removed; local MSVC builds use RUSTUP_TOOLCHAIN=stable-x86_64-pc-windows-msvc or the rustup override.",
+      "Product source files were edited only to resolve compiler/clippy warnings; no behavioral changes."
+    ]
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "id": "011.7-package-installer-migration-export-restore",
+  "title": "Package, installer, migration, export, and restore proof on all supported systems",
+  "status": "closed",
+  "updated_at": "2026-07-15",
+  "parent": "011-foundation-integrity",
+  "blocked_by": null
+}

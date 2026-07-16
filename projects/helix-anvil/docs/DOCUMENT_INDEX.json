@@ -1,0 +1,3458 @@
+{
+  "generated_at": "2026-07-14T21:58:15+00:00",
+  "root": "C:\\Users\\divin\\PROJECTS\\HELIXANVIL",
+  "scope": {
+    "included_extensions": [
+      ".csv",
+      ".docx",
+      ".html",
+      ".jpeg",
+      ".jpg",
+      ".md",
+      ".mdx",
+      ".odt",
+      ".pdf",
+      ".png",
+      ".pptx",
+      ".rtf",
+      ".txt",
+      ".xls",
+      ".xlsx"
+    ],
+    "excluded_dirs": [
+      ".git",
+      ".hypothesis",
+      ".npm-cache",
+      ".pytest_cache",
+      ".venv",
+      "__pycache__",
+      "dist",
+      "mutants.out",
+      "node_modules",
+      "output",
+      "target"
+    ],
+    "excluded_files": [
+      "docs/DOCUMENT_INDEX.json",
+      "docs/DOCUMENT_INDEX.md",
+      "docs/context/AGENT_CONTEXT.md",
+      "docs/context/SOURCE_MAP.md",
+      "llms-full.txt",
+      "llms.txt"
+    ],
+    "note": "Authored document-like artifacts, excluding dependency/build/cache directories and generated context exports."
+  },
+  "counts": {
+    "total": 30,
+    "by_extension": {
+      ".md": 30
+    },
+    "by_category": {
+      "feature-packet": 12,
+      "governance-doc": 5,
+      "other-document": 13
+    },
+    "by_family": {
+      "Context substrate feature packets": 12,
+      "Miscellaneous project artifacts": 13,
+      "Project governance and continuation": 5
+    }
+  },
+  "duplicate_hash_groups": [],
+  "documents": [
+    {
+      "path": "AGENTS.md",
+      "extension": ".md",
+      "category": "governance-doc",
+      "family": "Project governance and continuation",
+      "size_bytes": 2601,
+      "size_kib": 2.5,
+      "modified_local": "2026-07-15T00:56:57+03:00",
+      "sha256": "ef70a87b7b442eb4686132ecd3ff5782c370e2836e659ce0da75c69affb18b4d",
+      "sha256_16": "ef70a87b7b442eb4",
+      "title": "AGENTS.md",
+      "encoding": "utf-8-sig",
+      "line_count": 82,
+      "word_count": 336,
+      "heading_count": 9,
+      "headings": [
+        {
+          "level": 1,
+          "text": "HelixAnvil — Agent Operating Layer (canonical, vendor-neutral)"
+        },
+        {
+          "level": 2,
+          "text": "§ Commands (run from repo root)"
+        },
+        {
+          "level": 2,
+          "text": "§ Read order (before ANY work)"
+        },
+        {
+          "level": 2,
+          "text": "§ Source-of-truth precedence"
+        },
+        {
+          "level": 2,
+          "text": "§ Feature-packet rule"
+        },
+        {
+          "level": 2,
+          "text": "§ Update + continuation"
+        },
+        {
+          "level": 2,
+          "text": "§ Boundaries and secrets"
+        },
+        {
+          "level": 2,
+          "text": "§ Review and ambition"
+        },
+        {
+          "level": 2,
+          "text": "§ Portfolio note"
+        }
+      ],
+      "snippet": "# HelixAnvil — Agent Operating Layer (canonical, vendor-neutral) This file is the **single canonical instruction set** for all AI agents in this repository. Vendor shims defer to this file; this file defers to the portfolio doctrine (`~/shared/AGENTS.md`). North star: **resume co",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "BUILD_SPEC.md",
+      "extension": ".md",
+      "category": "governance-doc",
+      "family": "Project governance and continuation",
+      "size_bytes": 2502,
+      "size_kib": 2.4,
+      "modified_local": "2026-07-15T00:56:57+03:00",
+      "sha256": "c9655f72267f06a832e26fe324dc789c0b011d3f22c6966915b23d9ce2ec1b6b",
+      "sha256_16": "c9655f72267f06a8",
+      "title": "BUILD_SPEC.md",
+      "encoding": "utf-8-sig",
+      "line_count": 82,
+      "word_count": 316,
+      "heading_count": 13,
+      "headings": [
+        {
+          "level": 1,
+          "text": "HelixAnvil — Build Spec"
+        },
+        {
+          "level": 2,
+          "text": "What this document is"
+        },
+        {
+          "level": 2,
+          "text": "Stack (target — not installed until packet work)"
+        },
+        {
+          "level": 2,
+          "text": "Architecture (target shape)"
+        },
+        {
+          "level": 2,
+          "text": "Runtime boundaries"
+        },
+        {
+          "level": 2,
+          "text": "Commands (substrate)"
+        },
+        {
+          "level": 1,
+          "text": "from HELIXANVIL repo root"
+        },
+        {
+          "level": 2,
+          "text": "Definition of done (substrate install)"
+        },
+        {
+          "level": 2,
+          "text": "Definition of done (product — later)"
+        },
+        {
+          "level": 2,
+          "text": "Keys"
+        },
+        {
+          "level": 1,
+          "text": "~/Desktop/.keys/helix-anvil/.env.local"
+        },
+        {
+          "level": 1,
+          "text": "HelixAnvil local secrets — never commit"
+        },
+        {
+          "level": 1,
+          "text": "HELIX_ANVIL_NOTE=placeholder"
+        }
+      ],
+      "snippet": "# HelixAnvil — Build Spec Status: canonical · Stage: **substrate** · Updated: 2026-07-15 ## What this document is Current **implementation contract**. At substrate stage there is **no product binary yet** — only continuation files, gates, and the first design packet. ## Stack (ta",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "CLAUDE.md",
+      "extension": ".md",
+      "category": "other-document",
+      "family": "Miscellaneous project artifacts",
+      "size_bytes": 511,
+      "size_kib": 0.5,
+      "modified_local": "2026-07-15T00:56:57+03:00",
+      "sha256": "c6e33b937d299e9e49dad6c43ef4da38ea391835e36c5a4655e1bcdebc280918",
+      "sha256_16": "c6e33b937d299e9e",
+      "title": "CLAUDE.md",
+      "encoding": "utf-8-sig",
+      "line_count": 11,
+      "word_count": 66,
+      "heading_count": 2,
+      "headings": [
+        {
+          "level": 1,
+          "text": "CLAUDE.md — HelixAnvil (Claude Code entrypoint)"
+        },
+        {
+          "level": 2,
+          "text": "Claude-specific notes"
+        }
+      ],
+      "snippet": "# CLAUDE.md — HelixAnvil (Claude Code entrypoint) @AGENTS.md ## Claude-specific notes - Canonical operating layer is `AGENTS.md` (imported above). - Portfolio doctrine `~/.claude/CLAUDE.md` → `~/shared/AGENTS.md` outranks on global behavior. - Use plan mode for architecture/scope",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "DECISION_LOG.md",
+      "extension": ".md",
+      "category": "governance-doc",
+      "family": "Project governance and continuation",
+      "size_bytes": 720,
+      "size_kib": 0.7,
+      "modified_local": "2026-07-15T00:56:57+03:00",
+      "sha256": "53c7e97f1acf6b26b82642d6a53eda332d3b79af8c890e822c08a34e33ee865e",
+      "sha256_16": "53c7e97f1acf6b26",
+      "title": "DECISION_LOG.md",
+      "encoding": "utf-8-sig",
+      "line_count": 9,
+      "word_count": 95,
+      "heading_count": 2,
+      "headings": [
+        {
+          "level": 1,
+          "text": "Decision log (append-only)"
+        },
+        {
+          "level": 2,
+          "text": "2026-07-15 — Substrate adoption (standalone native IDE project)"
+        }
+      ],
+      "snippet": "# Decision log (append-only) ## 2026-07-15 — Substrate adoption (standalone native IDE project) - **Why:** Founder ordered: before HelixCode extreme in HelixForge, create **another project** for a completely native IDE from scratch — using portfolio protocol `~/shared/substrate/n",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "GEMINI.md",
+      "extension": ".md",
+      "category": "other-document",
+      "family": "Miscellaneous project artifacts",
+      "size_bytes": 418,
+      "size_kib": 0.4,
+      "modified_local": "2026-07-15T00:56:57+03:00",
+      "sha256": "99ee046c748e0c3d2d952ef501e394d0bb7d8294853b9ef824db7ca709dbe3ee",
+      "sha256_16": "99ee046c748e0c3d",
+      "title": "GEMINI.md",
+      "encoding": "utf-8-sig",
+      "line_count": 11,
+      "word_count": 61,
+      "heading_count": 2,
+      "headings": [
+        {
+          "level": 1,
+          "text": "GEMINI.md — HelixAnvil (Gemini CLI / Antigravity entrypoint)"
+        },
+        {
+          "level": 2,
+          "text": "Gemini/Antigravity-specific notes"
+        }
+      ],
+      "snippet": "# GEMINI.md — HelixAnvil (Gemini CLI / Antigravity entrypoint) **Your canonical operating layer for this repository is `AGENTS.md` in the repo root. Read `AGENTS.md` in full before doing any work, and follow it.** @./AGENTS.md ## Gemini/Antigravity-specific notes - If `@import` d",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "NEXT_ACTION.md",
+      "extension": ".md",
+      "category": "governance-doc",
+      "family": "Project governance and continuation",
+      "size_bytes": 1336,
+      "size_kib": 1.3,
+      "modified_local": "2026-07-15T00:58:13+03:00",
+      "sha256": "3e935ec8d63103e724c1a632d73033ce614b819589a3edf306eec31efec6de2a",
+      "sha256_16": "3e935ec8d63103e7",
+      "title": "NEXT_ACTION.md",
+      "encoding": "utf-8-sig",
+      "line_count": 26,
+      "word_count": 181,
+      "heading_count": 3,
+      "headings": [
+        {
+          "level": 1,
+          "text": "Next action — HelixAnvil"
+        },
+        {
+          "level": 2,
+          "text": "Compaction checklist (2026-07-15)"
+        },
+        {
+          "level": 2,
+          "text": "Parallel: HelixCode extreme (HelixForge)"
+        }
+      ],
+      "snippet": "# Next action — HelixAnvil ## Compaction checklist (2026-07-15) 1. **Just done:** Packet **000-substrate** complete — full substrate + Bug OS; Tier-0 drift **PASS**. Mistaken HelixForge monorepo Anvil embed reverted. 2. **Current state:** Stage `substrate`. Focus **001-editor-ker",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "README.md",
+      "extension": ".md",
+      "category": "other-document",
+      "family": "Miscellaneous project artifacts",
+      "size_bytes": 555,
+      "size_kib": 0.5,
+      "modified_local": "2026-07-15T00:56:57+03:00",
+      "sha256": "1264155d8892f45ad988b5f5e48a8475ba251742d21064a7bef8b1c5a562f505",
+      "sha256_16": "1264155d8892f45a",
+      "title": "README.md",
+      "encoding": "utf-8-sig",
+      "line_count": 24,
+      "word_count": 64,
+      "heading_count": 3,
+      "headings": [
+        {
+          "level": 1,
+          "text": "HelixAnvil"
+        },
+        {
+          "level": 2,
+          "text": "Quick start (agents)"
+        },
+        {
+          "level": 2,
+          "text": "Not HelixForge"
+        }
+      ],
+      "snippet": "# HelixAnvil Completely **native IDE from scratch** — standalone portfolio project. | | | |--|--| | Slug | `helix-anvil` | | Stage | substrate | | Secrets | `~/Desktop/.keys/helix-anvil/` | | Sister | HelixCode extreme → HelixForge monorepo | ## Quick start (agents) 1. Read `PROJ",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "REVIEW.md",
+      "extension": ".md",
+      "category": "other-document",
+      "family": "Miscellaneous project artifacts",
+      "size_bytes": 1036,
+      "size_kib": 1.0,
+      "modified_local": "2026-07-15T00:56:57+03:00",
+      "sha256": "b088b8f66bd908aa1b790328baa7d81beaa3e7b61093263273284ba531d07e07",
+      "sha256_16": "b088b8f66bd908aa",
+      "title": "REVIEW.md",
+      "encoding": "utf-8-sig",
+      "line_count": 39,
+      "word_count": 133,
+      "heading_count": 9,
+      "headings": [
+        {
+          "level": 1,
+          "text": "HelixAnvil — Review Configuration"
+        },
+        {
+          "level": 2,
+          "text": "Tier 0 — Deterministic gates (always on, blocking)"
+        },
+        {
+          "level": 1,
+          "text": "when Rust lands:"
+        },
+        {
+          "level": 1,
+          "text": "cargo test --workspace"
+        },
+        {
+          "level": 1,
+          "text": "cargo clippy --workspace --all-targets"
+        },
+        {
+          "level": 2,
+          "text": "Tier 1 — Single-pass review"
+        },
+        {
+          "level": 2,
+          "text": "Tier 2 — Multi-specialist"
+        },
+        {
+          "level": 2,
+          "text": "Tier 3 — Deep review (gated paths)"
+        },
+        {
+          "level": 2,
+          "text": "Threshold"
+        }
+      ],
+      "snippet": "# HelixAnvil — Review Configuration Status: canonical · Last updated: 2026-07-15 Four-tier review doctrine per `~/shared/AGENTS.md`. ## Tier 0 — Deterministic gates (always on, blocking) ```bash python tools/context/check_context_drift.py python tools/quality/validate_bug_packets",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "VISION.md",
+      "extension": ".md",
+      "category": "governance-doc",
+      "family": "Project governance and continuation",
+      "size_bytes": 2083,
+      "size_kib": 2.0,
+      "modified_local": "2026-07-15T00:56:57+03:00",
+      "sha256": "7c02cc60d1908e785ea3cc363c6a178bd28494d3e89cdd8ffb7ac2d1a051ed29",
+      "sha256_16": "7c02cc60d1908e78",
+      "title": "VISION.md",
+      "encoding": "utf-8-sig",
+      "line_count": 41,
+      "word_count": 293,
+      "heading_count": 7,
+      "headings": [
+        {
+          "level": 1,
+          "text": "HelixAnvil — vision"
+        },
+        {
+          "level": 2,
+          "text": "Problem"
+        },
+        {
+          "level": 2,
+          "text": "North star"
+        },
+        {
+          "level": 2,
+          "text": "Wedge"
+        },
+        {
+          "level": 2,
+          "text": "What it is not"
+        },
+        {
+          "level": 2,
+          "text": "Relationship to HelixForge / HelixCode"
+        },
+        {
+          "level": 2,
+          "text": "Success (long horizon)"
+        }
+      ],
+      "snippet": "# HelixAnvil — vision **Slug:** `helix-anvil` · **Stage:** substrate · **Home:** standalone portfolio project (not a HelixForge monorepo product) ## Problem Sovereign software work still depends on **foreign IDE kernels** (VS Code / Electron, JetBrains, cloud IDEs). HelixForge’s ",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "constitution.md",
+      "extension": ".md",
+      "category": "other-document",
+      "family": "Miscellaneous project artifacts",
+      "size_bytes": 2670,
+      "size_kib": 2.6,
+      "modified_local": "2026-07-15T00:56:57+03:00",
+      "sha256": "0869d6ebcf17b5f659b00feab0273e5244f8a5e5d6fa841f657f1ba6776fcf94",
+      "sha256_16": "0869d6ebcf17b5f6",
+      "title": "constitution.md",
+      "encoding": "utf-8-sig",
+      "line_count": 51,
+      "word_count": 389,
+      "heading_count": 9,
+      "headings": [
+        {
+          "level": 1,
+          "text": "HelixAnvil — Constitution (immutable project principles)"
+        },
+        {
+          "level": 2,
+          "text": "Article I — Scope discipline"
+        },
+        {
+          "level": 2,
+          "text": "Article II — Evidence before claims"
+        },
+        {
+          "level": 2,
+          "text": "Article III — Secrets stay outside the tree"
+        },
+        {
+          "level": 2,
+          "text": "Article IV — Vendor-neutral by construction"
+        },
+        {
+          "level": 2,
+          "text": "Article V — Thorough over cheap; ambitious but never vague"
+        },
+        {
+          "level": 2,
+          "text": "Article VI — Independent verification"
+        },
+        {
+          "level": 2,
+          "text": "Article VII — Own the editor kernel"
+        },
+        {
+          "level": 2,
+          "text": "Article VIII — Separate from HelixCode"
+        }
+      ],
+      "snippet": "# HelixAnvil — Constitution (immutable project principles) Status: canonical · Last updated: 2026-07-15 These principles are binding on every agent and every change. When a packet, design, or shortcut conflicts with an Article, the Article wins — or the Article is amended first (",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/bugs/BUGS.md",
+      "extension": ".md",
+      "category": "other-document",
+      "family": "Miscellaneous project artifacts",
+      "size_bytes": 587,
+      "size_kib": 0.6,
+      "modified_local": "2026-07-03T01:17:20+03:00",
+      "sha256": "bde3c9fe8cb91230be649a2b784ac49d11a0b980714a6ede42786ee56b67e87c",
+      "sha256_16": "bde3c9fe8cb91230",
+      "title": "BUGS.md",
+      "encoding": "utf-8-sig",
+      "line_count": 14,
+      "word_count": 92,
+      "heading_count": 2,
+      "headings": [
+        {
+          "level": 1,
+          "text": "Bugs registry"
+        },
+        {
+          "level": 2,
+          "text": "Gardening rule"
+        }
+      ],
+      "snippet": "# Bugs registry The packet is the authority; this file is the quick index. One row per material bug. | ID | Severity | Priority | Status | Surface | Title | |---|---|---|---|---|---| | _(none yet — zero packets is a clean pass)_ | | | | | | ## Gardening rule Every quality batch s",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/bugs/_template/evidence.md",
+      "extension": ".md",
+      "category": "other-document",
+      "family": "Miscellaneous project artifacts",
+      "size_bytes": 239,
+      "size_kib": 0.2,
+      "modified_local": "2026-07-03T00:47:25+03:00",
+      "sha256": "c9cf49a4811026b7563af4a5098ba8a1f90ed4a5aa51921948bc8c1d692099ee",
+      "sha256_16": "c9cf49a4811026b7",
+      "title": "evidence.md",
+      "encoding": "utf-8-sig",
+      "line_count": 14,
+      "word_count": 33,
+      "heading_count": 6,
+      "headings": [
+        {
+          "level": 1,
+          "text": "Evidence"
+        },
+        {
+          "level": 2,
+          "text": "Before"
+        },
+        {
+          "level": 2,
+          "text": "After"
+        },
+        {
+          "level": 2,
+          "text": "Commands"
+        },
+        {
+          "level": 2,
+          "text": "Closure Decision"
+        },
+        {
+          "level": 2,
+          "text": "Closure Attestation"
+        }
+      ],
+      "snippet": "# Evidence ## Before ## After ## Commands ## Closure Decision ## Closure Attestation If the bug is `verified` and the signed run-ledger is in use, record the signed `bug_verified` event id here and in `bug.json.closure_attestation`.",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/bugs/_template/fix_plan.md",
+      "extension": ".md",
+      "category": "other-document",
+      "family": "Miscellaneous project artifacts",
+      "size_bytes": 86,
+      "size_kib": 0.1,
+      "modified_local": "2026-07-03T00:47:25+03:00",
+      "sha256": "82ffe764df96708324de53cd3c4c428989dcda8ac8b3ff5133f3d451ccb3b27c",
+      "sha256_16": "82ffe764df967083",
+      "title": "fix_plan.md",
+      "encoding": "utf-8-sig",
+      "line_count": 11,
+      "word_count": 11,
+      "heading_count": 6,
+      "headings": [
+        {
+          "level": 1,
+          "text": "Fix Plan"
+        },
+        {
+          "level": 2,
+          "text": "Scope"
+        },
+        {
+          "level": 2,
+          "text": "Files Expected To Change"
+        },
+        {
+          "level": 2,
+          "text": "Non-Goals"
+        },
+        {
+          "level": 2,
+          "text": "Risk"
+        },
+        {
+          "level": 2,
+          "text": "Rollback"
+        }
+      ],
+      "snippet": "# Fix Plan ## Scope ## Files Expected To Change ## Non-Goals ## Risk ## Rollback",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/bugs/_template/regression_tests.md",
+      "extension": ".md",
+      "category": "other-document",
+      "family": "Miscellaneous project artifacts",
+      "size_bytes": 94,
+      "size_kib": 0.1,
+      "modified_local": "2026-07-03T00:47:25+03:00",
+      "sha256": "55087bc4b0e43571f97432841a6053faed02112d3bed3effd9c2999ac2998cbe",
+      "sha256_16": "55087bc4b0e43571",
+      "title": "regression_tests.md",
+      "encoding": "utf-8-sig",
+      "line_count": 11,
+      "word_count": 10,
+      "heading_count": 5,
+      "headings": [
+        {
+          "level": 1,
+          "text": "Regression Tests"
+        },
+        {
+          "level": 2,
+          "text": "Required Gates"
+        },
+        {
+          "level": 2,
+          "text": "Manual Proof"
+        },
+        {
+          "level": 2,
+          "text": "Automated Proof"
+        },
+        {
+          "level": 2,
+          "text": "Not Covered"
+        }
+      ],
+      "snippet": "# Regression Tests ## Required Gates - ## Manual Proof ## Automated Proof ## Not Covered",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/bugs/_template/report.md",
+      "extension": ".md",
+      "category": "other-document",
+      "family": "Miscellaneous project artifacts",
+      "size_bytes": 307,
+      "size_kib": 0.3,
+      "modified_local": "2026-07-03T00:47:25+03:00",
+      "sha256": "1083224c0eba4577bbff6303f45059b31138cbc2b6aeb6278b977e91330298ea",
+      "sha256_16": "1083224c0eba4577",
+      "title": "report.md",
+      "encoding": "utf-8-sig",
+      "line_count": 20,
+      "word_count": 43,
+      "heading_count": 5,
+      "headings": [
+        {
+          "level": 1,
+          "text": "Report"
+        },
+        {
+          "level": 2,
+          "text": "Symptom"
+        },
+        {
+          "level": 2,
+          "text": "Impact"
+        },
+        {
+          "level": 2,
+          "text": "Environment"
+        },
+        {
+          "level": 2,
+          "text": "First Seen"
+        }
+      ],
+      "snippet": "# Report ## Symptom Describe what the user or agent observed. ## Impact Describe the affected capability and why the product cannot ignore it. ## Environment - OS: - Component / module: - Runtime (py -3.13, MCP server, CLI, adapter): - Branch/worktree note: ## First Seen Date and",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/bugs/_template/repro.md",
+      "extension": ".md",
+      "category": "other-document",
+      "family": "Miscellaneous project artifacts",
+      "size_bytes": 180,
+      "size_kib": 0.2,
+      "modified_local": "2026-07-03T00:47:25+03:00",
+      "sha256": "6b043664f922631921fcf349758c041f6a59dc8f86dfab63b3d51694cdcdfbd0",
+      "sha256_16": "6b043664f9226319",
+      "title": "repro.md",
+      "encoding": "utf-8-sig",
+      "line_count": 21,
+      "word_count": 22,
+      "heading_count": 7,
+      "headings": [
+        {
+          "level": 1,
+          "text": "Reproduction"
+        },
+        {
+          "level": 2,
+          "text": "Status"
+        },
+        {
+          "level": 2,
+          "text": "Steps"
+        },
+        {
+          "level": 2,
+          "text": "Expected"
+        },
+        {
+          "level": 2,
+          "text": "Actual"
+        },
+        {
+          "level": 2,
+          "text": "Evidence"
+        },
+        {
+          "level": 2,
+          "text": "Reproduction Notes"
+        }
+      ],
+      "snippet": "# Reproduction ## Status missing ## Steps 1. ## Expected ## Actual ## Evidence - ## Reproduction Notes If blocked, say what was tried and what evidence is still missing.",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/bugs/_template/root_cause.md",
+      "extension": ".md",
+      "category": "other-document",
+      "family": "Miscellaneous project artifacts",
+      "size_bytes": 402,
+      "size_kib": 0.4,
+      "modified_local": "2026-07-03T00:47:25+03:00",
+      "sha256": "881ef2ab9e52a568a37be02be98f1764b27650040241b8bdd4c441d6b689894d",
+      "sha256_16": "881ef2ab9e52a568",
+      "title": "root_cause.md",
+      "encoding": "utf-8-sig",
+      "line_count": 18,
+      "word_count": 58,
+      "heading_count": 6,
+      "headings": [
+        {
+          "level": 1,
+          "text": "Root Cause"
+        },
+        {
+          "level": 2,
+          "text": "Current Understanding"
+        },
+        {
+          "level": 2,
+          "text": "Why Existing Gates Missed It"
+        },
+        {
+          "level": 2,
+          "text": "Owning Surface"
+        },
+        {
+          "level": 2,
+          "text": "Preventing Invariant"
+        },
+        {
+          "level": 2,
+          "text": "Trust-but-verify primitive(s) / Tier-0 lint"
+        }
+      ],
+      "snippet": "# Root Cause ## Current Understanding Unknown until reproduction is complete. ## Why Existing Gates Missed It ## Owning Surface ## Preventing Invariant Name the test, lint, smoke, fixture, or review rule that should catch this class. ## Trust-but-verify primitive(s) / Tier-0 lint",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/features/000-substrate/acceptance.md",
+      "extension": ".md",
+      "category": "feature-packet",
+      "family": "Context substrate feature packets",
+      "size_bytes": 1197,
+      "size_kib": 1.2,
+      "modified_local": "2026-07-15T00:58:13+03:00",
+      "sha256": "d5d3315c130ca66997a2b5b85070c6d478169e83e40cdf097b7d5cb2f62580fa",
+      "sha256_16": "d5d3315c130ca669",
+      "title": "acceptance.md",
+      "encoding": "utf-8-sig",
+      "line_count": 26,
+      "word_count": 141,
+      "heading_count": 2,
+      "headings": [
+        {
+          "level": 1,
+          "text": "000 — Substrate install · Acceptance"
+        },
+        {
+          "level": 2,
+          "text": "Evidence log"
+        }
+      ],
+      "snippet": "# 000 — Substrate install · Acceptance | # | Scenario / requirement | Evidence | Status | |---|------------------------|----------|--------| | 1 | Substrate files present | Root: AGENTS/VISION/BUILD_SPEC/PROJECT_STATE/…; tools/context; docs/features; Bug OS | **PASS** | | 2 | Dri",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/features/000-substrate/design.md",
+      "extension": ".md",
+      "category": "feature-packet",
+      "family": "Context substrate feature packets",
+      "size_bytes": 1087,
+      "size_kib": 1.1,
+      "modified_local": "2026-07-15T00:57:22+03:00",
+      "sha256": "c7de036d13fc4e7d38d095d1fe274a78f5a74c02220a35705f2866047e0407c5",
+      "sha256_16": "c7de036d13fc4e7d",
+      "title": "design.md",
+      "encoding": "utf-8-sig",
+      "line_count": 25,
+      "word_count": 138,
+      "heading_count": 5,
+      "headings": [
+        {
+          "level": 1,
+          "text": "000 — Substrate install · Design"
+        },
+        {
+          "level": 2,
+          "text": "Approach"
+        },
+        {
+          "level": 2,
+          "text": "Architecture decisions (this packet only)"
+        },
+        {
+          "level": 2,
+          "text": "Risks"
+        },
+        {
+          "level": 2,
+          "text": "Out of scope details"
+        }
+      ],
+      "snippet": "# 000 — Substrate install · Design ## Approach Copy and fill `~/shared/substrate/` templates into `C:\\Users\\divin\\PROJECTS\\HELIXANVIL`. Port Bug OS from `~/shared/bug-os/`. Wire bug validator into Tier-0 drift check. Regenerate document index + context pack until drift exits clea",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/features/000-substrate/requirements.md",
+      "extension": ".md",
+      "category": "feature-packet",
+      "family": "Context substrate feature packets",
+      "size_bytes": 3255,
+      "size_kib": 3.2,
+      "modified_local": "2026-07-15T00:57:22+03:00",
+      "sha256": "fdf660e8db6770f10ae2672b77a5b506a4e5b5fab5e1a6127a0a00e3df304bd9",
+      "sha256_16": "fdf660e8db6770f1",
+      "title": "requirements.md",
+      "encoding": "utf-8-sig",
+      "line_count": 87,
+      "word_count": 433,
+      "heading_count": 15,
+      "headings": [
+        {
+          "level": 1,
+          "text": "000 — Substrate install · Requirements"
+        },
+        {
+          "level": 2,
+          "text": "Goal"
+        },
+        {
+          "level": 2,
+          "text": "User / operator outcome"
+        },
+        {
+          "level": 2,
+          "text": "Non-goals"
+        },
+        {
+          "level": 2,
+          "text": "Allowed edit paths"
+        },
+        {
+          "level": 2,
+          "text": "Forbidden edit paths"
+        },
+        {
+          "level": 2,
+          "text": "### ADDED Requirements"
+        },
+        {
+          "level": 4,
+          "text": "Requirement: Substrate files present"
+        },
+        {
+          "level": 5,
+          "text": "Scenario: Cold resume inventory"
+        },
+        {
+          "level": 4,
+          "text": "Requirement: Drift gate clean"
+        },
+        {
+          "level": 5,
+          "text": "Scenario: Tier-0 pass"
+        },
+        {
+          "level": 4,
+          "text": "Requirement: Standalone identity"
+        },
+        {
+          "level": 5,
+          "text": "Scenario: No monorepo product embed"
+        },
+        {
+          "level": 4,
+          "text": "Requirement: Next slice defined"
+        },
+        {
+          "level": 5,
+          "text": "Scenario: Handoff to design"
+        }
+      ],
+      "snippet": "# 000 — Substrate install · Requirements ## Goal Install the portfolio vendor-neutral agent-continuation substrate into HelixAnvil so any vendor can resume cold without chat memory. Establish project identity as a **standalone** native-IDE repo (not a HelixForge monorepo product)",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/features/000-substrate/tasks.md",
+      "extension": ".md",
+      "category": "feature-packet",
+      "family": "Context substrate feature packets",
+      "size_bytes": 585,
+      "size_kib": 0.6,
+      "modified_local": "2026-07-15T00:58:13+03:00",
+      "sha256": "45a6c3ac0791c1d153212df286729e35a16e0300e5f9986f06b1c11f68f8c22a",
+      "sha256_16": "45a6c3ac0791c1d1",
+      "title": "tasks.md",
+      "encoding": "utf-8-sig",
+      "line_count": 10,
+      "word_count": 86,
+      "heading_count": 1,
+      "headings": [
+        {
+          "level": 1,
+          "text": "000 — Substrate install · Tasks"
+        }
+      ],
+      "snippet": "# 000 — Substrate install · Tasks - [x] T-000 Clarify/analyze: standalone vs monorepo; confirmed standalone substrate protocol - [x] T-001 Copy schema, context tools, feature template, Bug OS - [x] T-002 Write VISION, constitution, BUILD_SPEC, AGENTS, shims, REVIEW, DECISION_LOG,",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/features/001-editor-kernel-design/acceptance.md",
+      "extension": ".md",
+      "category": "feature-packet",
+      "family": "Context substrate feature packets",
+      "size_bytes": 373,
+      "size_kib": 0.4,
+      "modified_local": "2026-07-15T00:57:46+03:00",
+      "sha256": "23ca43407c1918d86a8dfe5541521ed9aa9edf6e86e0b3b1d6442fb34a099d88",
+      "sha256_16": "23ca43407c1918d8",
+      "title": "acceptance.md",
+      "encoding": "utf-8-sig",
+      "line_count": 7,
+      "word_count": 35,
+      "heading_count": 1,
+      "headings": [
+        {
+          "level": 1,
+          "text": "001 — Native editor kernel design · Acceptance"
+        }
+      ],
+      "snippet": "# 001 — Native editor kernel design · Acceptance | # | Requirement | Evidence | Status | |---|-------------|----------|--------| | 1 | Kernel boundary documented | design.md + optional architecture doc | planned | | 2 | Shell choice / criteria in DECISION_LOG | dated entry | plan",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/features/001-editor-kernel-design/design.md",
+      "extension": ".md",
+      "category": "feature-packet",
+      "family": "Context substrate feature packets",
+      "size_bytes": 602,
+      "size_kib": 0.6,
+      "modified_local": "2026-07-15T00:57:46+03:00",
+      "sha256": "33095742dfa49abf443146438bda518c31e31fe6811bad66b889842f48d307ae",
+      "sha256_16": "33095742dfa49abf",
+      "title": "design.md",
+      "encoding": "utf-8-sig",
+      "line_count": 23,
+      "word_count": 87,
+      "heading_count": 5,
+      "headings": [
+        {
+          "level": 1,
+          "text": "001 — Native editor kernel design · Design"
+        },
+        {
+          "level": 2,
+          "text": "Status"
+        },
+        {
+          "level": 2,
+          "text": "Target shape (draft — not ratified)"
+        },
+        {
+          "level": 2,
+          "text": "Decisions to make in this packet"
+        },
+        {
+          "level": 2,
+          "text": "Non-decisions (later packets)"
+        }
+      ],
+      "snippet": "# 001 — Native editor kernel design · Design ## Status **Planned.** Fill during 001 active work. Placeholder shape only. ## Target shape (draft — not ratified) ``` ui shell → editor commands/view → buffer kernel → filesystem / optional LSP ``` ## Decisions to make in this packet ",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/features/001-editor-kernel-design/requirements.md",
+      "extension": ".md",
+      "category": "feature-packet",
+      "family": "Context substrate feature packets",
+      "size_bytes": 2415,
+      "size_kib": 2.4,
+      "modified_local": "2026-07-15T00:57:46+03:00",
+      "sha256": "1896b92a5393f9cc421e85a9cacb32e1decbe4ebccb7b09984ee41ba2257c65c",
+      "sha256_16": "1896b92a5393f9cc",
+      "title": "requirements.md",
+      "encoding": "utf-8-sig",
+      "line_count": 72,
+      "word_count": 331,
+      "heading_count": 14,
+      "headings": [
+        {
+          "level": 1,
+          "text": "001 — Native editor kernel design · Requirements"
+        },
+        {
+          "level": 2,
+          "text": "Goal"
+        },
+        {
+          "level": 2,
+          "text": "User / operator outcome"
+        },
+        {
+          "level": 2,
+          "text": "Non-goals"
+        },
+        {
+          "level": 2,
+          "text": "Allowed edit paths"
+        },
+        {
+          "level": 2,
+          "text": "Forbidden edit paths"
+        },
+        {
+          "level": 2,
+          "text": "### ADDED Requirements"
+        },
+        {
+          "level": 4,
+          "text": "Requirement: Kernel boundary documented"
+        },
+        {
+          "level": 5,
+          "text": "Scenario: Single source of text truth"
+        },
+        {
+          "level": 4,
+          "text": "Requirement: Shell choice ratified or deferred with criteria"
+        },
+        {
+          "level": 5,
+          "text": "Scenario: Decision log entry"
+        },
+        {
+          "level": 4,
+          "text": "Requirement: Implementation packet spawn criteria"
+        },
+        {
+          "level": 5,
+          "text": "Scenario: Clear handoff"
+        },
+        {
+          "level": 2,
+          "text": "Open questions"
+        }
+      ],
+      "snippet": "# 001 — Native editor kernel design · Requirements ## Goal Produce a design-ready specification for HelixAnvil’s first **from-scratch native editor kernel** (document model, command surface, shell boundary) so a later implementation packet can start without architecture thrash. #",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/features/001-editor-kernel-design/tasks.md",
+      "extension": ".md",
+      "category": "feature-packet",
+      "family": "Context substrate feature packets",
+      "size_bytes": 583,
+      "size_kib": 0.6,
+      "modified_local": "2026-07-15T00:57:46+03:00",
+      "sha256": "ff6ba1e96f1057ade2d001b5412bd983ddff487e654fcec11cb5969632f04c12",
+      "sha256_16": "ff6ba1e96f1057ad",
+      "title": "tasks.md",
+      "encoding": "utf-8-sig",
+      "line_count": 10,
+      "word_count": 83,
+      "heading_count": 1,
+      "headings": [
+        {
+          "level": 1,
+          "text": "001 — Native editor kernel design · Tasks"
+        }
+      ],
+      "snippet": "# 001 — Native editor kernel design · Tasks - [ ] T-000 Clarify/analyze gate — resolve all [NEEDS CLARIFICATION] in requirements.md - [ ] T-001 Research shell options (verify online) and recommend one - [ ] T-002 Specify RopeBuffer (or chosen) API + edit ops + tests plan - [ ] T-",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/features/_template/acceptance.md",
+      "extension": ".md",
+      "category": "feature-packet",
+      "family": "Context substrate feature packets",
+      "size_bytes": 5890,
+      "size_kib": 5.8,
+      "modified_local": "2026-06-29T18:16:37+03:00",
+      "sha256": "e014a63b475aa6af1525b346ae50cdc871c3a3c5c27fde3e6c480ec4e27eecd6",
+      "sha256_16": "e014a63b475aa6af",
+      "title": "acceptance.md",
+      "encoding": "utf-8-sig",
+      "line_count": 156,
+      "word_count": 775,
+      "heading_count": 27,
+      "headings": [
+        {
+          "level": 1,
+          "text": "NNN — <Feature Title> · Acceptance"
+        },
+        {
+          "level": 2,
+          "text": "Section 1 — Scenario checklist"
+        },
+        {
+          "level": 2,
+          "text": "Section 2 — Evidence"
+        },
+        {
+          "level": 3,
+          "text": "<Requirement name> / <Scenario name>"
+        },
+        {
+          "level": 1,
+          "text": "Command run:"
+        },
+        {
+          "level": 1,
+          "text": "Output:"
+        },
+        {
+          "level": 2,
+          "text": "Section 3 — Review requirements"
+        },
+        {
+          "level": 2,
+          "text": "Section 4 — Trust-but-verify primitives"
+        },
+        {
+          "level": 3,
+          "text": "(h) UI-feature runtime-render assertion"
+        },
+        {
+          "level": 1,
+          "text": "Command:"
+        },
+        {
+          "level": 1,
+          "text": "Output:"
+        },
+        {
+          "level": 3,
+          "text": "(i) AST-scoped contract-grep"
+        },
+        {
+          "level": 1,
+          "text": "Command:"
+        },
+        {
+          "level": 1,
+          "text": "Output:"
+        },
+        {
+          "level": 3,
+          "text": "(j) Handler-chain return-code-propagation"
+        },
+        {
+          "level": 1,
+          "text": "Evidence (direct read — not regex):"
+        },
+        {
+          "level": 3,
+          "text": "(l) Happy-path signing roundtrip"
+        },
+        {
+          "level": 1,
+          "text": "Command:"
+        },
+        {
+          "level": 1,
+          "text": "Output:"
+        },
+        {
+          "level": 3,
+          "text": "(m) Sovereignty-constraint cross-check"
+        },
+        {
+          "level": 1,
+          "text": "Allow-list path:"
+        },
+        {
+          "level": 1,
+          "text": "New source(s) introduced:"
+        },
+        {
+          "level": 1,
+          "text": "Cross-check result:"
+        },
+        {
+          "level": 3,
+          "text": "(n) Production-state-isolation gate"
+        },
+        {
+          "level": 1,
+          "text": "Path-override flag name:"
+        },
+        {
+          "level": 1,
+          "text": "Test invocation example:"
+        },
+        {
+          "level": 1,
+          "text": "tmp_path confirmed: yes / no"
+        }
+      ],
+      "snippet": "# NNN — <Feature Title> · Acceptance <!-- INSTRUCTIONS (delete before use) This document is the objective bar for \"this packet is done\" AND the EVIDENCE ledger that proves it. It must be completable by a reviewer (human or AI) without re-interviewing the implementer. Substrate v2",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/features/_template/design.md",
+      "extension": ".md",
+      "category": "feature-packet",
+      "family": "Context substrate feature packets",
+      "size_bytes": 6586,
+      "size_kib": 6.4,
+      "modified_local": "2026-06-29T18:17:56+03:00",
+      "sha256": "774bab00baea8d9318c191ab932f59d498307484945947b3f6cdee90511d82f8",
+      "sha256_16": "774bab00baea8d93",
+      "title": "design.md",
+      "encoding": "utf-8-sig",
+      "line_count": 157,
+      "word_count": 850,
+      "heading_count": 12,
+      "headings": [
+        {
+          "level": 1,
+          "text": "NNN — <Feature Title> · Design"
+        },
+        {
+          "level": 2,
+          "text": "Approach"
+        },
+        {
+          "level": 2,
+          "text": "Capability & spec promotion"
+        },
+        {
+          "level": 2,
+          "text": "Architecture"
+        },
+        {
+          "level": 2,
+          "text": "Data contracts"
+        },
+        {
+          "level": 2,
+          "text": "Interfaces / contracts"
+        },
+        {
+          "level": 2,
+          "text": "Allowed edit paths"
+        },
+        {
+          "level": 2,
+          "text": "Forbidden edit paths"
+        },
+        {
+          "level": 2,
+          "text": "Test strategy"
+        },
+        {
+          "level": 2,
+          "text": "Integrations"
+        },
+        {
+          "level": 2,
+          "text": "Alternatives considered"
+        },
+        {
+          "level": 2,
+          "text": "Risks and mitigations"
+        }
+      ],
+      "snippet": "# NNN — <Feature Title> · Design <!-- INSTRUCTIONS (delete before use) This document is the implementation contract. It must be concrete enough that a different agent — including a smaller local model — can execute the tasks in tasks.md without re-deriving architecture. If this d",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/features/_template/requirements.md",
+      "extension": ".md",
+      "category": "feature-packet",
+      "family": "Context substrate feature packets",
+      "size_bytes": 6731,
+      "size_kib": 6.6,
+      "modified_local": "2026-06-29T18:39:32+03:00",
+      "sha256": "fecc83121cb571f9f8b72ced7c2233d8a4fc693c3ab5162e2b2fccc5f203674e",
+      "sha256_16": "fecc83121cb571f9",
+      "title": "requirements.md",
+      "encoding": "utf-8-sig",
+      "line_count": 154,
+      "word_count": 875,
+      "heading_count": 12,
+      "headings": [
+        {
+          "level": 1,
+          "text": "NNN — <Feature Title> · Requirements"
+        },
+        {
+          "level": 2,
+          "text": "Goal"
+        },
+        {
+          "level": 2,
+          "text": "User / operator outcome"
+        },
+        {
+          "level": 2,
+          "text": "Non-goals"
+        },
+        {
+          "level": 2,
+          "text": "Allowed edit paths"
+        },
+        {
+          "level": 2,
+          "text": "Forbidden edit paths"
+        },
+        {
+          "level": 2,
+          "text": "Dependencies"
+        },
+        {
+          "level": 2,
+          "text": "Evidence"
+        },
+        {
+          "level": 2,
+          "text": "Behavior specification (Requirement / Scenario)"
+        },
+        {
+          "level": 3,
+          "text": "ADDED Requirements"
+        },
+        {
+          "level": 4,
+          "text": "Requirement: <name>"
+        },
+        {
+          "level": 5,
+          "text": "Scenario: <name>"
+        }
+      ],
+      "snippet": "# NNN — <Feature Title> · Requirements <!-- INSTRUCTIONS (delete before use) Copy this entire `_template/` directory to `docs/features/<NNN>-<slug>/`. NNN = next zero-padded three-digit number (000, 001, …). Fill every section; remove all instructional comments. Unresolved questi",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/features/_template/tasks.md",
+      "extension": ".md",
+      "category": "feature-packet",
+      "family": "Context substrate feature packets",
+      "size_bytes": 6982,
+      "size_kib": 6.8,
+      "modified_local": "2026-06-29T18:39:32+03:00",
+      "sha256": "61ea40df862531dd437a6aa9abbcd274baeabc95480e8ebf6d418afc784188a8",
+      "sha256_16": "61ea40df862531dd",
+      "title": "tasks.md",
+      "encoding": "utf-8-sig",
+      "line_count": 140,
+      "word_count": 945,
+      "heading_count": 7,
+      "headings": [
+        {
+          "level": 1,
+          "text": "NNN — <Feature Title> · Tasks"
+        },
+        {
+          "level": 2,
+          "text": "Clarify/analyze gate"
+        },
+        {
+          "level": 2,
+          "text": "Implementation tasks"
+        },
+        {
+          "level": 3,
+          "text": "Phase 1 — [Phase name, e.g. \"Schema / data layer\"]"
+        },
+        {
+          "level": 3,
+          "text": "Phase 2 — [Phase name, e.g. \"API / business logic layer\"]"
+        },
+        {
+          "level": 3,
+          "text": "Phase 3 — [Phase name, e.g. \"Verification & review\"]"
+        },
+        {
+          "level": 2,
+          "text": "Definition of done"
+        }
+      ],
+      "snippet": "# NNN — <Feature Title> · Tasks <!-- INSTRUCTIONS (delete before use) Tasks must be: - Small: achievable in a single focused work session by a local/small model. - Independent when tagged [P]: tasks tagged [P] are parallel-safe — they may run concurrently (different agents, diffe",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/quality/BUG_OPERATING_SYSTEM.md",
+      "extension": ".md",
+      "category": "other-document",
+      "family": "Miscellaneous project artifacts",
+      "size_bytes": 9241,
+      "size_kib": 9.0,
+      "modified_local": "2026-07-15T00:57:46+03:00",
+      "sha256": "211710579aa48b77d7761f96e7c5afd64ff24c8ae5d706b0cd1e1d7f4eef0b33",
+      "sha256_16": "211710579aa48b77",
+      "title": "BUG_OPERATING_SYSTEM.md",
+      "encoding": "utf-8-sig",
+      "line_count": 185,
+      "word_count": 1317,
+      "heading_count": 16,
+      "headings": [
+        {
+          "level": 1,
+          "text": "Bug Operating System — HelixAnvil"
+        },
+        {
+          "level": 1,
+          "text": "Bug Operating System — portfolio canonical (v4)"
+        },
+        {
+          "level": 2,
+          "text": "The rule"
+        },
+        {
+          "level": 2,
+          "text": "The packet (7 files under `docs/bugs/BUG-NNNN-<slug>/`)"
+        },
+        {
+          "level": 2,
+          "text": "Severity (user/product impact, NOT implementation difficulty)"
+        },
+        {
+          "level": 2,
+          "text": "Priority (scheduling — orthogonal to severity)"
+        },
+        {
+          "level": 2,
+          "text": "Bug classes (`bug.json.bug_class`, optional routing)"
+        },
+        {
+          "level": 2,
+          "text": "Required evidence"
+        },
+        {
+          "level": 2,
+          "text": "Lifecycle"
+        },
+        {
+          "level": 2,
+          "text": "Root-cause standard"
+        },
+        {
+          "level": 2,
+          "text": "Closure attestation (dual mode)"
+        },
+        {
+          "level": 2,
+          "text": "Audit-intake lane (optional, from DOCUMENT_OS — for projects that receive raw audits)"
+        },
+        {
+          "level": 2,
+          "text": "Gate integration"
+        },
+        {
+          "level": 2,
+          "text": "Gardening rule"
+        },
+        {
+          "level": 2,
+          "text": "Agent handoff rule"
+        },
+        {
+          "level": 2,
+          "text": "Filing a bug fast"
+        }
+      ],
+      "snippet": "# Bug Operating System — HelixAnvil Project: **HelixAnvil** (standalone native IDE). Customize surface taxonomy when product code lands; lifecycle rules remain portfolio doctrine. # Bug Operating System — portfolio canonical (v4) Status: canonical upstream (`~/shared/bug-os/`) SP",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    }
+  ],
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "extension": ".md",
+      "category": "governance-doc",
+      "family": "Project governance and continuation",
+      "size_bytes": 2601,
+      "size_kib": 2.5,
+      "modified_local": "2026-07-15T00:56:57+03:00",
+      "sha256": "ef70a87b7b442eb4686132ecd3ff5782c370e2836e659ce0da75c69affb18b4d",
+      "sha256_16": "ef70a87b7b442eb4",
+      "title": "AGENTS.md",
+      "encoding": "utf-8-sig",
+      "line_count": 82,
+      "word_count": 336,
+      "heading_count": 9,
+      "headings": [
+        {
+          "level": 1,
+          "text": "HelixAnvil — Agent Operating Layer (canonical, vendor-neutral)"
+        },
+        {
+          "level": 2,
+          "text": "§ Commands (run from repo root)"
+        },
+        {
+          "level": 2,
+          "text": "§ Read order (before ANY work)"
+        },
+        {
+          "level": 2,
+          "text": "§ Source-of-truth precedence"
+        },
+        {
+          "level": 2,
+          "text": "§ Feature-packet rule"
+        },
+        {
+          "level": 2,
+          "text": "§ Update + continuation"
+        },
+        {
+          "level": 2,
+          "text": "§ Boundaries and secrets"
+        },
+        {
+          "level": 2,
+          "text": "§ Review and ambition"
+        },
+        {
+          "level": 2,
+          "text": "§ Portfolio note"
+        }
+      ],
+      "snippet": "# HelixAnvil — Agent Operating Layer (canonical, vendor-neutral) This file is the **single canonical instruction set** for all AI agents in this repository. Vendor shims defer to this file; this file defers to the portfolio doctrine (`~/shared/AGENTS.md`). North star: **resume co",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "BUILD_SPEC.md",
+      "extension": ".md",
+      "category": "governance-doc",
+      "family": "Project governance and continuation",
+      "size_bytes": 2502,
+      "size_kib": 2.4,
+      "modified_local": "2026-07-15T00:56:57+03:00",
+      "sha256": "c9655f72267f06a832e26fe324dc789c0b011d3f22c6966915b23d9ce2ec1b6b",
+      "sha256_16": "c9655f72267f06a8",
+      "title": "BUILD_SPEC.md",
+      "encoding": "utf-8-sig",
+      "line_count": 82,
+      "word_count": 316,
+      "heading_count": 13,
+      "headings": [
+        {
+          "level": 1,
+          "text": "HelixAnvil — Build Spec"
+        },
+        {
+          "level": 2,
+          "text": "What this document is"
+        },
+        {
+          "level": 2,
+          "text": "Stack (target — not installed until packet work)"
+        },
+        {
+          "level": 2,
+          "text": "Architecture (target shape)"
+        },
+        {
+          "level": 2,
+          "text": "Runtime boundaries"
+        },
+        {
+          "level": 2,
+          "text": "Commands (substrate)"
+        },
+        {
+          "level": 1,
+          "text": "from HELIXANVIL repo root"
+        },
+        {
+          "level": 2,
+          "text": "Definition of done (substrate install)"
+        },
+        {
+          "level": 2,
+          "text": "Definition of done (product — later)"
+        },
+        {
+          "level": 2,
+          "text": "Keys"
+        },
+        {
+          "level": 1,
+          "text": "~/Desktop/.keys/helix-anvil/.env.local"
+        },
+        {
+          "level": 1,
+          "text": "HelixAnvil local secrets — never commit"
+        },
+        {
+          "level": 1,
+          "text": "HELIX_ANVIL_NOTE=placeholder"
+        }
+      ],
+      "snippet": "# HelixAnvil — Build Spec Status: canonical · Stage: **substrate** · Updated: 2026-07-15 ## What this document is Current **implementation contract**. At substrate stage there is **no product binary yet** — only continuation files, gates, and the first design packet. ## Stack (ta",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "CLAUDE.md",
+      "extension": ".md",
+      "category": "other-document",
+      "family": "Miscellaneous project artifacts",
+      "size_bytes": 511,
+      "size_kib": 0.5,
+      "modified_local": "2026-07-15T00:56:57+03:00",
+      "sha256": "c6e33b937d299e9e49dad6c43ef4da38ea391835e36c5a4655e1bcdebc280918",
+      "sha256_16": "c6e33b937d299e9e",
+      "title": "CLAUDE.md",
+      "encoding": "utf-8-sig",
+      "line_count": 11,
+      "word_count": 66,
+      "heading_count": 2,
+      "headings": [
+        {
+          "level": 1,
+          "text": "CLAUDE.md — HelixAnvil (Claude Code entrypoint)"
+        },
+        {
+          "level": 2,
+          "text": "Claude-specific notes"
+        }
+      ],
+      "snippet": "# CLAUDE.md — HelixAnvil (Claude Code entrypoint) @AGENTS.md ## Claude-specific notes - Canonical operating layer is `AGENTS.md` (imported above). - Portfolio doctrine `~/.claude/CLAUDE.md` → `~/shared/AGENTS.md` outranks on global behavior. - Use plan mode for architecture/scope",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "DECISION_LOG.md",
+      "extension": ".md",
+      "category": "governance-doc",
+      "family": "Project governance and continuation",
+      "size_bytes": 720,
+      "size_kib": 0.7,
+      "modified_local": "2026-07-15T00:56:57+03:00",
+      "sha256": "53c7e97f1acf6b26b82642d6a53eda332d3b79af8c890e822c08a34e33ee865e",
+      "sha256_16": "53c7e97f1acf6b26",
+      "title": "DECISION_LOG.md",
+      "encoding": "utf-8-sig",
+      "line_count": 9,
+      "word_count": 95,
+      "heading_count": 2,
+      "headings": [
+        {
+          "level": 1,
+          "text": "Decision log (append-only)"
+        },
+        {
+          "level": 2,
+          "text": "2026-07-15 — Substrate adoption (standalone native IDE project)"
+        }
+      ],
+      "snippet": "# Decision log (append-only) ## 2026-07-15 — Substrate adoption (standalone native IDE project) - **Why:** Founder ordered: before HelixCode extreme in HelixForge, create **another project** for a completely native IDE from scratch — using portfolio protocol `~/shared/substrate/n",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "GEMINI.md",
+      "extension": ".md",
+      "category": "other-document",
+      "family": "Miscellaneous project artifacts",
+      "size_bytes": 418,
+      "size_kib": 0.4,
+      "modified_local": "2026-07-15T00:56:57+03:00",
+      "sha256": "99ee046c748e0c3d2d952ef501e394d0bb7d8294853b9ef824db7ca709dbe3ee",
+      "sha256_16": "99ee046c748e0c3d",
+      "title": "GEMINI.md",
+      "encoding": "utf-8-sig",
+      "line_count": 11,
+      "word_count": 61,
+      "heading_count": 2,
+      "headings": [
+        {
+          "level": 1,
+          "text": "GEMINI.md — HelixAnvil (Gemini CLI / Antigravity entrypoint)"
+        },
+        {
+          "level": 2,
+          "text": "Gemini/Antigravity-specific notes"
+        }
+      ],
+      "snippet": "# GEMINI.md — HelixAnvil (Gemini CLI / Antigravity entrypoint) **Your canonical operating layer for this repository is `AGENTS.md` in the repo root. Read `AGENTS.md` in full before doing any work, and follow it.** @./AGENTS.md ## Gemini/Antigravity-specific notes - If `@import` d",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "NEXT_ACTION.md",
+      "extension": ".md",
+      "category": "governance-doc",
+      "family": "Project governance and continuation",
+      "size_bytes": 1336,
+      "size_kib": 1.3,
+      "modified_local": "2026-07-15T00:58:13+03:00",
+      "sha256": "3e935ec8d63103e724c1a632d73033ce614b819589a3edf306eec31efec6de2a",
+      "sha256_16": "3e935ec8d63103e7",
+      "title": "NEXT_ACTION.md",
+      "encoding": "utf-8-sig",
+      "line_count": 26,
+      "word_count": 181,
+      "heading_count": 3,
+      "headings": [
+        {
+          "level": 1,
+          "text": "Next action — HelixAnvil"
+        },
+        {
+          "level": 2,
+          "text": "Compaction checklist (2026-07-15)"
+        },
+        {
+          "level": 2,
+          "text": "Parallel: HelixCode extreme (HelixForge)"
+        }
+      ],
+      "snippet": "# Next action — HelixAnvil ## Compaction checklist (2026-07-15) 1. **Just done:** Packet **000-substrate** complete — full substrate + Bug OS; Tier-0 drift **PASS**. Mistaken HelixForge monorepo Anvil embed reverted. 2. **Current state:** Stage `substrate`. Focus **001-editor-ker",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "README.md",
+      "extension": ".md",
+      "category": "other-document",
+      "family": "Miscellaneous project artifacts",
+      "size_bytes": 555,
+      "size_kib": 0.5,
+      "modified_local": "2026-07-15T00:56:57+03:00",
+      "sha256": "1264155d8892f45ad988b5f5e48a8475ba251742d21064a7bef8b1c5a562f505",
+      "sha256_16": "1264155d8892f45a",
+      "title": "README.md",
+      "encoding": "utf-8-sig",
+      "line_count": 24,
+      "word_count": 64,
+      "heading_count": 3,
+      "headings": [
+        {
+          "level": 1,
+          "text": "HelixAnvil"
+        },
+        {
+          "level": 2,
+          "text": "Quick start (agents)"
+        },
+        {
+          "level": 2,
+          "text": "Not HelixForge"
+        }
+      ],
+      "snippet": "# HelixAnvil Completely **native IDE from scratch** — standalone portfolio project. | | | |--|--| | Slug | `helix-anvil` | | Stage | substrate | | Secrets | `~/Desktop/.keys/helix-anvil/` | | Sister | HelixCode extreme → HelixForge monorepo | ## Quick start (agents) 1. Read `PROJ",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "REVIEW.md",
+      "extension": ".md",
+      "category": "other-document",
+      "family": "Miscellaneous project artifacts",
+      "size_bytes": 1036,
+      "size_kib": 1.0,
+      "modified_local": "2026-07-15T00:56:57+03:00",
+      "sha256": "b088b8f66bd908aa1b790328baa7d81beaa3e7b61093263273284ba531d07e07",
+      "sha256_16": "b088b8f66bd908aa",
+      "title": "REVIEW.md",
+      "encoding": "utf-8-sig",
+      "line_count": 39,
+      "word_count": 133,
+      "heading_count": 9,
+      "headings": [
+        {
+          "level": 1,
+          "text": "HelixAnvil — Review Configuration"
+        },
+        {
+          "level": 2,
+          "text": "Tier 0 — Deterministic gates (always on, blocking)"
+        },
+        {
+          "level": 1,
+          "text": "when Rust lands:"
+        },
+        {
+          "level": 1,
+          "text": "cargo test --workspace"
+        },
+        {
+          "level": 1,
+          "text": "cargo clippy --workspace --all-targets"
+        },
+        {
+          "level": 2,
+          "text": "Tier 1 — Single-pass review"
+        },
+        {
+          "level": 2,
+          "text": "Tier 2 — Multi-specialist"
+        },
+        {
+          "level": 2,
+          "text": "Tier 3 — Deep review (gated paths)"
+        },
+        {
+          "level": 2,
+          "text": "Threshold"
+        }
+      ],
+      "snippet": "# HelixAnvil — Review Configuration Status: canonical · Last updated: 2026-07-15 Four-tier review doctrine per `~/shared/AGENTS.md`. ## Tier 0 — Deterministic gates (always on, blocking) ```bash python tools/context/check_context_drift.py python tools/quality/validate_bug_packets",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "VISION.md",
+      "extension": ".md",
+      "category": "governance-doc",
+      "family": "Project governance and continuation",
+      "size_bytes": 2083,
+      "size_kib": 2.0,
+      "modified_local": "2026-07-15T00:56:57+03:00",
+      "sha256": "7c02cc60d1908e785ea3cc363c6a178bd28494d3e89cdd8ffb7ac2d1a051ed29",
+      "sha256_16": "7c02cc60d1908e78",
+      "title": "VISION.md",
+      "encoding": "utf-8-sig",
+      "line_count": 41,
+      "word_count": 293,
+      "heading_count": 7,
+      "headings": [
+        {
+          "level": 1,
+          "text": "HelixAnvil — vision"
+        },
+        {
+          "level": 2,
+          "text": "Problem"
+        },
+        {
+          "level": 2,
+          "text": "North star"
+        },
+        {
+          "level": 2,
+          "text": "Wedge"
+        },
+        {
+          "level": 2,
+          "text": "What it is not"
+        },
+        {
+          "level": 2,
+          "text": "Relationship to HelixForge / HelixCode"
+        },
+        {
+          "level": 2,
+          "text": "Success (long horizon)"
+        }
+      ],
+      "snippet": "# HelixAnvil — vision **Slug:** `helix-anvil` · **Stage:** substrate · **Home:** standalone portfolio project (not a HelixForge monorepo product) ## Problem Sovereign software work still depends on **foreign IDE kernels** (VS Code / Electron, JetBrains, cloud IDEs). HelixForge’s ",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "constitution.md",
+      "extension": ".md",
+      "category": "other-document",
+      "family": "Miscellaneous project artifacts",
+      "size_bytes": 2670,
+      "size_kib": 2.6,
+      "modified_local": "2026-07-15T00:56:57+03:00",
+      "sha256": "0869d6ebcf17b5f659b00feab0273e5244f8a5e5d6fa841f657f1ba6776fcf94",
+      "sha256_16": "0869d6ebcf17b5f6",
+      "title": "constitution.md",
+      "encoding": "utf-8-sig",
+      "line_count": 51,
+      "word_count": 389,
+      "heading_count": 9,
+      "headings": [
+        {
+          "level": 1,
+          "text": "HelixAnvil — Constitution (immutable project principles)"
+        },
+        {
+          "level": 2,
+          "text": "Article I — Scope discipline"
+        },
+        {
+          "level": 2,
+          "text": "Article II — Evidence before claims"
+        },
+        {
+          "level": 2,
+          "text": "Article III — Secrets stay outside the tree"
+        },
+        {
+          "level": 2,
+          "text": "Article IV — Vendor-neutral by construction"
+        },
+        {
+          "level": 2,
+          "text": "Article V — Thorough over cheap; ambitious but never vague"
+        },
+        {
+          "level": 2,
+          "text": "Article VI — Independent verification"
+        },
+        {
+          "level": 2,
+          "text": "Article VII — Own the editor kernel"
+        },
+        {
+          "level": 2,
+          "text": "Article VIII — Separate from HelixCode"
+        }
+      ],
+      "snippet": "# HelixAnvil — Constitution (immutable project principles) Status: canonical · Last updated: 2026-07-15 These principles are binding on every agent and every change. When a packet, design, or shortcut conflicts with an Article, the Article wins — or the Article is amended first (",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/bugs/BUGS.md",
+      "extension": ".md",
+      "category": "other-document",
+      "family": "Miscellaneous project artifacts",
+      "size_bytes": 587,
+      "size_kib": 0.6,
+      "modified_local": "2026-07-03T01:17:20+03:00",
+      "sha256": "bde3c9fe8cb91230be649a2b784ac49d11a0b980714a6ede42786ee56b67e87c",
+      "sha256_16": "bde3c9fe8cb91230",
+      "title": "BUGS.md",
+      "encoding": "utf-8-sig",
+      "line_count": 14,
+      "word_count": 92,
+      "heading_count": 2,
+      "headings": [
+        {
+          "level": 1,
+          "text": "Bugs registry"
+        },
+        {
+          "level": 2,
+          "text": "Gardening rule"
+        }
+      ],
+      "snippet": "# Bugs registry The packet is the authority; this file is the quick index. One row per material bug. | ID | Severity | Priority | Status | Surface | Title | |---|---|---|---|---|---| | _(none yet — zero packets is a clean pass)_ | | | | | | ## Gardening rule Every quality batch s",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/bugs/_template/evidence.md",
+      "extension": ".md",
+      "category": "other-document",
+      "family": "Miscellaneous project artifacts",
+      "size_bytes": 239,
+      "size_kib": 0.2,
+      "modified_local": "2026-07-03T00:47:25+03:00",
+      "sha256": "c9cf49a4811026b7563af4a5098ba8a1f90ed4a5aa51921948bc8c1d692099ee",
+      "sha256_16": "c9cf49a4811026b7",
+      "title": "evidence.md",
+      "encoding": "utf-8-sig",
+      "line_count": 14,
+      "word_count": 33,
+      "heading_count": 6,
+      "headings": [
+        {
+          "level": 1,
+          "text": "Evidence"
+        },
+        {
+          "level": 2,
+          "text": "Before"
+        },
+        {
+          "level": 2,
+          "text": "After"
+        },
+        {
+          "level": 2,
+          "text": "Commands"
+        },
+        {
+          "level": 2,
+          "text": "Closure Decision"
+        },
+        {
+          "level": 2,
+          "text": "Closure Attestation"
+        }
+      ],
+      "snippet": "# Evidence ## Before ## After ## Commands ## Closure Decision ## Closure Attestation If the bug is `verified` and the signed run-ledger is in use, record the signed `bug_verified` event id here and in `bug.json.closure_attestation`.",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/bugs/_template/fix_plan.md",
+      "extension": ".md",
+      "category": "other-document",
+      "family": "Miscellaneous project artifacts",
+      "size_bytes": 86,
+      "size_kib": 0.1,
+      "modified_local": "2026-07-03T00:47:25+03:00",
+      "sha256": "82ffe764df96708324de53cd3c4c428989dcda8ac8b3ff5133f3d451ccb3b27c",
+      "sha256_16": "82ffe764df967083",
+      "title": "fix_plan.md",
+      "encoding": "utf-8-sig",
+      "line_count": 11,
+      "word_count": 11,
+      "heading_count": 6,
+      "headings": [
+        {
+          "level": 1,
+          "text": "Fix Plan"
+        },
+        {
+          "level": 2,
+          "text": "Scope"
+        },
+        {
+          "level": 2,
+          "text": "Files Expected To Change"
+        },
+        {
+          "level": 2,
+          "text": "Non-Goals"
+        },
+        {
+          "level": 2,
+          "text": "Risk"
+        },
+        {
+          "level": 2,
+          "text": "Rollback"
+        }
+      ],
+      "snippet": "# Fix Plan ## Scope ## Files Expected To Change ## Non-Goals ## Risk ## Rollback",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/bugs/_template/regression_tests.md",
+      "extension": ".md",
+      "category": "other-document",
+      "family": "Miscellaneous project artifacts",
+      "size_bytes": 94,
+      "size_kib": 0.1,
+      "modified_local": "2026-07-03T00:47:25+03:00",
+      "sha256": "55087bc4b0e43571f97432841a6053faed02112d3bed3effd9c2999ac2998cbe",
+      "sha256_16": "55087bc4b0e43571",
+      "title": "regression_tests.md",
+      "encoding": "utf-8-sig",
+      "line_count": 11,
+      "word_count": 10,
+      "heading_count": 5,
+      "headings": [
+        {
+          "level": 1,
+          "text": "Regression Tests"
+        },
+        {
+          "level": 2,
+          "text": "Required Gates"
+        },
+        {
+          "level": 2,
+          "text": "Manual Proof"
+        },
+        {
+          "level": 2,
+          "text": "Automated Proof"
+        },
+        {
+          "level": 2,
+          "text": "Not Covered"
+        }
+      ],
+      "snippet": "# Regression Tests ## Required Gates - ## Manual Proof ## Automated Proof ## Not Covered",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/bugs/_template/report.md",
+      "extension": ".md",
+      "category": "other-document",
+      "family": "Miscellaneous project artifacts",
+      "size_bytes": 307,
+      "size_kib": 0.3,
+      "modified_local": "2026-07-03T00:47:25+03:00",
+      "sha256": "1083224c0eba4577bbff6303f45059b31138cbc2b6aeb6278b977e91330298ea",
+      "sha256_16": "1083224c0eba4577",
+      "title": "report.md",
+      "encoding": "utf-8-sig",
+      "line_count": 20,
+      "word_count": 43,
+      "heading_count": 5,
+      "headings": [
+        {
+          "level": 1,
+          "text": "Report"
+        },
+        {
+          "level": 2,
+          "text": "Symptom"
+        },
+        {
+          "level": 2,
+          "text": "Impact"
+        },
+        {
+          "level": 2,
+          "text": "Environment"
+        },
+        {
+          "level": 2,
+          "text": "First Seen"
+        }
+      ],
+      "snippet": "# Report ## Symptom Describe what the user or agent observed. ## Impact Describe the affected capability and why the product cannot ignore it. ## Environment - OS: - Component / module: - Runtime (py -3.13, MCP server, CLI, adapter): - Branch/worktree note: ## First Seen Date and",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/bugs/_template/repro.md",
+      "extension": ".md",
+      "category": "other-document",
+      "family": "Miscellaneous project artifacts",
+      "size_bytes": 180,
+      "size_kib": 0.2,
+      "modified_local": "2026-07-03T00:47:25+03:00",
+      "sha256": "6b043664f922631921fcf349758c041f6a59dc8f86dfab63b3d51694cdcdfbd0",
+      "sha256_16": "6b043664f9226319",
+      "title": "repro.md",
+      "encoding": "utf-8-sig",
+      "line_count": 21,
+      "word_count": 22,
+      "heading_count": 7,
+      "headings": [
+        {
+          "level": 1,
+          "text": "Reproduction"
+        },
+        {
+          "level": 2,
+          "text": "Status"
+        },
+        {
+          "level": 2,
+          "text": "Steps"
+        },
+        {
+          "level": 2,
+          "text": "Expected"
+        },
+        {
+          "level": 2,
+          "text": "Actual"
+        },
+        {
+          "level": 2,
+          "text": "Evidence"
+        },
+        {
+          "level": 2,
+          "text": "Reproduction Notes"
+        }
+      ],
+      "snippet": "# Reproduction ## Status missing ## Steps 1. ## Expected ## Actual ## Evidence - ## Reproduction Notes If blocked, say what was tried and what evidence is still missing.",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/bugs/_template/root_cause.md",
+      "extension": ".md",
+      "category": "other-document",
+      "family": "Miscellaneous project artifacts",
+      "size_bytes": 402,
+      "size_kib": 0.4,
+      "modified_local": "2026-07-03T00:47:25+03:00",
+      "sha256": "881ef2ab9e52a568a37be02be98f1764b27650040241b8bdd4c441d6b689894d",
+      "sha256_16": "881ef2ab9e52a568",
+      "title": "root_cause.md",
+      "encoding": "utf-8-sig",
+      "line_count": 18,
+      "word_count": 58,
+      "heading_count": 6,
+      "headings": [
+        {
+          "level": 1,
+          "text": "Root Cause"
+        },
+        {
+          "level": 2,
+          "text": "Current Understanding"
+        },
+        {
+          "level": 2,
+          "text": "Why Existing Gates Missed It"
+        },
+        {
+          "level": 2,
+          "text": "Owning Surface"
+        },
+        {
+          "level": 2,
+          "text": "Preventing Invariant"
+        },
+        {
+          "level": 2,
+          "text": "Trust-but-verify primitive(s) / Tier-0 lint"
+        }
+      ],
+      "snippet": "# Root Cause ## Current Understanding Unknown until reproduction is complete. ## Why Existing Gates Missed It ## Owning Surface ## Preventing Invariant Name the test, lint, smoke, fixture, or review rule that should catch this class. ## Trust-but-verify primitive(s) / Tier-0 lint",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/features/000-substrate/acceptance.md",
+      "extension": ".md",
+      "category": "feature-packet",
+      "family": "Context substrate feature packets",
+      "size_bytes": 1197,
+      "size_kib": 1.2,
+      "modified_local": "2026-07-15T00:58:13+03:00",
+      "sha256": "d5d3315c130ca66997a2b5b85070c6d478169e83e40cdf097b7d5cb2f62580fa",
+      "sha256_16": "d5d3315c130ca669",
+      "title": "acceptance.md",
+      "encoding": "utf-8-sig",
+      "line_count": 26,
+      "word_count": 141,
+      "heading_count": 2,
+      "headings": [
+        {
+          "level": 1,
+          "text": "000 — Substrate install · Acceptance"
+        },
+        {
+          "level": 2,
+          "text": "Evidence log"
+        }
+      ],
+      "snippet": "# 000 — Substrate install · Acceptance | # | Scenario / requirement | Evidence | Status | |---|------------------------|----------|--------| | 1 | Substrate files present | Root: AGENTS/VISION/BUILD_SPEC/PROJECT_STATE/…; tools/context; docs/features; Bug OS | **PASS** | | 2 | Dri",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/features/000-substrate/design.md",
+      "extension": ".md",
+      "category": "feature-packet",
+      "family": "Context substrate feature packets",
+      "size_bytes": 1087,
+      "size_kib": 1.1,
+      "modified_local": "2026-07-15T00:57:22+03:00",
+      "sha256": "c7de036d13fc4e7d38d095d1fe274a78f5a74c02220a35705f2866047e0407c5",
+      "sha256_16": "c7de036d13fc4e7d",
+      "title": "design.md",
+      "encoding": "utf-8-sig",
+      "line_count": 25,
+      "word_count": 138,
+      "heading_count": 5,
+      "headings": [
+        {
+          "level": 1,
+          "text": "000 — Substrate install · Design"
+        },
+        {
+          "level": 2,
+          "text": "Approach"
+        },
+        {
+          "level": 2,
+          "text": "Architecture decisions (this packet only)"
+        },
+        {
+          "level": 2,
+          "text": "Risks"
+        },
+        {
+          "level": 2,
+          "text": "Out of scope details"
+        }
+      ],
+      "snippet": "# 000 — Substrate install · Design ## Approach Copy and fill `~/shared/substrate/` templates into `C:\\Users\\divin\\PROJECTS\\HELIXANVIL`. Port Bug OS from `~/shared/bug-os/`. Wire bug validator into Tier-0 drift check. Regenerate document index + context pack until drift exits clea",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/features/000-substrate/requirements.md",
+      "extension": ".md",
+      "category": "feature-packet",
+      "family": "Context substrate feature packets",
+      "size_bytes": 3255,
+      "size_kib": 3.2,
+      "modified_local": "2026-07-15T00:57:22+03:00",
+      "sha256": "fdf660e8db6770f10ae2672b77a5b506a4e5b5fab5e1a6127a0a00e3df304bd9",
+      "sha256_16": "fdf660e8db6770f1",
+      "title": "requirements.md",
+      "encoding": "utf-8-sig",
+      "line_count": 87,
+      "word_count": 433,
+      "heading_count": 15,
+      "headings": [
+        {
+          "level": 1,
+          "text": "000 — Substrate install · Requirements"
+        },
+        {
+          "level": 2,
+          "text": "Goal"
+        },
+        {
+          "level": 2,
+          "text": "User / operator outcome"
+        },
+        {
+          "level": 2,
+          "text": "Non-goals"
+        },
+        {
+          "level": 2,
+          "text": "Allowed edit paths"
+        },
+        {
+          "level": 2,
+          "text": "Forbidden edit paths"
+        },
+        {
+          "level": 2,
+          "text": "### ADDED Requirements"
+        },
+        {
+          "level": 4,
+          "text": "Requirement: Substrate files present"
+        },
+        {
+          "level": 5,
+          "text": "Scenario: Cold resume inventory"
+        },
+        {
+          "level": 4,
+          "text": "Requirement: Drift gate clean"
+        },
+        {
+          "level": 5,
+          "text": "Scenario: Tier-0 pass"
+        },
+        {
+          "level": 4,
+          "text": "Requirement: Standalone identity"
+        },
+        {
+          "level": 5,
+          "text": "Scenario: No monorepo product embed"
+        },
+        {
+          "level": 4,
+          "text": "Requirement: Next slice defined"
+        },
+        {
+          "level": 5,
+          "text": "Scenario: Handoff to design"
+        }
+      ],
+      "snippet": "# 000 — Substrate install · Requirements ## Goal Install the portfolio vendor-neutral agent-continuation substrate into HelixAnvil so any vendor can resume cold without chat memory. Establish project identity as a **standalone** native-IDE repo (not a HelixForge monorepo product)",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/features/000-substrate/tasks.md",
+      "extension": ".md",
+      "category": "feature-packet",
+      "family": "Context substrate feature packets",
+      "size_bytes": 585,
+      "size_kib": 0.6,
+      "modified_local": "2026-07-15T00:58:13+03:00",
+      "sha256": "45a6c3ac0791c1d153212df286729e35a16e0300e5f9986f06b1c11f68f8c22a",
+      "sha256_16": "45a6c3ac0791c1d1",
+      "title": "tasks.md",
+      "encoding": "utf-8-sig",
+      "line_count": 10,
+      "word_count": 86,
+      "heading_count": 1,
+      "headings": [
+        {
+          "level": 1,
+          "text": "000 — Substrate install · Tasks"
+        }
+      ],
+      "snippet": "# 000 — Substrate install · Tasks - [x] T-000 Clarify/analyze: standalone vs monorepo; confirmed standalone substrate protocol - [x] T-001 Copy schema, context tools, feature template, Bug OS - [x] T-002 Write VISION, constitution, BUILD_SPEC, AGENTS, shims, REVIEW, DECISION_LOG,",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/features/001-editor-kernel-design/acceptance.md",
+      "extension": ".md",
+      "category": "feature-packet",
+      "family": "Context substrate feature packets",
+      "size_bytes": 373,
+      "size_kib": 0.4,
+      "modified_local": "2026-07-15T00:57:46+03:00",
+      "sha256": "23ca43407c1918d86a8dfe5541521ed9aa9edf6e86e0b3b1d6442fb34a099d88",
+      "sha256_16": "23ca43407c1918d8",
+      "title": "acceptance.md",
+      "encoding": "utf-8-sig",
+      "line_count": 7,
+      "word_count": 35,
+      "heading_count": 1,
+      "headings": [
+        {
+          "level": 1,
+          "text": "001 — Native editor kernel design · Acceptance"
+        }
+      ],
+      "snippet": "# 001 — Native editor kernel design · Acceptance | # | Requirement | Evidence | Status | |---|-------------|----------|--------| | 1 | Kernel boundary documented | design.md + optional architecture doc | planned | | 2 | Shell choice / criteria in DECISION_LOG | dated entry | plan",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/features/001-editor-kernel-design/design.md",
+      "extension": ".md",
+      "category": "feature-packet",
+      "family": "Context substrate feature packets",
+      "size_bytes": 602,
+      "size_kib": 0.6,
+      "modified_local": "2026-07-15T00:57:46+03:00",
+      "sha256": "33095742dfa49abf443146438bda518c31e31fe6811bad66b889842f48d307ae",
+      "sha256_16": "33095742dfa49abf",
+      "title": "design.md",
+      "encoding": "utf-8-sig",
+      "line_count": 23,
+      "word_count": 87,
+      "heading_count": 5,
+      "headings": [
+        {
+          "level": 1,
+          "text": "001 — Native editor kernel design · Design"
+        },
+        {
+          "level": 2,
+          "text": "Status"
+        },
+        {
+          "level": 2,
+          "text": "Target shape (draft — not ratified)"
+        },
+        {
+          "level": 2,
+          "text": "Decisions to make in this packet"
+        },
+        {
+          "level": 2,
+          "text": "Non-decisions (later packets)"
+        }
+      ],
+      "snippet": "# 001 — Native editor kernel design · Design ## Status **Planned.** Fill during 001 active work. Placeholder shape only. ## Target shape (draft — not ratified) ``` ui shell → editor commands/view → buffer kernel → filesystem / optional LSP ``` ## Decisions to make in this packet ",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/features/001-editor-kernel-design/requirements.md",
+      "extension": ".md",
+      "category": "feature-packet",
+      "family": "Context substrate feature packets",
+      "size_bytes": 2415,
+      "size_kib": 2.4,
+      "modified_local": "2026-07-15T00:57:46+03:00",
+      "sha256": "1896b92a5393f9cc421e85a9cacb32e1decbe4ebccb7b09984ee41ba2257c65c",
+      "sha256_16": "1896b92a5393f9cc",
+      "title": "requirements.md",
+      "encoding": "utf-8-sig",
+      "line_count": 72,
+      "word_count": 331,
+      "heading_count": 14,
+      "headings": [
+        {
+          "level": 1,
+          "text": "001 — Native editor kernel design · Requirements"
+        },
+        {
+          "level": 2,
+          "text": "Goal"
+        },
+        {
+          "level": 2,
+          "text": "User / operator outcome"
+        },
+        {
+          "level": 2,
+          "text": "Non-goals"
+        },
+        {
+          "level": 2,
+          "text": "Allowed edit paths"
+        },
+        {
+          "level": 2,
+          "text": "Forbidden edit paths"
+        },
+        {
+          "level": 2,
+          "text": "### ADDED Requirements"
+        },
+        {
+          "level": 4,
+          "text": "Requirement: Kernel boundary documented"
+        },
+        {
+          "level": 5,
+          "text": "Scenario: Single source of text truth"
+        },
+        {
+          "level": 4,
+          "text": "Requirement: Shell choice ratified or deferred with criteria"
+        },
+        {
+          "level": 5,
+          "text": "Scenario: Decision log entry"
+        },
+        {
+          "level": 4,
+          "text": "Requirement: Implementation packet spawn criteria"
+        },
+        {
+          "level": 5,
+          "text": "Scenario: Clear handoff"
+        },
+        {
+          "level": 2,
+          "text": "Open questions"
+        }
+      ],
+      "snippet": "# 001 — Native editor kernel design · Requirements ## Goal Produce a design-ready specification for HelixAnvil’s first **from-scratch native editor kernel** (document model, command surface, shell boundary) so a later implementation packet can start without architecture thrash. #",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/features/001-editor-kernel-design/tasks.md",
+      "extension": ".md",
+      "category": "feature-packet",
+      "family": "Context substrate feature packets",
+      "size_bytes": 583,
+      "size_kib": 0.6,
+      "modified_local": "2026-07-15T00:57:46+03:00",
+      "sha256": "ff6ba1e96f1057ade2d001b5412bd983ddff487e654fcec11cb5969632f04c12",
+      "sha256_16": "ff6ba1e96f1057ad",
+      "title": "tasks.md",
+      "encoding": "utf-8-sig",
+      "line_count": 10,
+      "word_count": 83,
+      "heading_count": 1,
+      "headings": [
+        {
+          "level": 1,
+          "text": "001 — Native editor kernel design · Tasks"
+        }
+      ],
+      "snippet": "# 001 — Native editor kernel design · Tasks - [ ] T-000 Clarify/analyze gate — resolve all [NEEDS CLARIFICATION] in requirements.md - [ ] T-001 Research shell options (verify online) and recommend one - [ ] T-002 Specify RopeBuffer (or chosen) API + edit ops + tests plan - [ ] T-",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/features/_template/acceptance.md",
+      "extension": ".md",
+      "category": "feature-packet",
+      "family": "Context substrate feature packets",
+      "size_bytes": 5890,
+      "size_kib": 5.8,
+      "modified_local": "2026-06-29T18:16:37+03:00",
+      "sha256": "e014a63b475aa6af1525b346ae50cdc871c3a3c5c27fde3e6c480ec4e27eecd6",
+      "sha256_16": "e014a63b475aa6af",
+      "title": "acceptance.md",
+      "encoding": "utf-8-sig",
+      "line_count": 156,
+      "word_count": 775,
+      "heading_count": 27,
+      "headings": [
+        {
+          "level": 1,
+          "text": "NNN — <Feature Title> · Acceptance"
+        },
+        {
+          "level": 2,
+          "text": "Section 1 — Scenario checklist"
+        },
+        {
+          "level": 2,
+          "text": "Section 2 — Evidence"
+        },
+        {
+          "level": 3,
+          "text": "<Requirement name> / <Scenario name>"
+        },
+        {
+          "level": 1,
+          "text": "Command run:"
+        },
+        {
+          "level": 1,
+          "text": "Output:"
+        },
+        {
+          "level": 2,
+          "text": "Section 3 — Review requirements"
+        },
+        {
+          "level": 2,
+          "text": "Section 4 — Trust-but-verify primitives"
+        },
+        {
+          "level": 3,
+          "text": "(h) UI-feature runtime-render assertion"
+        },
+        {
+          "level": 1,
+          "text": "Command:"
+        },
+        {
+          "level": 1,
+          "text": "Output:"
+        },
+        {
+          "level": 3,
+          "text": "(i) AST-scoped contract-grep"
+        },
+        {
+          "level": 1,
+          "text": "Command:"
+        },
+        {
+          "level": 1,
+          "text": "Output:"
+        },
+        {
+          "level": 3,
+          "text": "(j) Handler-chain return-code-propagation"
+        },
+        {
+          "level": 1,
+          "text": "Evidence (direct read — not regex):"
+        },
+        {
+          "level": 3,
+          "text": "(l) Happy-path signing roundtrip"
+        },
+        {
+          "level": 1,
+          "text": "Command:"
+        },
+        {
+          "level": 1,
+          "text": "Output:"
+        },
+        {
+          "level": 3,
+          "text": "(m) Sovereignty-constraint cross-check"
+        },
+        {
+          "level": 1,
+          "text": "Allow-list path:"
+        },
+        {
+          "level": 1,
+          "text": "New source(s) introduced:"
+        },
+        {
+          "level": 1,
+          "text": "Cross-check result:"
+        },
+        {
+          "level": 3,
+          "text": "(n) Production-state-isolation gate"
+        },
+        {
+          "level": 1,
+          "text": "Path-override flag name:"
+        },
+        {
+          "level": 1,
+          "text": "Test invocation example:"
+        },
+        {
+          "level": 1,
+          "text": "tmp_path confirmed: yes / no"
+        }
+      ],
+      "snippet": "# NNN — <Feature Title> · Acceptance <!-- INSTRUCTIONS (delete before use) This document is the objective bar for \"this packet is done\" AND the EVIDENCE ledger that proves it. It must be completable by a reviewer (human or AI) without re-interviewing the implementer. Substrate v2",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/features/_template/design.md",
+      "extension": ".md",
+      "category": "feature-packet",
+      "family": "Context substrate feature packets",
+      "size_bytes": 6586,
+      "size_kib": 6.4,
+      "modified_local": "2026-06-29T18:17:56+03:00",
+      "sha256": "774bab00baea8d9318c191ab932f59d498307484945947b3f6cdee90511d82f8",
+      "sha256_16": "774bab00baea8d93",
+      "title": "design.md",
+      "encoding": "utf-8-sig",
+      "line_count": 157,
+      "word_count": 850,
+      "heading_count": 12,
+      "headings": [
+        {
+          "level": 1,
+          "text": "NNN — <Feature Title> · Design"
+        },
+        {
+          "level": 2,
+          "text": "Approach"
+        },
+        {
+          "level": 2,
+          "text": "Capability & spec promotion"
+        },
+        {
+          "level": 2,
+          "text": "Architecture"
+        },
+        {
+          "level": 2,
+          "text": "Data contracts"
+        },
+        {
+          "level": 2,
+          "text": "Interfaces / contracts"
+        },
+        {
+          "level": 2,
+          "text": "Allowed edit paths"
+        },
+        {
+          "level": 2,
+          "text": "Forbidden edit paths"
+        },
+        {
+          "level": 2,
+          "text": "Test strategy"
+        },
+        {
+          "level": 2,
+          "text": "Integrations"
+        },
+        {
+          "level": 2,
+          "text": "Alternatives considered"
+        },
+        {
+          "level": 2,
+          "text": "Risks and mitigations"
+        }
+      ],
+      "snippet": "# NNN — <Feature Title> · Design <!-- INSTRUCTIONS (delete before use) This document is the implementation contract. It must be concrete enough that a different agent — including a smaller local model — can execute the tasks in tasks.md without re-deriving architecture. If this d",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/features/_template/requirements.md",
+      "extension": ".md",
+      "category": "feature-packet",
+      "family": "Context substrate feature packets",
+      "size_bytes": 6731,
+      "size_kib": 6.6,
+      "modified_local": "2026-06-29T18:39:32+03:00",
+      "sha256": "fecc83121cb571f9f8b72ced7c2233d8a4fc693c3ab5162e2b2fccc5f203674e",
+      "sha256_16": "fecc83121cb571f9",
+      "title": "requirements.md",
+      "encoding": "utf-8-sig",
+      "line_count": 154,
+      "word_count": 875,
+      "heading_count": 12,
+      "headings": [
+        {
+          "level": 1,
+          "text": "NNN — <Feature Title> · Requirements"
+        },
+        {
+          "level": 2,
+          "text": "Goal"
+        },
+        {
+          "level": 2,
+          "text": "User / operator outcome"
+        },
+        {
+          "level": 2,
+          "text": "Non-goals"
+        },
+        {
+          "level": 2,
+          "text": "Allowed edit paths"
+        },
+        {
+          "level": 2,
+          "text": "Forbidden edit paths"
+        },
+        {
+          "level": 2,
+          "text": "Dependencies"
+        },
+        {
+          "level": 2,
+          "text": "Evidence"
+        },
+        {
+          "level": 2,
+          "text": "Behavior specification (Requirement / Scenario)"
+        },
+        {
+          "level": 3,
+          "text": "ADDED Requirements"
+        },
+        {
+          "level": 4,
+          "text": "Requirement: <name>"
+        },
+        {
+          "level": 5,
+          "text": "Scenario: <name>"
+        }
+      ],
+      "snippet": "# NNN — <Feature Title> · Requirements <!-- INSTRUCTIONS (delete before use) Copy this entire `_template/` directory to `docs/features/<NNN>-<slug>/`. NNN = next zero-padded three-digit number (000, 001, …). Fill every section; remove all instructional comments. Unresolved questi",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/features/_template/tasks.md",
+      "extension": ".md",
+      "category": "feature-packet",
+      "family": "Context substrate feature packets",
+      "size_bytes": 6982,
+      "size_kib": 6.8,
+      "modified_local": "2026-06-29T18:39:32+03:00",
+      "sha256": "61ea40df862531dd437a6aa9abbcd274baeabc95480e8ebf6d418afc784188a8",
+      "sha256_16": "61ea40df862531dd",
+      "title": "tasks.md",
+      "encoding": "utf-8-sig",
+      "line_count": 140,
+      "word_count": 945,
+      "heading_count": 7,
+      "headings": [
+        {
+          "level": 1,
+          "text": "NNN — <Feature Title> · Tasks"
+        },
+        {
+          "level": 2,
+          "text": "Clarify/analyze gate"
+        },
+        {
+          "level": 2,
+          "text": "Implementation tasks"
+        },
+        {
+          "level": 3,
+          "text": "Phase 1 — [Phase name, e.g. \"Schema / data layer\"]"
+        },
+        {
+          "level": 3,
+          "text": "Phase 2 — [Phase name, e.g. \"API / business logic layer\"]"
+        },
+        {
+          "level": 3,
+          "text": "Phase 3 — [Phase name, e.g. \"Verification & review\"]"
+        },
+        {
+          "level": 2,
+          "text": "Definition of done"
+        }
+      ],
+      "snippet": "# NNN — <Feature Title> · Tasks <!-- INSTRUCTIONS (delete before use) Tasks must be: - Small: achievable in a single focused work session by a local/small model. - Independent when tagged [P]: tasks tagged [P] are parallel-safe — they may run concurrently (different agents, diffe",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    },
+    {
+      "path": "docs/quality/BUG_OPERATING_SYSTEM.md",
+      "extension": ".md",
+      "category": "other-document",
+      "family": "Miscellaneous project artifacts",
+      "size_bytes": 9241,
+      "size_kib": 9.0,
+      "modified_local": "2026-07-15T00:57:46+03:00",
+      "sha256": "211710579aa48b77d7761f96e7c5afd64ff24c8ae5d706b0cd1e1d7f4eef0b33",
+      "sha256_16": "211710579aa48b77",
+      "title": "BUG_OPERATING_SYSTEM.md",
+      "encoding": "utf-8-sig",
+      "line_count": 185,
+      "word_count": 1317,
+      "heading_count": 16,
+      "headings": [
+        {
+          "level": 1,
+          "text": "Bug Operating System — HelixAnvil"
+        },
+        {
+          "level": 1,
+          "text": "Bug Operating System — portfolio canonical (v4)"
+        },
+        {
+          "level": 2,
+          "text": "The rule"
+        },
+        {
+          "level": 2,
+          "text": "The packet (7 files under `docs/bugs/BUG-NNNN-<slug>/`)"
+        },
+        {
+          "level": 2,
+          "text": "Severity (user/product impact, NOT implementation difficulty)"
+        },
+        {
+          "level": 2,
+          "text": "Priority (scheduling — orthogonal to severity)"
+        },
+        {
+          "level": 2,
+          "text": "Bug classes (`bug.json.bug_class`, optional routing)"
+        },
+        {
+          "level": 2,
+          "text": "Required evidence"
+        },
+        {
+          "level": 2,
+          "text": "Lifecycle"
+        },
+        {
+          "level": 2,
+          "text": "Root-cause standard"
+        },
+        {
+          "level": 2,
+          "text": "Closure attestation (dual mode)"
+        },
+        {
+          "level": 2,
+          "text": "Audit-intake lane (optional, from DOCUMENT_OS — for projects that receive raw audits)"
+        },
+        {
+          "level": 2,
+          "text": "Gate integration"
+        },
+        {
+          "level": 2,
+          "text": "Gardening rule"
+        },
+        {
+          "level": 2,
+          "text": "Agent handoff rule"
+        },
+        {
+          "level": 2,
+          "text": "Filing a bug fast"
+        }
+      ],
+      "snippet": "# Bug Operating System — HelixAnvil Project: **HelixAnvil** (standalone native IDE). Customize surface taxonomy when product code lands; lifecycle rules remain portfolio doctrine. # Bug Operating System — portfolio canonical (v4) Status: canonical upstream (`~/shared/bug-os/`) SP",
+      "type": "unclassified",
+      "origin_guess": "",
+      "summary": "TODO: needs semantic pass",
+      "key_claims": [],
+      "product_implications": [],
+      "contradictions_or_open_questions": [],
+      "currency": "unrated",
+      "unique_contribution": "",
+      "stale_semantic": true
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+# Build outputs (root and any nested)
+**/target
+**/*.rs.bk
+
+# Package managers / front-end artifacts
+**/node_modules
+**/.pnpm-store
+**/.next
+**/.turbo
+**/dist
+**/dist-electron
+**/build
+
+# Git / local data
+**/.git
+/.gitignore
+/.data
+
+# IDE / OS
+/.vscode
+/.idea
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Secrets / env
+.env
+.env.*
+*.pem
+*.key
+
+# TypeScript build info
+**/tsconfig.tsbuildinfo
+
+# Files not copied by the Dockerfile
+/docs
+/infra
+/scripts
+/tests
+/tools
+*.md
+
+# Deploy files are mostly not needed, except the entrypoint script.
+/deploy
+!/deploy/docker/entrypoint.sh

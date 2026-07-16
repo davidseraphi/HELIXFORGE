@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0.0",
+  "id": "011-foundation-integrity",
+  "title": "Foundation Integrity umbrella",
+  "status": "ratified",
+  "updated_at": "2026-07-15",
+  "active_child": "011.2",
+  "children": [
+    { "id": "011.1", "title": "Repository boundary, clean build, and native CI design", "status": "done" },
+    { "id": "011.2", "title": "Stable identity, safe registration, tenant separation, and per-resource access", "status": "active" },
+    { "id": "011.3", "title": "Atomic writes, durable visible jobs, truthful readiness, and fresh release gates", "status": "documented" }
+  ],
+  "next_gate": "close 011.2"
+}

@@ -1,0 +1,49 @@
+# Production overrides for helix-core.
+global:
+  environment: "prod"
+  residencyRegion: "eu-west"
+
+replicaCount: 3
+
+services:
+  gateway:
+    replicas: 3
+  agentHub:
+    replicas: 3
+  vaultService:
+    replicas: 3
+  billingService:
+    replicas: 3
+  observabilityService:
+    replicas: 2
+  authAdapter:
+    replicas: 3
+
+autoscaling:
+  enabled: true
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 60
+
+dbPool:
+  maxConnections: 20
+  minConnections: 5
+
+rateLimit:
+  rps: 200
+
+ingress:
+  enabled: true
+  host: api.helixforge.example
+  tls: true
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+
+cors:
+  allowCredentials: true
+  origins: "https://console.helixforge.example"
+
+# Secrets are provided via externalSecretName in production.
+secrets:
+  databaseUrl: ""
+  vaultMasterKey: ""
+  externalSecretName: "helix-core-prod-secrets"

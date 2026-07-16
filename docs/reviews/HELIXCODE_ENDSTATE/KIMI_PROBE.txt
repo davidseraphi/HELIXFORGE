@@ -1,0 +1,9 @@
+﻿HELLO_KIMI_OK
+kimi.exe : 
+At line:12 char:1
++ kimi.exe --print --final-message-only --yolo --work-dir "C:\Users\div ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+To resume this session: kimi -r 7d16b437-d948-4b25-9c8c-463b44e8bab7

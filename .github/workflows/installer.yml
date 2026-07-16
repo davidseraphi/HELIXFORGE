@@ -1,0 +1,100 @@
+name: Installer + migration roundtrip
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+jobs:
+  installer:
+    name: Install & restore (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Set environment
+        shell: bash
+        run: |
+          echo "HELIX_ENV=local" >> $GITHUB_ENV
+          echo "HELIX_LOCAL_DEV_UNSAFE=1" >> $GITHUB_ENV
+          echo "HELIX_ALLOW_DEV_HEADERS=1" >> $GITHUB_ENV
+          echo "HELIX_DEV_PLATFORM=1" >> $GITHUB_ENV
+          echo "DATABASE_URL=postgres://helix:helix@127.0.0.1:55432/helixforge" >> $GITHUB_ENV
+          echo "NATS_URL=nats://127.0.0.1:4222" >> $GITHUB_ENV
+          echo "MINIO_ENDPOINT=http://127.0.0.1:9000" >> $GITHUB_ENV
+          echo "HELIX_VAULT_MASTER_KEY=ci-vault-master-key-not-prod" >> $GITHUB_ENV
+          echo "HELIX_AUDIT_HMAC_SECRET=ci-audit-hmac-secret" >> $GITHUB_ENV
+          echo "HELIX_WEBHOOK_ALLOW_UNSIGNED=1" >> $GITHUB_ENV
+
+      - name: Install (Ubuntu)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: ./scripts/install.sh
+
+      - name: Install (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: scripts\install.ps1
+
+      - name: Export backup
+        shell: bash
+        run: |
+          mkdir -p /tmp/helixforge-backup
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            pwsh -File scripts\migrate-export.ps1 -OutDir C:\helixforge-backup-test
+          else
+            ./scripts/migrate-export.sh /tmp/helixforge-backup
+          fi
+
+      - name: Restore to isolated project
+        shell: bash
+        run: |
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            pwsh -File scripts\migrate-restore.ps1 -BackupDir C:\helixforge-backup-test -ProjectName helixforge-restore-test -OverrideFile deploy\local\restore.override.yml
+          else
+            COMPOSE_PROJECT_NAME=helixforge-restore-test ./scripts/migrate-restore.sh /tmp/helixforge-backup helixforge-restore-test
+          fi
+
+      - name: Verify restored database
+        shell: bash
+        run: |
+          export DATABASE_URL="postgres://helix:helix@127.0.0.1:55433/helixforge"
+          cargo test -p helix_db
+
+      - name: Cleanup isolated project
+        if: always()
+        shell: bash
+        run: |
+          export COMPOSE_PROJECT_NAME=helixforge-restore-test
+          docker compose -f docker-compose.yml -f deploy/local/restore.override.yml down -v || true
+
+  script-lint-macos:
+    name: Script syntax (macOS)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: ShellCheck bash scripts
+        run: |
+          bash -n scripts/install.sh
+          bash -n scripts/migrate-export.sh
+          bash -n scripts/migrate-restore.sh
+          bash -n scripts/package-release.sh

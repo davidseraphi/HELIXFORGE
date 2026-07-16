@@ -1,0 +1,40 @@
+# HelixCode CI isolation image — git + cargo/rustc for in-container forge steps.
+# Build (from monorepo root or this dir):
+#   docker build -f projects/helix-code/docker/Dockerfile.ci -t helixforge/helix-code-ci:local projects/helix-code/docker
+#
+# Use:
+#   $env:HELIX_CODE_DOCKER_IMAGE="helixforge/helix-code-ci:local"
+#   $env:HELIX_CODE_ISOLATION="docker"
+
+FROM rust:1.85-bookworm
+
+LABEL org.opencontainers.image.title="helix-code-ci" \
+      org.opencontainers.image.description="HelixCode CI sandbox with git + cargo" \
+      org.opencontainers.image.source="https://github.com/helixforge/helixforge"
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        git \
+        ca-certificates \
+        build-essential \
+        pkg-config \
+        libssl-dev \
+        curl \
+        ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && git --version \
+    && rustc --version \
+    && cargo --version
+
+# Non-root-friendly workdir (runner mounts tenant worktree at /work)
+WORKDIR /work
+ENV CARGO_HOME=/tmp/cargo-home \
+    RUSTUP_HOME=/usr/local/rustup \
+    PATH="/usr/local/cargo/bin:${PATH}"
+
+# Default smoke-friendly identity for git steps inside the container
+RUN git config --system user.email "ci@helixforge.local" \
+    && git config --system user.name "HelixCode CI" \
+    && git config --system --add safe.directory '*'
+
+CMD ["sh", "-c", "echo helix-code-ci-ready && git --version && rustc --version"]

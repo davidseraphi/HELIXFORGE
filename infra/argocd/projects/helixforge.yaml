@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: helixforge
+  namespace: argocd
+spec:
+  description: HelixForge sovereign platform
+  sourceRepos:
+    - https://github.com/helixforge/helixforge.git
+  destinations:
+    - namespace: helix-core
+      server: https://kubernetes.default.svc
+    - namespace: helix-products
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"

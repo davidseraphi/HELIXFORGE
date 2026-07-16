@@ -1,0 +1,37 @@
+{
+  "name": "@helixforge/helix-code-web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "HelixCode — sovereign code forge desktop + web shell (Monaco / Code-OSS chrome)",
+  "author": "HelixForge",
+  "license": "UNLICENSED",
+  "homepage": "https://helixforge.local/helix-code",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "next dev -p 3102",
+    "build": "next build",
+    "start": "next start -p 3102",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "electron": "electron .",
+    "electron:dev": "node electron/wait-and-launch.cjs",
+    "desktop": "node electron/wait-and-launch.cjs",
+    "desktop:pack": "electron-builder --config electron-builder.yml --dir"
+  },
+  "dependencies": {
+    "@monaco-editor/react": "^4.7.0",
+    "electron-updater": "^6.3.9",
+    "monaco-editor": "^0.52.2",
+    "next": "^15.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "electron": "^34.0.0",
+    "electron-builder": "^25.1.8",
+    "typescript": "^5.7.0"
+  }
+}

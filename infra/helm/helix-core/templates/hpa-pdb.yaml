@@ -1,0 +1,48 @@
+{{- range $name, $svc := dict
+  "gateway" .Values.services.gateway
+  "agent-hub" .Values.services.agentHub
+  "vault-service" .Values.services.vaultService
+  "billing-service" .Values.services.billingService
+  "observability-service" .Values.services.observabilityService
+  "auth-adapter" .Values.services.authAdapter
+}}
+{{- if and $svc.enabled ($.Values.autoscaling.enabled | default true) }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ $name }}
+  labels:
+    app.kubernetes.io/name: {{ $name }}
+    app.kubernetes.io/part-of: helix-core
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ $name }}
+  minReplicas: {{ $svc.replicas | default $.Values.replicaCount | default 2 }}
+  maxReplicas: {{ $.Values.autoscaling.maxReplicas | default 6 }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ $.Values.autoscaling.targetCPUUtilizationPercentage | default 70 }}
+{{- end }}
+{{- if and $svc.enabled ($.Values.podDisruptionBudget.enabled | default true) }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}
+  labels:
+    app.kubernetes.io/name: {{ $name }}
+    app.kubernetes.io/part-of: helix-core
+spec:
+  minAvailable: {{ $.Values.podDisruptionBudget.minAvailable | default 1 }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $name }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,12 @@
+apiVersion: v2
+name: helix-core
+description: HelixCore platform services (gateway, agent-hub, vault, billing, observability, auth-adapter)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - helixforge
+  - sovereign
+  - rust
+maintainers:
+  - name: HelixForge Platform

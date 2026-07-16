@@ -1,0 +1,53 @@
+# Secrets — never commit
+.env
+.env.*
+*.pem
+*.key
+*.secret
+!.env.example
+
+# Rust
+/target/
+**/*.rs.bk
+Cargo.lock.bak
+
+# Node
+node_modules/
+.turbo/
+.next/
+dist/
+out/
+*.tsbuildinfo
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Test / coverage
+coverage/
+lcov.info
+*.profraw
+
+# Local data
+/data/
+/.data/
+.data/
+/tmp/
+*.log
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+
+# Python tools cache
+**/__pycache__/
+*.pyc
+
+# Local backup/export artifacts
+hf-export-test/
+helixforge-backup-test/

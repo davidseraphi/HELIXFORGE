@@ -1,0 +1,35 @@
+# HelixAnvil
+
+> Completely native IDE built from scratch — sovereign editor kernel for the portfolio.
+
+North star: Own a from-scratch native IDE: document model, commands, and desktop shell under portfolio control — not a foreign editor skin.. Hard promise: Edit coordinates and the text kernel are HelixAnvil’s; engines attach at boundaries..
+
+## Canonical docs
+
+- [AGENTS](AGENTS.md): agent-rules
+- [CLAUDE](CLAUDE.md): claude-shim
+- [GEMINI](GEMINI.md): gemini-shim
+- [constitution](constitution.md): immutable-principles
+- [VISION](VISION.md): vision
+- [BUILD_SPEC](BUILD_SPEC.md): implementation-contract
+- [REVIEW](REVIEW.md): review-gates
+- [NEXT_ACTION](NEXT_ACTION.md): continuation-pointer
+- [DECISION_LOG](DECISION_LOG.md): decision-journal
+- [PROJECT_STATE](PROJECT_STATE.json): machine-state
+- [BUG_OPERATING_SYSTEM](docs/quality/BUG_OPERATING_SYSTEM.md): bug-os-doctrine
+- [AGENT_CONTEXT](docs/context/AGENT_CONTEXT.md): generated-orientation
+
+## Feature packets
+
+- [000-substrate](docs/features/000-substrate/requirements.md): 
+- [001-editor-kernel-design](docs/features/001-editor-kernel-design/requirements.md): 
+
+## Operating layer
+- [AGENTS.md](AGENTS.md): vendor-neutral agent instructions
+- [REVIEW.md](REVIEW.md): four-tier review gates
+
+## Generated context
+- [Agent context](docs/context/AGENT_CONTEXT.md): compact orientation for coding agents
+- [Source map](docs/context/SOURCE_MAP.md): corpus classification
+- [Full context](llms-full.txt): single-file export of canonical context + active packets
+- [Document index](docs/DOCUMENT_INDEX.md): semantic index of the document corpus

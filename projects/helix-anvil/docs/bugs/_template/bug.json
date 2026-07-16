@@ -1,0 +1,20 @@
+{
+  "id": "BUG-0000-short-slug",
+  "title": "Short human-readable bug title",
+  "status": "reported",
+  "severity": "S2",
+  "priority": "P2",
+  "surface": "surface-name",
+  "reported_at": "YYYY-MM-DD",
+  "owner": "unassigned",
+  "reproduction": {
+    "status": "missing",
+    "evidence": []
+  },
+  "regression_gate": {
+    "status": "missing",
+    "commands": []
+  },
+  "root_cause_primitives": [],
+  "links": []
+}

@@ -1,0 +1,59 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: helix-core-default
+  labels:
+    app.kubernetes.io/part-of: helix-core
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: helix-core
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: helix-core
+        - namespaceSelector:
+            matchLabels:
+              kubernetesforge.io/ingress: "true"
+      ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 8081
+        - protocol: TCP
+          port: 8082
+        - protocol: TCP
+          port: 8083
+        - protocol: TCP
+          port: 8084
+        - protocol: TCP
+          port: 8085
+  egress:
+    - to:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 4222
+        - protocol: TCP
+          port: 9000
+        - protocol: TCP
+          port: 4433
+        - protocol: TCP
+          port: 4317
+        - protocol: TCP
+          port: 4318
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+{{- end }}

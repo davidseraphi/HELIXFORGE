@@ -1,0 +1,257 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shared-substrate/schemas/project_state.schema.json",
+  "title": "PROJECT_STATE",
+  "description": "Portfolio-wide, project-agnostic schema for the machine-readable single source of truth each project maintains as PROJECT_STATE.json. Validated by project tooling before any agent begins implementation. Strip the _comment fields in production instances — they are schema-level documentation only.",
+
+  "_comment_bump_policy": "schema_version follows semver. PATCH: add an optional field no tool branches on, tighten a pattern, fix a description. MINOR: add an optional field that introduces a new referenced layer (tooling reads it), add a required field with a default-safe value, rename enum member (deprecate old name first). MAJOR: remove a required field, change an enum in a breaking way, restructure a required object. Bump schema_version in PROJECT_STATE.json AND update $id here in the same commit. Never silently diverge. v1.1.0 (2026-06-29, substrate v2.2): added optional `ratified_specs` (top-level) + `promotes_to` (per packet) for the OpenSpec specs/-vs-changes graft — both optional, so v1.0.x instances still validate.",
+
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "project",
+    "schema_version",
+    "generated_at",
+    "current_stage",
+    "strategic_posture",
+    "source_of_truth_order",
+    "canonical_docs",
+    "historical_docs",
+    "active_feature_packets",
+    "current_focus",
+    "next_product_slice",
+    "do_not_start",
+    "commands",
+    "gates",
+    "agent_rules"
+  ],
+
+  "properties": {
+
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Stable project identity. Change slug only with a Decision Journal entry — it is used as the .keys/<slug> secrets folder name.",
+      "required": ["name", "slug", "one_liner", "domain"],
+      "properties": {
+        "name":     { "type": "string", "description": "Human-readable project name, e.g. 'Aether'" },
+        "slug":     { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$", "description": "kebab-case; used as the .keys/<slug> secrets folder name and in CI paths" },
+        "one_liner": { "type": "string", "description": "One sentence describing what the project does for its primary user" },
+        "domain":   { "type": "string", "description": "Problem domain or industry vertical, kept generic (e.g. 'developer tooling', 'knowledge management')" },
+        "repo_url": { "type": "string", "description": "Optional canonical git remote URL" }
+      }
+    },
+
+    "schema_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "semver of this PROJECT_STATE document's shape. Bump per _comment_bump_policy above whenever the schema changes. Current canonical version: 1.1.0."
+    },
+
+    "generated_at": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "description": "ISO-8601 date (YYYY-MM-DD) this file was last hand-edited. Not auto-generated; the human or agent updating the file sets this."
+    },
+
+    "current_stage": {
+      "type": "string",
+      "enum": ["substrate", "design", "prototype", "mvp", "beta", "ga", "maintenance"],
+      "description": "Lifecycle stage. substrate = research synthesized, no implementation yet. design = architecture decided, no code. prototype = code exists, not production-hardened. mvp = first shippable slice. beta = externally testable. ga = generally available. maintenance = feature-stable, defect-fix only."
+    },
+
+    "strategic_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "North-star positioning. Every feature packet should be traceable to the hard_promise.",
+      "required": ["north_star", "hard_promise", "wedge", "what_it_is_not"],
+      "properties": {
+        "north_star":     { "type": "string", "description": "Long-horizon vision statement (2-3 sentences max)" },
+        "hard_promise":   { "type": "string", "description": "The one thing users can always count on — the invariant the project never breaks" },
+        "wedge":          { "type": "string", "description": "The narrow initial use-case that proves the hard promise before scaling" },
+        "what_it_is_not": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Explicit anti-scope statements. Prevents duplicate builds and scope creep."
+        }
+      }
+    },
+
+    "source_of_truth_order": {
+      "type": "array",
+      "description": "Ordered list of doc paths or symbolic names. When two sources conflict, the one earlier in this list wins. Agents must consult this before resolving ambiguities.",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+
+    "canonical_docs": {
+      "type": "array",
+      "description": "Authoritative, current documents. Agents build only from these. Documents not listed here are treated as historical or speculative.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "role", "status"],
+        "properties": {
+          "path":     { "type": "string", "description": "Repo-relative path" },
+          "role":     { "type": "string", "description": "What this document governs, e.g. 'vision', 'architecture', 'agent-rules', 'data-model'" },
+          "status":   { "type": "string", "enum": ["current", "draft", "review"], "description": "current = finalized and enforced. draft = in progress. review = awaiting sign-off." },
+          "must_read": { "type": "boolean", "description": "If true, every agent MUST read this document before beginning any task in the project. Default false." }
+        }
+      }
+    },
+
+    "historical_docs": {
+      "type": "array",
+      "description": "Superseded or evidence-only documents. Reference as evidence; never build directly from them. Include a note explaining why each is here rather than canonical.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "status"],
+        "properties": {
+          "path":   { "type": "string" },
+          "status": { "type": "string", "enum": ["evidence", "superseded", "historical", "speculative"] },
+          "note":   { "type": "string", "description": "Why this document is historical rather than canonical" }
+        }
+      }
+    },
+
+    "active_feature_packets": {
+      "type": "array",
+      "description": "All feature packets, including planned and done. The canonical list of what has been built or is being built.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "path", "title", "status"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9]{3}-[a-z0-9-]+$",
+            "description": "Packet identifier: three-digit zero-padded number followed by a kebab-case slug, e.g. '001-context-substrate'. The numeric prefix determines precedence when two packets overlap."
+          },
+          "path": {
+            "type": "string",
+            "description": "Repo-relative path to the packet directory, e.g. 'docs/features/001-context-substrate'"
+          },
+          "title": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["planned", "active", "review-ready", "blocked", "done", "superseded"],
+            "description": "planned = not started. active = in progress. review-ready = implementation done, awaiting review gates. blocked = cannot proceed (see blocked_on in packet's status.json). done = all AC met, all review gates passed. superseded = replaced by another packet."
+          },
+          "owner_model_tier": {
+            "type": "string",
+            "description": "Recommended model tier per the AI session-model workflow doctrine. E.g. 'opus-plan/sonnet-implement', 'sonnet', 'local'. Not enforced by schema; advisory."
+          },
+          "blocked_on": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Packet ids or named blockers preventing progress. Only relevant when status is 'blocked'."
+          },
+          "promotes_to": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Capability name(s) (matching ratified_specs[].capability) this packet's behavior-spec delta promotes into when it reaches 'done'. Absent/empty for packets that ratify no standing behavior (e.g. pure refactors). Substrate v2.2."
+          }
+        }
+      }
+    },
+
+    "current_focus": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The single active workstream. Agents should not start new packets unless current_focus is done or blocked.",
+      "required": ["packet_id", "summary"],
+      "properties": {
+        "packet_id": {
+          "type": "string",
+          "pattern": "^[0-9]{3}-[a-z0-9-]+$",
+          "description": "Must match an id in active_feature_packets"
+        },
+        "summary": { "type": "string", "description": "One sentence describing what is being done right now" }
+      }
+    },
+
+    "next_product_slice": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The packet queued to start after current_focus is done. Provides a clear handoff for session resumption.",
+      "required": ["packet_id", "summary"],
+      "properties": {
+        "packet_id": {
+          "type": "string",
+          "pattern": "^[0-9]{3}-[a-z0-9-]+$",
+          "description": "Must match an id in active_feature_packets with status 'planned'"
+        },
+        "summary": { "type": "string", "description": "One sentence describing what the next slice delivers" }
+      }
+    },
+
+    "do_not_start": {
+      "type": "array",
+      "description": "Explicit hold list. Things no agent should build yet. Each entry must name a reason — 'blocked on X', 'deferred to phase N', 'decision pending DJ-NNN'. An empty array is valid and means nothing is on hold.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["item", "reason"],
+        "properties": {
+          "item":   { "type": "string", "description": "What not to build yet" },
+          "reason": { "type": "string", "description": "Why it is on hold — must be specific enough to know when the hold lifts" }
+        }
+      }
+    },
+
+    "commands": {
+      "type": "object",
+      "description": "Named paste-ready commands for common project operations (dev server, test, lint, build, migrate, etc.). Empty object while no runnable app exists. Agents use these rather than inferring commands from context.",
+      "additionalProperties": { "type": "string" },
+      "examples": [
+        { "test": "python -m pytest tests/ -x -q", "lint": "ruff check . && mypy src/", "dev": "run in your own CMD window — see AGENTS.md §LRP" }
+      ]
+    },
+
+    "gates": {
+      "type": "array",
+      "description": "Checks that must pass before any feature packet is marked 'done'. Ordered: run in listed order. A gate with blocking:true halts promotion to 'done' on failure; blocking:false emits a warning.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "command", "blocking"],
+        "properties": {
+          "name":     { "type": "string", "description": "Human-readable gate name, e.g. 'Tier 0 linters', 'Schema validation', 'Test suite'" },
+          "command":  { "type": "string", "description": "Paste-ready command to run this gate from the project root" },
+          "blocking": { "type": "boolean", "description": "true = gate failure blocks 'done'; false = warning only (advisory)" }
+        }
+      }
+    },
+
+    "agent_rules": {
+      "type": "array",
+      "description": "Hard rules every coding agent must obey when working in this project. Vendor-neutral. Supplement (not replace) the portfolio-wide rules in ~/shared/AGENTS.md. Each rule is a self-contained imperative statement.",
+      "items": { "type": "string" },
+      "examples": [
+        ["Never modify files outside allowed_edit_paths for the active feature packet."],
+        ["Read PROJECT_STATE.json and the active packet's requirements.md before writing any code."],
+        ["Run all gates before marking a packet done."],
+        ["Secrets belong in .keys/<project-slug>/.env.local — never inside the repo tree."],
+        ["Production state paths (state/, _meta/, registry/) require tmp_path isolation during dev and test."]
+      ]
+    },
+
+    "ratified_specs": {
+      "type": "array",
+      "description": "OpenSpec-style ratified current-behavior specs (substrate v2.2 graft), one entry per capability. specs/<capability>/spec.md holds the system's CURRENT behavior in Requirement/Scenario form, accumulated as feature packets reach 'done' and their deltas are promoted in. Distinct from canonical_docs (prose intent) — this is the behavior-spec layer and the authority for 'what the system does now'. OPTIONAL until the project has >=1 packet at status 'done'; the drift gate warns once shipped behavior exists without a ratified spec.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["capability", "path", "status"],
+        "properties": {
+          "capability": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$", "description": "kebab-case capability name; matches the specs/<capability>/ directory" },
+          "path":       { "type": "string", "description": "Repo-relative path to the capability spec, e.g. 'specs/auth/spec.md'" },
+          "status":     { "type": "string", "enum": ["ratified", "draft", "superseded"], "description": "ratified = current enforced behavior. draft = being ratified (a packet delta not yet promoted). superseded = capability retired." },
+          "promoted_from": { "type": "array", "items": { "type": "string" }, "description": "Packet ids whose Requirement/Scenario deltas have been promoted into this spec." }
+        }
+      }
+    }
+
+  }
+}

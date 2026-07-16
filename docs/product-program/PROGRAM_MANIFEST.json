@@ -1,0 +1,185 @@
+{
+  "schema_version": "1.0.0",
+  "program": "helixforge-category-defining",
+  "status": "target_state_spec_complete_pending_founder_approval",
+  "horizon_months": 60,
+  "current_truth_rule": "live source and fresh checks outrank this target-state manifest",
+  "implementation_gate": "founder-approved Foundation Integrity umbrella plus one explicitly activated child packet",
+  "shared_contract": "docs/product-program/SHARED_PRODUCT_CONTRACT.md",
+  "roadmap": "docs/product-program/FIVE_YEAR_ROADMAP.md",
+  "execution_prompt": "docs/product-program/KIMI_MASTER_BUILD_PROMPT.md",
+  "glossary": "docs/product-program/GLOSSARY.md",
+  "wip_limits": {
+    "foundation_gates": 1,
+    "product_gates": 3,
+    "high_stakes_live_pilots": 1
+  },
+  "products": [
+    {
+      "order": 0,
+      "slug": "helix-core",
+      "spec": "docs/product-program/specs/00-helix-core.md",
+      "category": "sovereign application and agent control plane",
+      "activation_wave": "foundation"
+    },
+    {
+      "order": 1,
+      "slug": "helix-collab",
+      "spec": "docs/product-program/specs/01-helix-collab.md",
+      "category": "verifiable private knowledge and collaboration space",
+      "activation_wave": "lead"
+    },
+    {
+      "order": 2,
+      "slug": "helix-code",
+      "spec": "docs/product-program/specs/02-helix-code.md",
+      "category": "sovereign software creation and delivery forge",
+      "activation_wave": "lead"
+    },
+    {
+      "order": 3,
+      "slug": "helix-flow",
+      "spec": "docs/product-program/specs/03-helix-flow.md",
+      "category": "reversible workflow and operations engine",
+      "activation_wave": "lead"
+    },
+    {
+      "order": 4,
+      "slug": "helix-insights",
+      "spec": "docs/product-program/specs/04-helix-insights.md",
+      "category": "governed decision-intelligence system",
+      "activation_wave": "lead"
+    },
+    {
+      "order": 5,
+      "slug": "helix-commerce",
+      "spec": "docs/product-program/specs/05-helix-commerce.md",
+      "category": "composable commerce and market operations system",
+      "activation_wave": "human_business"
+    },
+    {
+      "order": 6,
+      "slug": "helix-edu",
+      "spec": "docs/product-program/specs/06-helix-edu.md",
+      "category": "mastery-based learning and credential system",
+      "activation_wave": "human_business"
+    },
+    {
+      "order": 7,
+      "slug": "helix-capital",
+      "spec": "docs/product-program/specs/07-helix-capital.md",
+      "category": "verifiable financial operations and planning system",
+      "activation_wave": "human_business"
+    },
+    {
+      "order": 8,
+      "slug": "helix-well",
+      "spec": "docs/product-program/specs/08-helix-well.md",
+      "category": "private personal wellbeing and behaviour system",
+      "activation_wave": "human_business"
+    },
+    {
+      "order": 9,
+      "slug": "helix-network",
+      "spec": "docs/product-program/specs/09-helix-network.md",
+      "category": "proof-based professional opportunity network",
+      "activation_wave": "human_business"
+    },
+    {
+      "order": 10,
+      "slug": "helix-forge-studio",
+      "spec": "docs/product-program/specs/10-helix-forge-studio.md",
+      "category": "local-first software creation studio",
+      "activation_wave": "human_business"
+    },
+    {
+      "order": 11,
+      "slug": "helix-synthbio",
+      "spec": "docs/product-program/specs/11-helix-synth-bio.md",
+      "category": "safe design-build-test-learn biology workspace",
+      "activation_wave": "high_stakes"
+    },
+    {
+      "order": 12,
+      "slug": "helix-lex-prime",
+      "spec": "docs/product-program/specs/12-helix-lex-prime.md",
+      "category": "source-grounded legal work and regulatory system",
+      "activation_wave": "high_stakes"
+    },
+    {
+      "order": 13,
+      "slug": "helix-cura-prime",
+      "spec": "docs/product-program/specs/13-helix-cura-prime.md",
+      "category": "human-led clinical operations and care intelligence",
+      "activation_wave": "high_stakes"
+    },
+    {
+      "order": 14,
+      "slug": "helix-terra-prime",
+      "spec": "docs/product-program/specs/14-helix-terra-prime.md",
+      "category": "whole-farm digital twin and decision system",
+      "activation_wave": "safe_science"
+    },
+    {
+      "order": 15,
+      "slug": "helix-climate-prime",
+      "spec": "docs/product-program/specs/15-helix-climate-prime.md",
+      "category": "climate risk adaptation and transition system",
+      "activation_wave": "safe_science"
+    },
+    {
+      "order": 16,
+      "slug": "helix-orbit-prime",
+      "spec": "docs/product-program/specs/16-helix-orbit-prime.md",
+      "category": "space mission planning and operations twin",
+      "activation_wave": "safe_science"
+    },
+    {
+      "order": 17,
+      "slug": "helix-quantum-forge",
+      "spec": "docs/product-program/specs/17-helix-quantum-forge.md",
+      "category": "hybrid quantum-classical engineering workspace",
+      "activation_wave": "safe_science"
+    },
+    {
+      "order": 18,
+      "slug": "helix-vita-prime",
+      "spec": "docs/product-program/specs/18-helix-vita-prime.md",
+      "category": "longitudinal precision-health research system",
+      "activation_wave": "high_stakes"
+    },
+    {
+      "order": 19,
+      "slug": "helix-grid-prime",
+      "spec": "docs/product-program/specs/19-helix-grid-prime.md",
+      "category": "safe energy digital twin and optimization system",
+      "activation_wave": "high_stakes"
+    },
+    {
+      "order": 20,
+      "slug": "helix-nova-labs",
+      "spec": "docs/product-program/specs/20-helix-nova-labs.md",
+      "category": "reproducible scientific discovery system",
+      "activation_wave": "safe_science"
+    },
+    {
+      "order": 21,
+      "slug": "helix-pulse",
+      "spec": "docs/product-program/specs/21-helix-pulse.md",
+      "category": "sovereign distributed data and memory plane",
+      "activation_wave": "data_plane_last"
+    }
+  ],
+  "standalone_projects": [
+    {
+      "slug": "helix-anvil",
+      "root": "projects/helix-anvil",
+      "intended_root": null,
+      "current_scaffold": "projects/helix-anvil",
+      "activation_status": "canonical_home_chosen_portfolio_last",
+      "spec": "docs/product-program/specs/90-helix-anvil.md",
+      "category": "native inspectable agent-ready development environment",
+      "activation_wave": "portfolio_last"
+    }
+  ]
+}

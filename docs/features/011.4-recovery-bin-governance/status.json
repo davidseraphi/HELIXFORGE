@@ -1,0 +1,9 @@
+{
+  "id": "011.4-recovery-bin-governance",
+  "title": "Recovery bin, restore, permanent-delete authority, and policy exceptions",
+  "status": "closed",
+  "updated_at": "2026-07-15",
+  "parent": "011-foundation-integrity",
+  "blocked_by": null,
+  "verification": "VERIFICATION.md"
+}

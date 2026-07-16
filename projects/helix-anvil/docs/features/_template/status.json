@@ -1,0 +1,31 @@
+{
+  "_comment": "Copy this file to docs/features/NNN-<slug>/status.json and fill every field. Keep in sync with tasks.md checkbox state after every task. status enum: planned|active|review-ready|blocked|done|superseded. promotes_to (v2.2): capability name(s) this packet's behavior-spec delta promotes into specs/<capability>/spec.md on done; empty for pure refactors.",
+  "id": "NNN-<slug>",
+  "title": "<Feature Title>",
+  "status": "planned",
+  "updated_at": "YYYY-MM-DD",
+  "owner_model_tier": "opus-plan/sonnet-implement",
+  "current_step": "T-000 — Clarify/analyze gate (resolve all [NEEDS CLARIFICATION] markers before implementation)",
+  "tasks_total": 0,
+  "tasks_done": 0,
+  "blocked_on": [],
+  "allowed_edit_paths": [
+    "docs/features/NNN-<slug>/**"
+  ],
+  "forbidden_edit_paths": [
+    "docs/features/**",
+    ".env*",
+    "state/**",
+    "_meta/**",
+    "registry/**"
+  ],
+  "touches_gated_paths": [],
+  "promotes_to": [],
+  "verification_commands": [],
+  "review_status": {
+    "tier0": "pending",
+    "tier1": "pending",
+    "tier2": "n/a",
+    "tier3": "n/a"
+  }
+}

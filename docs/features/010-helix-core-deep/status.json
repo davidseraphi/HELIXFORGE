@@ -1,0 +1,29 @@
+{
+  "id": "010-helix-core-deep",
+  "title": "HelixCore deep foundation",
+  "goal_id": "HELIXCORE-FULL",
+  "status": "enterprise_baseline_await_operator_kimi",
+  "version_target": "0.2.0",
+  "updated_at": "2026-07-14",
+  "review_gate": "kimi_only_when_operator_requests",
+  "kimi": "do_not_run_yet",
+  "build_evidence": {
+    "cargo_unit_tests_core": "exit_0",
+    "smoke_ports": "8080-8085 all healthz 200",
+    "request_id_header": true,
+    "scope_403": true,
+    "residency_403": true,
+    "audit_verified": true,
+    "audit_tenant_filter": true,
+    "catalog_count": 20,
+    "vault": "postgres-aes-gcm-tenant-dek-HVA2",
+    "vault_objects_minio_bytes": true,
+    "billing_plans_durable": true,
+    "agent_durable": true,
+    "product_agent_register": true,
+    "gateway_proxy": true,
+    "core_health_ok": true,
+    "minio_health": true,
+    "adrs": ["0007", "0008", "0009"]
+  }
+}

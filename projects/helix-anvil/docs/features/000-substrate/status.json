@@ -1,0 +1,29 @@
+{
+  "id": "000-substrate",
+  "title": "Substrate install + portfolio registration",
+  "status": "done",
+  "updated_at": "2026-07-15",
+  "owner_model_tier": "sonnet",
+  "current_step": "complete — hand off to 001-editor-kernel-design when ready",
+  "tasks_total": 8,
+  "tasks_done": 8,
+  "blocked_on": [],
+  "allowed_edit_paths": [
+    "docs/features/000-substrate/**"
+  ],
+  "forbidden_edit_paths": [
+    ".env*"
+  ],
+  "touches_gated_paths": [],
+  "promotes_to": [],
+  "verification_commands": [
+    "python tools/context/check_context_drift.py",
+    "python tools/quality/validate_bug_packets.py"
+  ],
+  "review_status": {
+    "tier0": "pass",
+    "tier1": "n/a",
+    "tier2": "n/a",
+    "tier3": "n/a"
+  }
+}

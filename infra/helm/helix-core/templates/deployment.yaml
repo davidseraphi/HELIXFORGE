@@ -1,0 +1,210 @@
+{{- range $name, $svc := dict
+  "gateway" .Values.services.gateway
+  "agent-hub" .Values.services.agentHub
+  "vault-service" .Values.services.vaultService
+  "billing-service" .Values.services.billingService
+  "observability-service" .Values.services.observabilityService
+  "auth-adapter" .Values.services.authAdapter
+}}
+{{- if $svc.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    app.kubernetes.io/name: {{ $name }}
+    app.kubernetes.io/part-of: helix-core
+    app.kubernetes.io/managed-by: {{ $.Release.Service }}
+spec:
+  replicas: {{ $svc.replicas | default $.Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ $name }}
+        app.kubernetes.io/part-of: helix-core
+      annotations:
+        helixforge.io/residency: {{ $.Values.global.residencyRegion | quote }}
+        {{- if $.Values.mesh.enabled }}
+        {{- if eq $.Values.mesh.provider "linkerd" }}
+        linkerd.io/inject: enabled
+        {{- else if eq $.Values.mesh.provider "istio" }}
+        sidecar.istio.io/inject: "true"
+        {{- end }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ $.Values.serviceAccount.name }}
+      securityContext:
+        {{- toYaml $.Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ $name }}
+          image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag }}"
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          # entrypoint maps hyphenated names → Cargo bin underscores
+          args: ["{{ $name }}"]
+          ports:
+            - name: http
+              containerPort: {{ $svc.port }}
+          env:
+            - name: PORT
+              value: {{ $svc.port | quote }}
+            - name: HELIX_ENV
+              value: {{ $.Values.global.environment | quote }}
+            - name: HELIX_DATA_RESIDENCY
+              value: {{ $.Values.global.residencyRegion | quote }}
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.secrets.externalSecretName | default "helix-core-secrets" }}
+                  key: database_url
+            - name: HELIX_DB_POOL_MAX_CONNECTIONS
+              value: {{ $.Values.dbPool.maxConnections | quote }}
+            - name: HELIX_DB_POOL_MIN_CONNECTIONS
+              value: {{ $.Values.dbPool.minConnections | quote }}
+            - name: HELIX_DB_POOL_ACQUIRE_TIMEOUT_SECS
+              value: {{ $.Values.dbPool.acquireTimeoutSecs | quote }}
+            - name: HELIX_DB_POOL_IDLE_TIMEOUT_SECS
+              value: {{ $.Values.dbPool.idleTimeoutSecs | quote }}
+            - name: HELIX_DB_POOL_MAX_LIFETIME_SECS
+              value: {{ $.Values.dbPool.maxLifetimeSecs | quote }}
+            - name: HELIX_DB_POOL_TEST_BEFORE_ACQUIRE
+              value: {{ $.Values.dbPool.testBeforeAcquire | quote }}
+            - name: NATS_URL
+              value: {{ $.Values.nats.url | quote }}
+            - name: NATS_REQUIRE_TLS
+              value: {{ $.Values.nats.requireTls | quote }}
+            - name: NATS_TLS_FIRST
+              value: {{ $.Values.nats.tlsFirst | quote }}
+            - name: NATS_RETRY_ON_INITIAL_CONNECT
+              value: {{ $.Values.nats.retryOnInitialConnect | quote }}
+            - name: NATS_CONNECTION_TIMEOUT_SECS
+              value: {{ $.Values.nats.connectionTimeoutSecs | quote }}
+            - name: NATS_MAX_RECONNECTS
+              value: {{ $.Values.nats.maxReconnects | quote }}
+            - name: NATS_JS_RETRY_ATTEMPTS
+              value: {{ $.Values.nats.jsRetryAttempts | quote }}
+            - name: NATS_JS_RETRY_BACKOFF_MS
+              value: {{ $.Values.nats.jsRetryBackoffMs | quote }}
+            {{- if $.Values.nats.credsFile }}
+            - name: NATS_CREDS_FILE
+              value: {{ $.Values.nats.credsFile | quote }}
+            {{- end }}
+            {{- if $.Values.nats.tlsCaFile }}
+            - name: NATS_TLS_CA_FILE
+              value: {{ $.Values.nats.tlsCaFile | quote }}
+            {{- end }}
+            {{- if $.Values.nats.tlsCertFile }}
+            - name: NATS_TLS_CERT_FILE
+              value: {{ $.Values.nats.tlsCertFile | quote }}
+            {{- end }}
+            {{- if $.Values.nats.tlsKeyFile }}
+            - name: NATS_TLS_KEY_FILE
+              value: {{ $.Values.nats.tlsKeyFile | quote }}
+            {{- end }}
+            - name: MINIO_ENDPOINT
+              value: {{ $.Values.minio.endpoint | quote }}
+            - name: MINIO_BUCKET
+              value: {{ $.Values.minio.bucket | default "helixforge" | quote }}
+            - name: KRATOS_PUBLIC_URL
+              value: {{ $.Values.ory.kratosPublic | quote }}
+            - name: KRATOS_ADMIN_URL
+              value: {{ $.Values.ory.kratosAdmin | quote }}
+            - name: HELIX_VAULT_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.secrets.externalSecretName | default "helix-core-secrets" }}
+                  key: vault_master_key
+            - name: HELIX_VAULT_KMS_MODE
+              value: {{ $.Values.kms.mode | quote }}
+            - name: HELIX_VAULT_KMS_URL
+              value: {{ $.Values.kms.url | quote }}
+            - name: HELIX_VAULT_KMS_FALLBACK
+              value: {{ $.Values.kms.fallback | quote }}
+            - name: HELIX_RATE_LIMIT_RPS
+              value: {{ $.Values.rateLimit.rps | quote }}
+            - name: HELIX_RATE_LIMIT_BACKEND
+              value: {{ $.Values.rateLimit.backend | quote }}
+            - name: HELIX_RATE_LIMIT_PG_FALLBACK
+              value: {{ $.Values.rateLimit.pgFallback | quote }}
+            - name: HELIX_CORS_ALLOW_CREDENTIALS
+              value: {{ $.Values.cors.allowCredentials | quote }}
+            {{- if $.Values.cors.origins }}
+            - name: HELIX_CORS_ORIGINS
+              value: {{ $.Values.cors.origins | quote }}
+            {{- end }}
+            {{- if $.Values.audit.hmacSecret }}
+            - name: HELIX_AUDIT_HMAC_SECRET
+              value: {{ $.Values.audit.hmacSecret | quote }}
+            {{- end }}
+            {{- if $.Values.audit.operatorKey }}
+            - name: HELIX_AUDIT_OPERATOR_KEY
+              value: {{ $.Values.audit.operatorKey | quote }}
+            {{- end }}
+            - name: HELIX_PAYMENT_PROVIDER
+              value: {{ $.Values.payment.provider | quote }}
+            {{- if $.Values.payment.stripeSecretKey }}
+            - name: STRIPE_SECRET_KEY
+              value: {{ $.Values.payment.stripeSecretKey | quote }}
+            {{- end }}
+            - name: HELIX_PAYMENT_STRIPE_FORCE_SIM
+              value: {{ $.Values.payment.stripeForceSim | quote }}
+            {{- if $.Values.webhook.secret }}
+            - name: HELIX_WEBHOOK_SECRET
+              value: {{ $.Values.webhook.secret | quote }}
+            {{- end }}
+            - name: HELIX_WEBHOOK_ALLOW_UNSIGNED
+              value: {{ $.Values.webhook.allowUnsigned | quote }}
+            - name: HELIX_ALLOW_DEV_HEADERS
+              value: {{ $.Values.dev.allowDevHeaders | quote }}
+            - name: HELIX_DEV_PLATFORM
+              value: {{ $.Values.dev.platform | quote }}
+            {{- if $.Values.gateway.productHost }}
+            - name: HELIX_PRODUCT_HOST
+              value: {{ $.Values.gateway.productHost | quote }}
+            {{- end }}
+            {{- if $.Values.otel.endpoint }}
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ $.Values.otel.endpoint | quote }}
+            {{- end }}
+            - name: LOG_JSON
+              value: "true"
+            {{- with $.Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          readinessProbe:
+            httpGet:
+              path: {{ $.Values.probes.readiness.path | default "/readyz" | quote }}
+              port: http
+            initialDelaySeconds: {{ $.Values.probes.readiness.initialDelaySeconds | default 3 }}
+            periodSeconds: {{ $.Values.probes.readiness.periodSeconds | default 10 }}
+            timeoutSeconds: {{ $.Values.probes.readiness.timeoutSeconds | default 3 }}
+            failureThreshold: {{ $.Values.probes.readiness.failureThreshold | default 3 }}
+          livenessProbe:
+            httpGet:
+              path: {{ $.Values.probes.liveness.path | default "/healthz" | quote }}
+              port: http
+            initialDelaySeconds: {{ $.Values.probes.liveness.initialDelaySeconds | default 5 }}
+            periodSeconds: {{ $.Values.probes.liveness.periodSeconds | default 20 }}
+            timeoutSeconds: {{ $.Values.probes.liveness.timeoutSeconds | default 3 }}
+            failureThreshold: {{ $.Values.probes.liveness.failureThreshold | default 3 }}
+          resources:
+            {{- toYaml $.Values.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  labels:
+    app.kubernetes.io/name: {{ $name }}
+spec:
+  selector:
+    app.kubernetes.io/name: {{ $name }}
+  ports:
+    - name: http
+      port: {{ $svc.port }}
+      targetPort: http
+{{- end }}
+{{- end }}

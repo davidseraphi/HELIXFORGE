@@ -1,0 +1,181 @@
+{
+  "members": [
+    "crates/shared-core",
+    "crates/agent-framework",
+    "crates/vault-client",
+    "crates/auth-client",
+    "crates/nats-client",
+    "crates/audit-log",
+    "crates/billing-client",
+    "crates/observability",
+    "crates/service-kit",
+    "services/gateway",
+    "services/agent-hub",
+    "services/vault-service",
+    "services/billing-service",
+    "services/observability-service",
+    "services/auth-adapter",
+    "projects/helix-collab/backend",
+    "projects/helix-code/backend",
+    "projects/helix-flow/backend",
+    "projects/helix-insights/backend",
+    "projects/helix-commerce/backend",
+    "projects/helix-edu/backend",
+    "projects/helix-capital/backend",
+    "projects/helix-well/backend",
+    "projects/helix-network/backend",
+    "projects/helix-forge-studio/backend",
+    "projects/helix-synthbio/backend",
+    "projects/helix-lex-prime/backend",
+    "projects/helix-cura-prime/backend",
+    "projects/helix-terra-prime/backend",
+    "projects/helix-climate-prime/backend",
+    "projects/helix-orbit-prime/backend",
+    "projects/helix-quantum-forge/backend",
+    "projects/helix-vita-prime/backend",
+    "projects/helix-grid-prime/backend",
+    "projects/helix-nova-labs/backend"
+  ],
+  "products": [
+    {
+      "slug": "helix-collab",
+      "title": "HelixCollab",
+      "description": "Real-time collaborative workspace",
+      "order": 1,
+      "tier": "standard"
+    },
+    {
+      "slug": "helix-code",
+      "title": "HelixCode",
+      "description": "AI-native collaborative IDE",
+      "order": 2,
+      "tier": "standard"
+    },
+    {
+      "slug": "helix-flow",
+      "title": "HelixFlow",
+      "description": "Agentic automation & workflow engine",
+      "order": 3,
+      "tier": "standard"
+    },
+    {
+      "slug": "helix-insights",
+      "title": "HelixInsights",
+      "description": "Predictive analytics & decision OS",
+      "order": 4,
+      "tier": "standard"
+    },
+    {
+      "slug": "helix-commerce",
+      "title": "HelixCommerce",
+      "description": "AI e-commerce & digital marketplace builder",
+      "order": 5,
+      "tier": "standard"
+    },
+    {
+      "slug": "helix-edu",
+      "title": "HelixEdu",
+      "description": "Adaptive AI learning & certification platform",
+      "order": 6,
+      "tier": "standard"
+    },
+    {
+      "slug": "helix-capital",
+      "title": "HelixCapital",
+      "description": "AI financial operating system",
+      "order": 7,
+      "tier": "standard"
+    },
+    {
+      "slug": "helix-well",
+      "title": "HelixWell",
+      "description": "AI personal & team wellness platform",
+      "order": 8,
+      "tier": "standard"
+    },
+    {
+      "slug": "helix-network",
+      "title": "HelixNetwork",
+      "description": "AI professional networking & opportunity engine",
+      "order": 9,
+      "tier": "standard"
+    },
+    {
+      "slug": "helix-forge-studio",
+      "title": "HelixForge Studio",
+      "description": "No-code/low-code AI app & internal tool builder",
+      "order": 10,
+      "tier": "standard"
+    },
+    {
+      "slug": "helix-synthbio",
+      "title": "HelixSynthBio",
+      "description": "Synthetic biology design & virtual wet-lab",
+      "order": 11,
+      "tier": "frontier"
+    },
+    {
+      "slug": "helix-lex-prime",
+      "title": "HelixLexPrime",
+      "description": "Autonomous legal & regulatory intelligence",
+      "order": 12,
+      "tier": "frontier"
+    },
+    {
+      "slug": "helix-cura-prime",
+      "title": "HelixCuraPrime",
+      "description": "Enterprise clinical AI platform",
+      "order": 13,
+      "tier": "frontier"
+    },
+    {
+      "slug": "helix-terra-prime",
+      "title": "HelixTerraPrime",
+      "description": "Precision agriculture & climate-smart farming OS",
+      "order": 14,
+      "tier": "frontier"
+    },
+    {
+      "slug": "helix-climate-prime",
+      "title": "HelixClimatePrime",
+      "description": "Planetary-scale climate risk modeling & net-zero orchestration",
+      "order": 15,
+      "tier": "frontier"
+    },
+    {
+      "slug": "helix-orbit-prime",
+      "title": "HelixOrbitPrime",
+      "description": "Commercial space operations & satellite intelligence",
+      "order": 16,
+      "tier": "frontier"
+    },
+    {
+      "slug": "helix-quantum-forge",
+      "title": "HelixQuantumForge",
+      "description": "Hybrid quantum-classical computing platform",
+      "order": 17,
+      "tier": "frontier"
+    },
+    {
+      "slug": "helix-vita-prime",
+      "title": "HelixVitaPrime",
+      "description": "Precision medicine & longevity research platform",
+      "order": 18,
+      "tier": "frontier"
+    },
+    {
+      "slug": "helix-grid-prime",
+      "title": "HelixGridPrime",
+      "description": "Autonomous smart energy systems & renewable optimization",
+      "order": 19,
+      "tier": "frontier"
+    },
+    {
+      "slug": "helix-nova-labs",
+      "title": "HelixNovaLabs",
+      "description": "Open scientific discovery accelerator",
+      "order": 20,
+      "tier": "frontier"
+    }
+  ]
+}

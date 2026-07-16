@@ -1,0 +1,36 @@
+[package]
+name = "service_kit"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "Axum service bootstrap kit for all HelixForge backends"
+
+[dependencies]
+shared_core = { workspace = true }
+auth_client = { workspace = true }
+vault_client = { workspace = true }
+nats_client = { workspace = true }
+audit_log = { workspace = true }
+billing_client = { workspace = true }
+agent_framework = { workspace = true }
+observability = { workspace = true }
+helix_db = { workspace = true }
+tokio = { workspace = true }
+axum = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+async-trait = { workspace = true }
+anyhow = { workspace = true }
+http = { workspace = true }
+sqlx = { workspace = true }
+parking_lot = { workspace = true }
+chrono = { workspace = true }
+subtle = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+tower = { workspace = true }

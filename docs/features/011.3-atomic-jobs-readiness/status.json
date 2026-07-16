@@ -1,0 +1,8 @@
+{
+  "id": "011.3-atomic-jobs-readiness",
+  "title": "Atomic writes, durable visible jobs, truthful readiness, and fresh release gates",
+  "status": "completed",
+  "updated_at": "2026-07-15",
+  "parent": "011-foundation-integrity",
+  "blocked_by": null
+}
