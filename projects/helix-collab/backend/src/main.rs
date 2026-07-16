@@ -32,7 +32,7 @@ async fn main() -> HelixResult<()> {
     let state = builder.into_state();
     let app = ServiceBuilder::base_router(state.clone())
         .merge(ProductService::router(state.clone(), product))
-        .nest_service("/", domain::routes(state.clone()));
+        .fallback_service(domain::routes(state.clone()));
 
     serve_with_shutdown(addr, app, "helix-collab", state.clone()).await
 }
