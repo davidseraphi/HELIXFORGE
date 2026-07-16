@@ -1,0 +1,11 @@
+# Gitleaks allowlist for HelixForge
+# Keep real secrets out of the repo; allowlist lockfiles and dev-only fixtures.
+
+[allowlist]
+paths = [
+  '''Cargo.lock''',
+  '''pnpm-lock.yaml''',
+  '''deploy/local/kratos/kratos.yml''',
+  '''deploy/local/hydra/hydra.yml''',
+  '''deploy/local/init-db.sql''',
+]

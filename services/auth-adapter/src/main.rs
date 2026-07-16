@@ -302,7 +302,7 @@ async fn oidc_introspect(
             resource_type: "oauth_token".into(),
             resource_id: format!(
                 "{:.8}...{:.8}",
-                &body.token,
+                body.token,
                 &body.token[body.token.len().saturating_sub(8)..]
             ),
             metadata: serde_json::json!({

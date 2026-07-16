@@ -12,7 +12,7 @@ terraform {
 # Assumes the active kubeconfig context points at the target cluster.
 # For CI, set KUBE_CONFIG_PATH or pass kubeconfig_path.
 provider "helm" {
-  kubernetes {
+  kubernetes = {
     config_path = var.kubeconfig_path
   }
 }

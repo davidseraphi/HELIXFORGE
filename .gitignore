@@ -16,6 +16,7 @@ node_modules/
 .turbo/
 .next/
 dist/
+dist-electron/
 out/
 *.tsbuildinfo
 

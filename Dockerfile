@@ -10,6 +10,7 @@ COPY .cargo ./.cargo
 COPY crates ./crates
 COPY services ./services
 COPY projects ./projects
+COPY tools ./tools
 # The dev toolchain file pins stable-x86_64-pc-windows-msvc for local Windows builds.
 # Use the stable toolchain already present in this Linux image and remove the
 # toolchain file so rustup does not re-download components.
