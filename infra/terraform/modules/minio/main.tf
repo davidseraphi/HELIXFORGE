@@ -60,25 +60,15 @@ resource "helm_release" "minio" {
   namespace        = var.namespace
   create_namespace = true
 
-  set {
-    name  = "fullnameOverride"
-    value = "${var.name}-minio"
-  }
+  set = [
+    { name = "fullnameOverride", value = "${var.name}-minio" },
+    { name = "auth.rootUser", value = var.access_key },
+    { name = "defaultBuckets", value = var.bucket },
+  ]
 
-  set {
-    name  = "auth.rootUser"
-    value = var.access_key
-  }
-
-  set_sensitive {
-    name  = "auth.rootPassword"
-    value = var.secret_key
-  }
-
-  set {
-    name  = "defaultBuckets"
-    value = var.bucket
-  }
+  set_sensitive = [
+    { name = "auth.rootPassword", value = var.secret_key },
+  ]
 }
 
 output "endpoint" {

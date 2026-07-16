@@ -38,7 +38,6 @@ Thumbs.db
 /infra
 /scripts
 /tests
-/tools
 *.md
 
 # Deploy files are mostly not needed, except the entrypoint script.

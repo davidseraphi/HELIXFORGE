@@ -62,30 +62,16 @@ resource "helm_release" "postgresql" {
   namespace        = var.namespace
   create_namespace = true
 
-  set {
-    name  = "global.postgresql.auth.database"
-    value = var.database
-  }
+  set = [
+    { name = "global.postgresql.auth.database", value = var.database },
+    { name = "global.postgresql.auth.username", value = var.username },
+    { name = "fullnameOverride", value = "${var.name}-postgres" },
+  ]
 
-  set {
-    name  = "global.postgresql.auth.username"
-    value = var.username
-  }
-
-  set_sensitive {
-    name  = "global.postgresql.auth.password"
-    value = var.password
-  }
-
-  set_sensitive {
-    name  = "global.postgresql.auth.postgresPassword"
-    value = var.password
-  }
-
-  set {
-    name  = "fullnameOverride"
-    value = "${var.name}-postgres"
-  }
+  set_sensitive = [
+    { name = "global.postgresql.auth.password", value = var.password },
+    { name = "global.postgresql.auth.postgresPassword", value = var.password },
+  ]
 }
 
 output "host" {

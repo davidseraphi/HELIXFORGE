@@ -42,10 +42,9 @@ resource "helm_release" "nats" {
   namespace        = var.namespace
   create_namespace = true
 
-  set {
-    name  = "fullnameOverride"
-    value = "${var.name}-nats"
-  }
+  set = [
+    { name = "fullnameOverride", value = "${var.name}-nats" },
+  ]
 }
 
 output "url" {

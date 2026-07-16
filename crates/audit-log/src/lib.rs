@@ -41,11 +41,7 @@ pub fn hmac_enabled() -> bool {
     hmac_secret().is_some()
 }
 
-/// Optional HMAC-SHA256 of entry_hash. Empty when unset.
-pub fn sign_entry_hash(entry_hash: &str) -> String {
-    let Some(secret) = hmac_secret() else {
-        return String::new();
-    };
+fn sign_with_secret(entry_hash: &str, secret: &str) -> String {
     use hmac::{Hmac, Mac};
     use sha2::Sha256;
     type HmacSha256 = Hmac<Sha256>;
@@ -57,19 +53,33 @@ pub fn sign_entry_hash(entry_hash: &str) -> String {
     hex::encode(mac.finalize().into_bytes())
 }
 
+/// Optional HMAC-SHA256 of entry_hash. Empty when unset.
+pub fn sign_entry_hash(entry_hash: &str) -> String {
+    let Some(secret) = hmac_secret() else {
+        return String::new();
+    };
+    sign_with_secret(entry_hash, &secret)
+}
+
 /// Fail-closed HMAC verification.
 /// - Empty signature is only acceptable when HMAC is not configured.
 /// - A signed row without an available secret fails verification (secret rotation must re-sign).
-pub fn verify_entry_signature(entry_hash: &str, signature: &str) -> bool {
+fn verify_with_secret(entry_hash: &str, signature: &str, secret: Option<&str>) -> bool {
     if signature.is_empty() {
-        return !hmac_enabled();
+        return secret.is_none();
     }
-    let expected = sign_entry_hash(entry_hash);
-    if expected.is_empty() {
+    let Some(secret) = secret else {
         // Signed row but no secret available -> fail closed.
         return false;
-    }
-    constant_time_eq(expected.as_bytes(), signature.as_bytes())
+    };
+    constant_time_eq(
+        sign_with_secret(entry_hash, secret).as_bytes(),
+        signature.as_bytes(),
+    )
+}
+
+pub fn verify_entry_signature(entry_hash: &str, signature: &str) -> bool {
+    verify_with_secret(entry_hash, signature, hmac_secret().as_deref())
 }
 
 fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
@@ -308,11 +318,22 @@ impl ArchiveSink for NullArchiveSink {
 #[derive(Clone, Default)]
 pub struct MemoryAuditSink {
     inner: Arc<RwLock<Vec<AuditEntry>>>,
+    /// Optional per-sink HMAC secret. When set, overrides the global secret
+    /// so tests are deterministic regardless of process environment.
+    hmac_secret: Option<String>,
 }
 
 impl MemoryAuditSink {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Create a sink that signs and verifies with a fixed secret.
+    pub fn with_secret(secret: impl Into<String>) -> Self {
+        Self {
+            inner: Arc::new(RwLock::new(Vec::new())),
+            hmac_secret: Some(secret.into()),
+        }
     }
 
     pub fn len(&self) -> usize {
@@ -332,7 +353,10 @@ impl AuditSink for MemoryAuditSink {
             .last()
             .map(|e| e.entry_hash.clone())
             .unwrap_or_else(genesis_hash);
-        let entry = AuditEntry::from_event(event, prev_hash)?;
+        let mut entry = AuditEntry::from_event(event, prev_hash)?;
+        if let Some(secret) = &self.hmac_secret {
+            entry.hmac_signature = sign_with_secret(&entry.entry_hash, secret);
+        }
         guard.push(entry.clone());
         Ok(entry)
     }
@@ -349,7 +373,11 @@ impl AuditSink for MemoryAuditSink {
             if recomputed != entry.entry_hash {
                 return Ok(false);
             }
-            if !verify_entry_signature(&entry.entry_hash, &entry.hmac_signature) {
+            if !verify_with_secret(
+                &entry.entry_hash,
+                &entry.hmac_signature,
+                self.hmac_secret.as_deref(),
+            ) {
                 return Ok(false);
             }
             expected_prev = entry.entry_hash.clone();
@@ -393,7 +421,9 @@ mod tests {
 
     #[tokio::test]
     async fn chain_verifies_after_appends() {
-        let sink = MemoryAuditSink::new();
+        // Use a sink-local secret so this test is deterministic regardless of
+        // the HELIX_AUDIT_HMAC_SECRET value in the CI environment.
+        let sink = MemoryAuditSink::with_secret("audit-chain-test-secret");
         for i in 0..5 {
             sink.append(AuditEvent {
                 tenant_id: Some(TenantId::new()),

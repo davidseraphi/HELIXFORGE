@@ -46,7 +46,7 @@ jobs:
       - name: Install (Ubuntu)
         if: runner.os == 'Linux'
         shell: bash
-        run: ./scripts/install.sh
+        run: bash scripts/install.sh
 
       - name: Install (Windows)
         if: runner.os == 'Windows'
@@ -58,7 +58,7 @@ jobs:
         run: |
           mkdir -p /tmp/helixforge-backup
           if [[ "$RUNNER_OS" == "Windows" ]]; then
-            pwsh -File scripts\migrate-export.ps1 -OutDir C:\helixforge-backup-test
+            pwsh -File scripts/migrate-export.ps1 -OutDir C:/helixforge-backup-test
           else
             ./scripts/migrate-export.sh /tmp/helixforge-backup
           fi
@@ -67,7 +67,7 @@ jobs:
         shell: bash
         run: |
           if [[ "$RUNNER_OS" == "Windows" ]]; then
-            pwsh -File scripts\migrate-restore.ps1 -BackupDir C:\helixforge-backup-test -ProjectName helixforge-restore-test -OverrideFile deploy\local\restore.override.yml
+            pwsh -File scripts/migrate-restore.ps1 -BackupDir C:/helixforge-backup-test -ProjectName helixforge-restore-test -OverrideFile deploy/local/restore.override.yml
           else
             COMPOSE_PROJECT_NAME=helixforge-restore-test ./scripts/migrate-restore.sh /tmp/helixforge-backup helixforge-restore-test
           fi
