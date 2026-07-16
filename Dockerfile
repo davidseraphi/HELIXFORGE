@@ -24,7 +24,7 @@ RUN cargo build --release \
     -p billing_service \
     -p observability_service \
     -p auth_adapter \
-    -p helix_db --bin helix-audit-rehash
+    -p helix_db --bins
 
 FROM debian:bookworm-slim AS runtime
 RUN apt-get update \
