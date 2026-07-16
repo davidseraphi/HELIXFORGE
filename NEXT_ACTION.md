@@ -70,11 +70,17 @@ are now addressed in code and pass local `cargo fmt`, `cargo clippy`,
 
 ### Still open: final CI re-proof
 
-- Push the branch and let the GitHub Actions workflow run the full
-  installer / package / migrate-export / migrate-restore roundtrip to upgrade
-  the local verdict to a CI `PASS`.
-- If CI smoke fails, the likely cause is the new `HELIX_LOCAL_DEV_UNSAFE=1`
-  requirement in the smoke job (already added to `.github/workflows/ci.yml`).
+- Pushed fixes for the active CI failures:
+  - `sandbox_runs_echo_step` now forces host isolation by setting
+    `HELIX_CODE_ALLOW_HOST_ISOLATION=1` in the test.
+  - `deploy/docker/entrypoint.sh` now accepts `helix-migrate` and
+    `helix-audit-rehash` so the core smoke job can run migrations.
+  - `.github/workflows/installer.yml` starts the Docker service on Windows,
+    uses env-var port shifting for isolated restore, and no longer depends on
+    the Docker Compose `!override` tag.
+  - `install.ps1`/`install.sh` detect `docker compose` availability and fail
+    closed if Postgres does not become ready.
+- Next: monitor the GitHub Actions run and address any remaining failures.
 
 ## Active goal: HELIXCORE-FULL
 

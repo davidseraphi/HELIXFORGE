@@ -43,6 +43,14 @@ jobs:
           echo "HELIX_AUDIT_HMAC_SECRET=ci-audit-hmac-secret" >> $GITHUB_ENV
           echo "HELIX_WEBHOOK_ALLOW_UNSIGNED=1" >> $GITHUB_ENV
 
+      - name: Start Docker (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $svc = Get-Service docker -ErrorAction SilentlyContinue
+          if ($svc -and $svc.Status -ne 'Running') { Start-Service docker }
+          docker info
+
       - name: Install (Ubuntu)
         if: runner.os == 'Linux'
         shell: bash
@@ -65,9 +73,15 @@ jobs:
 
       - name: Restore to isolated project
         shell: bash
+        env:
+          HELIX_POSTGRES_PORT: 55433
+          HELIX_NATS_PORT: 4223
+          HELIX_NATS_MONITOR_PORT: 8223
+          HELIX_MINIO_PORT: 9002
+          HELIX_MINIO_CONSOLE_PORT: 9003
         run: |
           if [[ "$RUNNER_OS" == "Windows" ]]; then
-            pwsh -File scripts/migrate-restore.ps1 -BackupDir backup-test -ProjectName helixforge-restore-test -OverrideFile deploy/local/restore.override.yml
+            pwsh -File scripts/migrate-restore.ps1 -BackupDir backup-test -ProjectName helixforge-restore-test
           else
             COMPOSE_PROJECT_NAME=helixforge-restore-test bash scripts/migrate-restore.sh /tmp/helixforge-backup helixforge-restore-test
           fi
@@ -81,9 +95,15 @@ jobs:
       - name: Cleanup isolated project
         if: always()
         shell: bash
+        env:
+          COMPOSE_PROJECT_NAME: helixforge-restore-test
+          HELIX_POSTGRES_PORT: 55433
+          HELIX_NATS_PORT: 4223
+          HELIX_NATS_MONITOR_PORT: 8223
+          HELIX_MINIO_PORT: 9002
+          HELIX_MINIO_CONSOLE_PORT: 9003
         run: |
-          export COMPOSE_PROJECT_NAME=helixforge-restore-test
-          docker compose -f docker-compose.yml -f deploy/local/restore.override.yml down -v || true
+          docker compose -f docker-compose.yml down -v || true
 
   script-lint-macos:
     name: Script syntax (macOS)

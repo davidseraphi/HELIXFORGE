@@ -322,6 +322,7 @@ mod tests {
         );
         // Unit tests always use host isolation (Docker volume mounts on Windows temps are flaky).
         std::env::set_var("HELIX_CODE_ISOLATION", "host");
+        std::env::set_var("HELIX_CODE_ALLOW_HOST_ISOLATION", "1");
         let res = run_pipeline_sandbox(
             &bare,
             &sha,

@@ -52,21 +52,37 @@ if (-not (Test-Command pnpm)) { Fail "pnpm is required. Install: npm install -g 
 if (-not (Test-Command node)) { Fail "Node.js is required. Install Node 20+." }
 
 # Prefer "docker compose" v2
-$Compose = if (Test-Command "docker") { "docker compose" } else { $null }
+$Compose = $null
+if (Test-Command "docker") {
+  try {
+    docker compose version | Out-Null
+    $Compose = "docker compose"
+  } catch {
+    if (Test-Command "docker-compose") {
+      $Compose = "docker-compose"
+    }
+  }
+}
+if (-not $Compose) { Fail "Docker Compose is required." }
 
 # --- Infrastructure ---
 if (-not $SkipDocker) {
   Write-Host "[install] starting backing services..."
   Invoke-Expression "$Compose up -d postgres nats minio minio-init"
 
+  $Ready = $false
   for ($i = 1; $i -le 30; $i++) {
     try {
-      docker compose exec -T postgres pg_isready -U helix -d helixforge | Out-Null
-      Write-Host "[install] postgres ready"
-      break
+      Invoke-Expression "$Compose exec -T postgres pg_isready -U helix -d helixforge" | Out-Null
+      if ($LASTEXITCODE -eq 0) {
+        Write-Host "[install] postgres ready"
+        $Ready = $true
+        break
+      }
     } catch { }
     Start-Sleep -Seconds 2
   }
+  if (-not $Ready) { Fail "postgres did not become ready" }
 }
 
 # --- Build ---

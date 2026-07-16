@@ -51,13 +51,18 @@ echo "[install] starting backing services..."
 $COMPOSE up -d postgres nats minio minio-init
 
 # Wait for Postgres
+PG_READY=false
 for i in $(seq 1 30); do
   if docker compose exec -T postgres pg_isready -U helix -d helixforge >/dev/null 2>&1; then
     echo "[install] postgres ready"
+    PG_READY=true
     break
   fi
   sleep 2
 done
+if [[ "$PG_READY" != "true" ]]; then
+  fail "postgres did not become ready"
+fi
 
 # --- Build ---
 echo "[install] building Rust workspace (this may take several minutes)..."

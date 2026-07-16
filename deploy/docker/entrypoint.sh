@@ -9,9 +9,11 @@ case "$name" in
   billing-service|billing_service) bin=billing_service ;;
   observability-service|observability_service) bin=observability_service ;;
   auth-adapter|auth_adapter) bin=auth_adapter ;;
+  helix-migrate|helix_migrate) bin=helix-migrate ;;
+  helix-audit-rehash|helix_audit_rehash) bin=helix-audit-rehash ;;
   *)
     echo "unknown service: $name" >&2
-    echo "expected: gateway|agent-hub|vault-service|billing-service|observability-service|auth-adapter" >&2
+    echo "expected: gateway|agent-hub|vault-service|billing-service|observability-service|auth-adapter|helix-migrate|helix-audit-rehash" >&2
     exit 1
     ;;
 esac

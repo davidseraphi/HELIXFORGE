@@ -25,16 +25,22 @@ if ($ProjectName -ne "helixforge") {
   Write-Host "[restore] using isolated compose project: $ProjectName"
 }
 
+# Use environment variables to shift host ports for isolated restores.
+# This avoids relying on the compose `!override` tag, which older Docker Compose
+# versions do not support.
+$PgPort = if ($env:HELIX_POSTGRES_PORT) { $env:HELIX_POSTGRES_PORT } else { "55432" }
+if ($ProjectName -ne "helixforge" -and $PgPort -eq "55432") {
+  $env:HELIX_POSTGRES_PORT = "55433"
+  $env:HELIX_NATS_PORT = "4223"
+  $env:HELIX_NATS_MONITOR_PORT = "8223"
+  $env:HELIX_MINIO_PORT = "9002"
+  $env:HELIX_MINIO_CONSOLE_PORT = "9003"
+  $PgPort = "55433"
+}
+
 $ComposeArgs = "-f `"$ComposeFile`""
-$PgPort = "55432"
-if ($ProjectName -ne "helixforge") {
-  if (-not $OverrideFile -and (Test-Path "$Root\deploy\local\restore.override.yml")) {
-    $OverrideFile = "$Root\deploy\local\restore.override.yml"
-  }
-  if ($OverrideFile) {
-    $ComposeArgs += " -f `"$OverrideFile`""
-    $PgPort = "55433"
-  }
+if ($OverrideFile) {
+  $ComposeArgs += " -f `"$OverrideFile`""
 }
 
 Write-Host "[restore] stopping and wiping existing project data..."
