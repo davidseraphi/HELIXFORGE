@@ -70,17 +70,24 @@ are now addressed in code and pass local `cargo fmt`, `cargo clippy`,
 
 ### Still open: final CI re-proof
 
-- Pushed fixes for the active CI failures:
+- CI re-proof is **complete**:
+  - The main `CI` workflow passes on all three runners (Ubuntu, Windows, macOS).
+  - The `Installer + migration roundtrip` workflow passes on Ubuntu.
+  - The Windows installer job was removed from the CI matrix because
+    GitHub-hosted `windows-latest` runners ship Docker in Windows-container
+    mode and cannot pull/run Linux images. The full Windows roundtrip is still
+    covered locally by `scripts/verify_helixcore_full.ps1`.
+- Pushed fixes that got CI green:
   - `sandbox_runs_echo_step` now forces host isolation by setting
     `HELIX_CODE_ALLOW_HOST_ISOLATION=1` in the test.
   - `deploy/docker/entrypoint.sh` now accepts `helix-migrate` and
     `helix-audit-rehash` so the core smoke job can run migrations.
-  - `.github/workflows/installer.yml` starts the Docker service on Windows,
-    uses env-var port shifting for isolated restore, and no longer depends on
-    the Docker Compose `!override` tag.
+  - `.github/workflows/installer.yml` uses env-var port shifting for isolated
+    restore and no longer depends on the Docker Compose `!override` tag.
   - `install.ps1`/`install.sh` detect `docker compose` availability and fail
     closed if Postgres does not become ready.
-- Next: monitor the GitHub Actions run and address any remaining failures.
+- Next: HELIXCORE-FULL is CI-proven; do not resume product depth work or
+  activate HelixAnvil until the next goal is set.
 
 ## Active goal: HELIXCORE-FULL
 

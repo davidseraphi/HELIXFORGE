@@ -9,12 +9,12 @@ on:
 
 jobs:
   installer:
-    name: Install & restore (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
+    # This workflow runs the full install/export/restore roundtrip with Docker
+    # Linux containers. GitHub-hosted Windows runners currently ship Docker in
+    # Windows-container mode, so the migration roundtrip is validated here on
+    # Ubuntu and exercised locally on Windows via scripts/verify_helixcore_full.ps1.
+    name: Install & restore (ubuntu-latest)
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -43,33 +43,15 @@ jobs:
           echo "HELIX_AUDIT_HMAC_SECRET=ci-audit-hmac-secret" >> $GITHUB_ENV
           echo "HELIX_WEBHOOK_ALLOW_UNSIGNED=1" >> $GITHUB_ENV
 
-      - name: Start Docker (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $svc = Get-Service docker -ErrorAction SilentlyContinue
-          if ($svc -and $svc.Status -ne 'Running') { Start-Service docker }
-          docker info
-
-      - name: Install (Ubuntu)
-        if: runner.os == 'Linux'
+      - name: Install
         shell: bash
         run: bash scripts/install.sh
-
-      - name: Install (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: scripts\install.ps1
 
       - name: Export backup
         shell: bash
         run: |
           mkdir -p /tmp/helixforge-backup
-          if [[ "$RUNNER_OS" == "Windows" ]]; then
-            pwsh -File scripts/migrate-export.ps1 -OutDir backup-test
-          else
-            bash scripts/migrate-export.sh /tmp/helixforge-backup
-          fi
+          bash scripts/migrate-export.sh /tmp/helixforge-backup
 
       - name: Restore to isolated project
         shell: bash
@@ -80,11 +62,7 @@ jobs:
           HELIX_MINIO_PORT: 9002
           HELIX_MINIO_CONSOLE_PORT: 9003
         run: |
-          if [[ "$RUNNER_OS" == "Windows" ]]; then
-            pwsh -File scripts/migrate-restore.ps1 -BackupDir backup-test -ProjectName helixforge-restore-test
-          else
-            COMPOSE_PROJECT_NAME=helixforge-restore-test bash scripts/migrate-restore.sh /tmp/helixforge-backup helixforge-restore-test
-          fi
+          COMPOSE_PROJECT_NAME=helixforge-restore-test bash scripts/migrate-restore.sh /tmp/helixforge-backup helixforge-restore-test
 
       - name: Verify restored database
         shell: bash
