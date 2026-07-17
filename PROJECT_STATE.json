@@ -5,7 +5,7 @@
   "updated_at": "2026-07-16",
   "active_slice": "category-defining-product-program",
   "active_goal": "HELIXINSIGHTS-FULL",
-  "active_phase": "helixinsights_full_depth",
+  "active_phase": "helixinsights_full_ci_proven",
   "previous_goal": "HELIXCOLLAB-FULL_CI_PROVEN",
   "review_gate": "HELIXINSIGHTS-FULL_CI_PROVEN",
   "category_defining_program": {
@@ -330,8 +330,9 @@
     "aggregations": ["sum", "avg", "min", "max", "count"],
     "smoke": "PASS",
     "smoke_script": "scripts/helix_insights_smoke.ps1",
+    "ci_run": "29597119407",
     "unit": "4/4 PASS",
-    "next": "CI proof on push"
+    "next": "CI proven"
   },
   "helix_collab_client_e2ee_pm": {
     "client_e2ee_hc1": true,

@@ -1,6 +1,6 @@
 # Next action
 
-## Latest: HELIXINSIGHTS-FULL
+## Latest: HELIXINSIGHTS-FULL (CI-proven)
 
 **Goal:** move HelixInsights from scaffold to full second-wave depth.
 
@@ -18,18 +18,19 @@
 - `cargo test --workspace --all-features` passes.
 - `cargo clippy --workspace --all-targets -- -D warnings` clean.
 - Local smoke PASS.
-- Next: push to `main` and confirm the `insights-smoke` CI job passes.
+- CI run `29597119407` all green, including the new `HelixInsights smoke` job.
 
 ### Active goal
 
-`HELIXINSIGHTS-FULL` — awaiting CI proof.
+`HELIXINSIGHTS-FULL` is complete. Awaiting the next explicit product/program goal.
 
 ## Paste-ready continuation prompt
 
 ```text
 Continue in C:\Users\divin\PROJECTS\HELIXFORGE. HELIXINSIGHTS-FULL is
-implemented: migration 0039, extended InsightsRepo, new routes including
-soft delete and in-process aggregate, smoke script, and CI job.
-Local verification passed (cargo test workspace, clippy, smoke).
-Next step is to commit, push, and confirm the insights-smoke CI job is green.
+CI-proven (run 29597119407). The wave-2 depth packet added soft delete,
+in-process aggregates, filtered point queries, a PowerShell smoke script,
+and a CI job. HELIXCORE-FULL, HELIXCOLLAB-FULL, and HELIXINSIGHTS-FULL are
+all green.
+Next step is to set the next explicit product/program goal.
 ```
