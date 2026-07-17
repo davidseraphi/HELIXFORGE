@@ -1274,3 +1274,327 @@ async fn audit(
         .await?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use axum::{extract::Path, extract::State, Json};
+    use service_kit::ApiError;
+    use shared_core::{ApiResponse, ErrorCode};
+    use uuid::Uuid;
+
+    use crate::domain::documents::Auth;
+    use crate::domain::test_support::{create_test_doc, dev_principal, locked_state};
+
+    use super::{
+        federation_export, federation_import, list_devices, list_key_shares, put_key_share,
+        register_device, revoke_device, FedExportBody, FedImportBody, KeyShareBody, RegisterDevice,
+    };
+
+    fn unwrap_data<T>(resp: ApiResponse<T>) -> T {
+        match resp {
+            ApiResponse::Ok { data, .. } => data,
+            ApiResponse::Err { error } => panic!("unexpected API error: {error:?}"),
+        }
+    }
+
+    fn unwrap_ok<T>(res: Result<T, ApiError>) -> T {
+        match res {
+            Ok(v) => v,
+            Err(e) => panic!("API error: code={:?} message={}", e.0.code, e.0.message),
+        }
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres/NATS/MinIO)"]
+    async fn device_register_list_revoke_lifecycle() {
+        let (state, _guard) = locked_state().await;
+        let p = dev_principal("device-alice");
+
+        let Json(resp) = unwrap_ok(
+            register_device(
+                State(state.clone()),
+                Auth(p.clone()),
+                Json(RegisterDevice {
+                    device_label: "laptop".into(),
+                    public_key_b64: "cHVibGljLWtleQ==".into(),
+                    credential_id: None,
+                    algorithm: "ECDSA_P256".into(),
+                }),
+            )
+            .await,
+        );
+        let device = unwrap_data(resp);
+        let device_id: Uuid = serde_json::from_value(device["id"].clone()).unwrap();
+
+        let Json(resp) = unwrap_ok(list_devices(State(state.clone()), Auth(p.clone())).await);
+        let data = unwrap_data(resp);
+        let items = data["items"].as_array().expect("items array");
+        assert_eq!(items.len(), 1);
+
+        let _ =
+            unwrap_ok(revoke_device(State(state.clone()), Auth(p.clone()), Path(device_id)).await);
+
+        let Json(resp) = unwrap_ok(list_devices(State(state.clone()), Auth(p.clone())).await);
+        let data = unwrap_data(resp);
+        let items = data["items"].as_array().expect("items array");
+        assert!(items.is_empty(), "revoked device must disappear from list");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres/NATS/MinIO)"]
+    async fn revocation_is_isolated_to_user() {
+        let (state, _guard) = locked_state().await;
+        let alice = dev_principal("device-alice2");
+        let bob = dev_principal("device-bob2");
+
+        let Json(resp) = unwrap_ok(
+            register_device(
+                State(state.clone()),
+                Auth(alice.clone()),
+                Json(RegisterDevice {
+                    device_label: "alice-phone".into(),
+                    public_key_b64: "YWxpY2Uta2V5".into(),
+                    credential_id: None,
+                    algorithm: "ECDSA_P256".into(),
+                }),
+            )
+            .await,
+        );
+        let device = unwrap_data(resp);
+        let device_id: Uuid = serde_json::from_value(device["id"].clone()).unwrap();
+
+        // Bob should not see Alice's device and cannot revoke it.
+        let Json(resp) = unwrap_ok(list_devices(State(state.clone()), Auth(bob.clone())).await);
+        let data = unwrap_data(resp);
+        assert!(data["items"].as_array().unwrap().is_empty());
+
+        let err = revoke_device(State(state.clone()), Auth(bob.clone()), Path(device_id))
+            .await
+            .expect_err("bob revoking alice's device should fail");
+        assert_eq!(err.0.code, ErrorCode::NotFound);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres/NATS/MinIO)"]
+    async fn key_shares_bound_to_revoked_device_remain_stored() {
+        // Current behaviour: revocation is a soft flag on device_keys; key_shares are
+        // retained. This test documents that behaviour so any future hardening
+        // (hiding shares for revoked devices) is intentional.
+        let (state, _guard) = locked_state().await;
+        let p = dev_principal("device-share-alice");
+        let doc = create_test_doc(&state, &p, "share-doc", "secret").await;
+
+        let Json(resp) = unwrap_ok(
+            register_device(
+                State(state.clone()),
+                Auth(p.clone()),
+                Json(RegisterDevice {
+                    device_label: "share-device".into(),
+                    public_key_b64: "c2hhcmUta2V5".into(),
+                    credential_id: None,
+                    algorithm: "ECDSA_P256".into(),
+                }),
+            )
+            .await,
+        );
+        let device = unwrap_data(resp);
+        let device_id: Uuid = serde_json::from_value(device["id"].clone()).unwrap();
+
+        let _ = unwrap_ok(
+            put_key_share(
+                State(state.clone()),
+                Auth(p.clone()),
+                Path(doc.id),
+                Json(KeyShareBody {
+                    wrapped_dek: "wrapped-dek-for-device".into(),
+                    device_key_id: Some(device_id),
+                    share_kind: "device".into(),
+                    threshold_n: None,
+                    threshold_k: None,
+                    shard_index: None,
+                }),
+            )
+            .await,
+        );
+
+        let _ =
+            unwrap_ok(revoke_device(State(state.clone()), Auth(p.clone()), Path(device_id)).await);
+
+        let Json(resp) =
+            unwrap_ok(list_key_shares(State(state.clone()), Auth(p.clone()), Path(doc.id)).await);
+        let data = unwrap_data(resp);
+        let items = data["items"].as_array().expect("items");
+        assert_eq!(
+            items.len(),
+            1,
+            "key share should still be stored after device revocation"
+        );
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres/NATS/MinIO)"]
+    async fn federation_roundtrip_imports_under_caller_tenant() {
+        let (state, _guard) = locked_state().await;
+        let alice = dev_principal("fed-alice");
+        let bob = dev_principal("fed-bob");
+        let doc = create_test_doc(&state, &alice, "federated source", "hello world").await;
+
+        let Json(resp) = unwrap_ok(
+            federation_export(
+                State(state.clone()),
+                Auth(alice.clone()),
+                Json(FedExportBody {
+                    document_id: doc.id,
+                    remote_deployment: "satellite-1".into(),
+                    signature_b64: "dummy-sig".into(),
+                }),
+            )
+            .await,
+        );
+        let export = unwrap_data(resp);
+        let payload = export["payload"].clone();
+
+        let Json(resp) = unwrap_ok(
+            federation_import(
+                State(state.clone()),
+                Auth(bob.clone()),
+                Json(FedImportBody {
+                    remote_deployment: "satellite-1".into(),
+                    payload,
+                    signature_b64: "dummy-sig".into(),
+                }),
+            )
+            .await,
+        );
+        let imported = unwrap_data(resp);
+        let imported_doc: helix_db::CollabDocument =
+            serde_json::from_value(imported["document"].clone()).unwrap();
+
+        assert_eq!(imported_doc.title, "federated source");
+        assert_eq!(imported_doc.content, "hello world");
+        // The imported document is owned by the importer, not the exporter.
+        assert_eq!(imported_doc.tenant_id, bob.tenant_id);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres/NATS/MinIO)"]
+    async fn federation_import_rejects_invalid_client_e2ee() {
+        let (state, _guard) = locked_state().await;
+        let bob = dev_principal("fed-bob-invalid");
+
+        let payload = serde_json::json!({
+            "format": "helix-collab-federation-v1",
+            "document": { "id": Uuid::nil(), "title": "bad", "version": 1, "client_e2ee": true },
+            "content": "not an HC1 envelope",
+            "from_tenant": bob.tenant_id.to_string(),
+            "to_deployment": "satellite-1",
+        });
+
+        let err = federation_import(
+            State(state.clone()),
+            Auth(bob.clone()),
+            Json(FedImportBody {
+                remote_deployment: "satellite-1".into(),
+                payload,
+                signature_b64: "dummy-sig".into(),
+            }),
+        )
+        .await
+        .expect_err("plaintext content with client_e2ee=true should fail");
+        assert_eq!(err.0.code, ErrorCode::Validation);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres/NATS/MinIO)"]
+    async fn federation_import_ignores_spoofed_from_tenant() {
+        let (state, _guard) = locked_state().await;
+        let bob = dev_principal("fed-bob-spoof");
+        let spoofed_tenant = Uuid::new_v4();
+
+        let payload = serde_json::json!({
+            "format": "helix-collab-federation-v1",
+            "document": { "id": Uuid::nil(), "title": "spoofed", "version": 1, "client_e2ee": false },
+            "content": "payload",
+            "from_tenant": spoofed_tenant.to_string(),
+            "to_deployment": "satellite-1",
+        });
+
+        let Json(resp) = unwrap_ok(
+            federation_import(
+                State(state.clone()),
+                Auth(bob.clone()),
+                Json(FedImportBody {
+                    remote_deployment: "satellite-1".into(),
+                    payload,
+                    signature_b64: "dummy-sig".into(),
+                }),
+            )
+            .await,
+        );
+        let imported = unwrap_data(resp);
+        let imported_doc: helix_db::CollabDocument =
+            serde_json::from_value(imported["document"].clone()).unwrap();
+
+        assert_eq!(imported_doc.tenant_id, bob.tenant_id);
+        assert_ne!(imported_doc.tenant_id.as_uuid(), spoofed_tenant);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres/NATS/MinIO)"]
+    async fn federation_import_allows_replay_creating_duplicate_docs() {
+        // Adversarial: there is currently no idempotency/replay protection on import.
+        // This test documents the current lack of protection.
+        let (state, _guard) = locked_state().await;
+        let bob = dev_principal("fed-bob-replay");
+
+        let payload = serde_json::json!({
+            "format": "helix-collab-federation-v1",
+            "document": { "id": Uuid::nil(), "title": "replay", "version": 1, "client_e2ee": false },
+            "content": "same payload",
+            "from_tenant": bob.tenant_id.to_string(),
+            "to_deployment": "satellite-1",
+        });
+
+        let mut ids = Vec::new();
+        for _ in 0..2 {
+            let Json(resp) = unwrap_ok(
+                federation_import(
+                    State(state.clone()),
+                    Auth(bob.clone()),
+                    Json(FedImportBody {
+                        remote_deployment: "satellite-1".into(),
+                        payload: payload.clone(),
+                        signature_b64: "dummy-sig".into(),
+                    }),
+                )
+                .await,
+            );
+            let imported = unwrap_data(resp);
+            let imported_doc: helix_db::CollabDocument =
+                serde_json::from_value(imported["document"].clone()).unwrap();
+            ids.push(imported_doc.id);
+        }
+        assert_ne!(ids[0], ids[1], "replay currently creates a second document");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres/NATS/MinIO)"]
+    async fn federation_export_missing_doc_is_not_found() {
+        let (state, _guard) = locked_state().await;
+        let alice = dev_principal("fed-alice-missing");
+        let missing = Uuid::new_v4();
+
+        let err = federation_export(
+            State(state.clone()),
+            Auth(alice.clone()),
+            Json(FedExportBody {
+                document_id: missing,
+                remote_deployment: "satellite-1".into(),
+                signature_b64: "dummy-sig".into(),
+            }),
+        )
+        .await
+        .expect_err("exporting missing doc should fail");
+        assert_eq!(err.0.code, ErrorCode::NotFound);
+    }
+}

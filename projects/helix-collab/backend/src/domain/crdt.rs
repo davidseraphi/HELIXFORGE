@@ -164,4 +164,69 @@ mod tests {
         assert!(hub.push_update(id, "HC1.a.b").is_ok());
         assert_eq!(hub.recent_updates(id).len(), 1);
     }
+
+    /// Simulate two peers editing offline and uploading their updates out of order.
+    /// yrs must converge to the same text regardless of order and duplicates.
+    #[test]
+    fn offline_peers_converge_out_of_order_and_dedupe() {
+        let hub = CrdtHub::new();
+        let id = Uuid::nil();
+        hub.seed_if_empty(id, "base");
+
+        // Peer 1 inserts "A" after "base".
+        let peer1 = Doc::new();
+        let txt1 = peer1.get_or_insert_text("content");
+        {
+            let mut txn = peer1.transact_mut();
+            txt1.insert(&mut txn, 0, "base");
+            txt1.insert(&mut txn, 4, "A");
+        }
+        let upd1_b64 = {
+            let txn = peer1.transact();
+            let bytes = txn.encode_state_as_update_v1(&StateVector::default());
+            base64::engine::general_purpose::STANDARD.encode(bytes)
+        };
+
+        // Peer 2 concurrently inserts "B" after "base".
+        let peer2 = Doc::new();
+        let txt2 = peer2.get_or_insert_text("content");
+        {
+            let mut txn = peer2.transact_mut();
+            txt2.insert(&mut txn, 0, "base");
+            txt2.insert(&mut txn, 4, "B");
+        }
+        let upd2_b64 = {
+            let txn = peer2.transact();
+            let bytes = txn.encode_state_as_update_v1(&StateVector::default());
+            base64::engine::general_purpose::STANDARD.encode(bytes)
+        };
+
+        // Apply out of order and with a duplicate.
+        hub.apply_update_b64(id, &upd2_b64).unwrap();
+        hub.apply_update_b64(id, &upd1_b64).unwrap();
+        hub.apply_update_b64(id, &upd2_b64).unwrap();
+
+        let snapshot = hub.text_snapshot(id);
+        assert!(snapshot.contains("base"), "base text lost: {snapshot}");
+        assert!(
+            snapshot.contains('A') && snapshot.contains('B'),
+            "peer edits missing: {snapshot}"
+        );
+    }
+
+    #[test]
+    fn sealed_hub_catch_up_late_joiner() {
+        let hub = SealedCrdtHub::new();
+        let id = Uuid::nil();
+        assert!(hub.put_state(id, "HC1.full.state").is_ok());
+        for i in 0..3 {
+            assert!(hub.push_update(id, &format!("HC1.update.{i}")).is_ok());
+        }
+        assert_eq!(hub.get_state(id).as_deref(), Some("HC1.full.state"));
+        assert_eq!(hub.recent_updates(id).len(), 3);
+
+        // A full-state reset must clear the incremental backlog.
+        assert!(hub.put_state(id, "HC1.new.full").is_ok());
+        assert_eq!(hub.recent_updates(id).len(), 0);
+    }
 }

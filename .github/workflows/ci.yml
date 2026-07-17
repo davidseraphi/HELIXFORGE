@@ -213,6 +213,19 @@ jobs:
           HELIX_VAULT_MASTER_KEY: smoke-smoke-smoke-master-key
           HELIX_AUDIT_HMAC_SECRET: smoke-audit-hmac-secret
           HELIX_WEBHOOK_ALLOW_UNSIGNED: 1
+      - name: Run HelixCollab integration tests
+        run: cargo test -p helix_collab_api -- --ignored
+        env:
+          HELIX_ENV: local
+          HELIX_LOCAL_DEV_UNSAFE: 1
+          HELIX_ALLOW_DEV_HEADERS: 1
+          HELIX_DEV_PLATFORM: 1
+          DATABASE_URL: postgres://helix:helix@127.0.0.1:55432/helixforge
+          NATS_URL: nats://127.0.0.1:4222
+          MINIO_ENDPOINT: http://127.0.0.1:9000
+          HELIX_VAULT_MASTER_KEY: smoke-smoke-smoke-master-key
+          HELIX_AUDIT_HMAC_SECRET: smoke-audit-hmac-secret
+          HELIX_WEBHOOK_ALLOW_UNSIGNED: 1
       - name: Start HelixCollab API
         run: |
           ./target/debug/helix_collab_api > collab-api.log 2>&1 &

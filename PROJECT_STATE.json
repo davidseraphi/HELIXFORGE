@@ -4,10 +4,10 @@
   "stage": "prototype",
   "updated_at": "2026-07-16",
   "active_slice": "category-defining-product-program",
-  "active_goal": "CATEGORY-DEFINING-PROGRAM",
-  "active_phase": "helixcore_full_review_recorded",
-  "previous_goal": "FOUNDATION_INTEGRITY_011",
-  "review_gate": "HELIXCORE_FULL_REVIEW_RECORDED",
+  "active_goal": "HELIXCOLLAB-FULL",
+  "active_phase": "helixcollab_full_followups_done",
+  "previous_goal": "HELIXCORE-FULL_REVIEW_RECORDED",
+  "review_gate": "HELIXCOLLAB-FULL_CI_PROVEN",
   "category_defining_program": {
     "status": "foundation_integrity_umbrella_011.7_closed",
     "root": "docs/product-program",
@@ -22,7 +22,7 @@
       "helix-anvil-standalone"
     ],
     "implementation_started": true,
-    "next_gate": "CI re-proof of installer / live-restore roundtrip for HELIXCORE-FULL PASS"
+    "next_gate": "HELIXCOLLAB-FULL follow-ups or next explicit product goal chosen"
   },
   "second_wave": {
     "roadmap": "docs/SECOND_WAVE.md",
@@ -140,12 +140,12 @@
   },
   "ratified_specs": [],
   "last_smoke": {
-    "date": "2026-07-15",
-    "service": "helix-flow-w1",
+    "date": "2026-07-16",
+    "service": "helix-collab",
     "postgres": true,
     "minio": true,
     "nats": true,
-    "path": "scripts/helix_flow_smoke.ps1 PASS \u2014 execute 3 steps + fail path"
+    "path": "scripts/helix_collab_smoke.ps1 PASS \u2014 local + CI"
   },
   "helix_code_extreme": {
     "phase": "endstate",
@@ -280,10 +280,31 @@
       "0023_collab_full_depth.sql"
     ],
     "smoke": "PASS",
+    "ci_smoke": "PASS",
+    "ci_run": "29531202254",
     "unit": [
       "alice_bob_roundtrip",
       "durable_blob_survives_engine_restart"
-    ]
+    ],
+    "followup_tests": {
+      "date": "2026-07-16",
+      "total": 11,
+      "passed": 11,
+      "ignored_without_infra": true,
+      "suites": [
+        "offline_merge_optimistic_conflict",
+        "offline_merge_crdt_convergence",
+        "client_e2ee_plaintext_patch_rejected",
+        "device_register_list_revoke",
+        "device_revocation_user_isolation",
+        "key_shares_after_device_revoke",
+        "federation_roundtrip",
+        "federation_invalid_client_e2ee",
+        "federation_spoofed_tenant_ignored",
+        "federation_replay_creates_duplicates",
+        "federation_export_missing_doc_not_found"
+      ]
+    }
   },
   "helix_collab_client_e2ee_pm": {
     "client_e2ee_hc1": true,
@@ -345,7 +366,9 @@
     "p0_closed": true,
     "p1_closed": true,
     "p2_closed": true,
-    "ci_reproof_pending": true,
+    "ci_reproof_pending": false,
+    "ci_reproof_date": "2026-07-16",
+    "ci_reproof_run_url": "https://github.com/davidseraphi/HELIXFORGE/actions/runs/29531202254",
     "last_local_verification": {
       "date": "2026-07-16",
       "fmt": true,

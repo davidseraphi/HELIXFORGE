@@ -1017,3 +1017,167 @@ async fn list_acl(
         serde_json::json!({ "items": entries }),
     )))
 }
+
+#[cfg(test)]
+mod tests {
+    use axum::Json;
+    use service_kit::ApiError;
+    use shared_core::{ApiResponse, ErrorCode};
+
+    use crate::domain::test_support::{create_test_doc, dev_principal, locked_state};
+
+    use super::{create_doc, patch_doc, Auth, CreateDoc, DocumentPatch};
+
+    fn unwrap_data<T>(resp: ApiResponse<T>) -> T {
+        match resp {
+            ApiResponse::Ok { data, .. } => data,
+            ApiResponse::Err { error } => panic!("unexpected API error: {error:?}"),
+        }
+    }
+
+    fn unwrap_ok<T>(res: Result<T, ApiError>) -> T {
+        match res {
+            Ok(v) => v,
+            Err(e) => panic!("API error: code={:?} message={}", e.0.code, e.0.message),
+        }
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres/NATS/MinIO)"]
+    async fn optimistic_concurrency_rejects_stale_base() {
+        let (state, _guard) = locked_state().await;
+        let p = dev_principal("offline-alice");
+
+        let Json(resp) = unwrap_ok(
+            create_doc(
+                axum::extract::State(state.clone()),
+                Auth(p.clone()),
+                axum::extract::Json(CreateDoc {
+                    title: "offline-merge-doc".into(),
+                    content: "base".into(),
+                    workspace_id: None,
+                    folder_id: None,
+                    e2ee: false,
+                    client_e2ee: false,
+                    classification: "internal".into(),
+                }),
+            )
+            .await,
+        );
+        let doc = unwrap_data(resp);
+        assert_eq!(doc.version, 1);
+
+        // First patch succeeds: v1 -> v2.
+        let Json(resp) = unwrap_ok(
+            patch_doc(
+                axum::extract::State(state.clone()),
+                Auth(p.clone()),
+                axum::extract::Path(doc.id),
+                axum::extract::Json(DocumentPatch {
+                    base_version: 1,
+                    content: "first edit".into(),
+                    title: None,
+                }),
+            )
+            .await,
+        );
+        let doc = unwrap_data(resp);
+        assert_eq!(doc.version, 2);
+
+        // Second patch still bases itself on v1 -> must be rejected with Conflict.
+        let err = patch_doc(
+            axum::extract::State(state.clone()),
+            Auth(p.clone()),
+            axum::extract::Path(doc.id),
+            axum::extract::Json(DocumentPatch {
+                base_version: 1,
+                content: "conflicting edit".into(),
+                title: None,
+            }),
+        )
+        .await
+        .expect_err("stale base should conflict");
+        assert_eq!(err.0.code, ErrorCode::Conflict);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres/NATS/MinIO)"]
+    async fn sequential_patches_create_durable_revisions() {
+        let (state, _guard) = locked_state().await;
+        let p = dev_principal("offline-bob");
+
+        let doc = create_test_doc(&state, &p, "revision-chain", "v1").await;
+
+        for i in 2..=4u32 {
+            let Json(resp) = unwrap_ok(
+                patch_doc(
+                    axum::extract::State(state.clone()),
+                    Auth(p.clone()),
+                    axum::extract::Path(doc.id),
+                    axum::extract::Json(DocumentPatch {
+                        base_version: i - 1,
+                        content: format!("v{i}"),
+                        title: None,
+                    }),
+                )
+                .await,
+            );
+            let patched = unwrap_data(resp);
+            assert_eq!(patched.version, i);
+        }
+
+        let repo = state.core.clients.collab.as_ref().expect("collab repo");
+        let revisions = repo
+            .list_revisions(p.tenant_id, doc.id, 10)
+            .await
+            .expect("list revisions");
+        // v1 initial + 3 patches = at least 4 revisions.
+        assert!(
+            revisions.len() >= 4,
+            "expected at least 4 revisions, got {}",
+            revisions.len()
+        );
+        let versions: Vec<u32> = revisions.iter().map(|r| r.version).collect();
+        assert!(versions.contains(&4));
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres/NATS/MinIO)"]
+    async fn client_e2ee_doc_rejects_plaintext_patch() {
+        let (state, _guard) = locked_state().await;
+        let p = dev_principal("offline-carol");
+
+        let Json(resp) = unwrap_ok(
+            create_doc(
+                axum::extract::State(state.clone()),
+                Auth(p.clone()),
+                axum::extract::Json(CreateDoc {
+                    title: "sealed-doc".into(),
+                    content: "HC1.v1.payload".into(),
+                    workspace_id: None,
+                    folder_id: None,
+                    e2ee: false,
+                    client_e2ee: true,
+                    classification: "internal".into(),
+                }),
+            )
+            .await,
+        );
+        let doc = unwrap_data(resp);
+        assert!(doc.client_e2ee);
+
+        let err = patch_doc(
+            axum::extract::State(state.clone()),
+            Auth(p.clone()),
+            axum::extract::Path(doc.id),
+            axum::extract::Json(DocumentPatch {
+                base_version: 1,
+                content: "plaintext".into(),
+                title: None,
+            }),
+        )
+        .await
+        .expect_err("plaintext patch on HC1 doc");
+        assert_eq!(err.0.code, ErrorCode::Validation);
+    }
+}
