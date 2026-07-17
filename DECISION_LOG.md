@@ -1,5 +1,23 @@
 # Decision log (append-only)
 
+## 2026-07-17 — HELIXINSIGHTS-FULL second-wave depth packet
+
+- Activated goal: `HELIXINSIGHTS-FULL` (catalog order 4, port 8104).
+- Added migration `0039_insights_depth.sql` for soft-delete columns and query indexes.
+- Extended `InsightsRepo` with soft delete, tenant-wide metric list, filtered point
+  queries, and in-process SQL aggregates (`sum`, `avg`, `min`, `max`, `count`).
+- Added backend routes: `GET /v1/metrics`, `GET /v1/metrics/{id}`,
+  `DELETE /v1/datasets/{id}`, `DELETE /v1/metrics/{id}`,
+  `POST /v1/metrics/{id}/aggregate`, and filtered `GET /v1/metrics/{id}/points`.
+- Wired audit, metering, and NATS events for dataset/metric lifecycle, point
+  recording, and aggregate queries.
+- Added `scripts/helix_insights_smoke.ps1` and an `insights-smoke` CI job.
+- Verification: `cargo test --workspace --all-features` pass,
+  `cargo clippy --workspace --all-targets -- -D warnings` clean,
+  local smoke PASS.
+- Out of scope for this packet: decision records, alerts, reports, dashboards,
+  forecasts, federated aggregates, and web UI changes.
+
 ## 2026-07-15 — Recorded smoke passes do not equal current Foundation Integrity
 
 - The 2026-07-14 HelixCore and HelixCode results remain valid only for their

@@ -4,10 +4,10 @@
   "stage": "prototype",
   "updated_at": "2026-07-16",
   "active_slice": "category-defining-product-program",
-  "active_goal": "HELIXCOLLAB-FULL",
-  "active_phase": "helixcollab_full_followups_done",
-  "previous_goal": "HELIXCORE-FULL_REVIEW_RECORDED",
-  "review_gate": "HELIXCOLLAB-FULL_CI_PROVEN",
+  "active_goal": "HELIXINSIGHTS-FULL",
+  "active_phase": "helixinsights_full_depth",
+  "previous_goal": "HELIXCOLLAB-FULL_CI_PROVEN",
+  "review_gate": "HELIXINSIGHTS-FULL_CI_PROVEN",
   "category_defining_program": {
     "status": "foundation_integrity_umbrella_011.7_closed",
     "root": "docs/product-program",
@@ -22,7 +22,7 @@
       "helix-anvil-standalone"
     ],
     "implementation_started": true,
-    "next_gate": "HELIXCOLLAB-FULL follow-ups or next explicit product goal chosen"
+    "next_gate": "HELIXINSIGHTS-FULL depth packet"
   },
   "second_wave": {
     "roadmap": "docs/SECOND_WAVE.md",
@@ -287,9 +287,10 @@
       "durable_blob_survives_engine_restart"
     ],
     "followup_tests": {
-      "date": "2026-07-16",
+      "date": "2026-07-17",
       "total": 11,
       "passed": 11,
+      "ci_run": "29568293434",
       "ignored_without_infra": true,
       "suites": [
         "offline_merge_optimistic_conflict",
@@ -305,6 +306,32 @@
         "federation_export_missing_doc_not_found"
       ]
     }
+  },
+  "helix_insights_full_depth": {
+    "migration": "0039_insights_depth.sql",
+    "routes": [
+      "GET /v1/metrics",
+      "GET /v1/metrics/{id}",
+      "DELETE /v1/datasets/{id}",
+      "DELETE /v1/metrics/{id}",
+      "POST /v1/metrics/{id}/aggregate",
+      "GET /v1/metrics/{id}/points?from=&to=&dimensions=&limit="
+    ],
+    "planes": [
+      "datasets",
+      "metrics",
+      "points",
+      "soft_delete",
+      "aggregate",
+      "audit",
+      "metering",
+      "nats"
+    ],
+    "aggregations": ["sum", "avg", "min", "max", "count"],
+    "smoke": "PASS",
+    "smoke_script": "scripts/helix_insights_smoke.ps1",
+    "unit": "4/4 PASS",
+    "next": "CI proof on push"
   },
   "helix_collab_client_e2ee_pm": {
     "client_e2ee_hc1": true,

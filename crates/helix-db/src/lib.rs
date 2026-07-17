@@ -76,7 +76,7 @@ pub use edu::{Course, EduRepo, Enrollment};
 pub use flow::{FlowRepo, Workflow, WorkflowRun};
 pub use governance::{DeleteDecision, GovernanceRepo, LegalHold, PurposeBinding, RetentionPolicy};
 pub use grid::{GridRepo, GridSite, Reading};
-pub use insights::{Dataset, InsightsRepo, MetricDef, MetricPoint};
+pub use insights::{AggregateResult, Dataset, InsightsRepo, MetricDef, MetricPoint};
 pub use jobs::{Job, JobCheckpoint, JobRepo, JobStatus};
 pub use lex::{Filing, LexRepo, Matter};
 pub use membership::MembershipRepo;

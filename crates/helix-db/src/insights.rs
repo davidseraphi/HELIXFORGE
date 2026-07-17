@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use shared_core::ids::TenantId;
 use shared_core::{HelixError, HelixResult};
-use sqlx::PgPool;
+use sqlx::{PgPool, QueryBuilder};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -40,6 +40,12 @@ pub struct MetricPoint {
     pub recorded_at: DateTime<Utc>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AggregateResult {
+    pub value: Option<f64>,
+    pub count: i64,
+}
+
 #[derive(Clone)]
 pub struct InsightsRepo {
     pool: PgPool,
@@ -64,7 +70,9 @@ impl InsightsRepo {
         let rows: Vec<Row> = sqlx::query_as(
             r#"
             SELECT id, tenant_id, name, description, source_type, schema_json, created_at
-            FROM insights.datasets WHERE tenant_id = $1 ORDER BY created_at DESC
+            FROM insights.datasets
+            WHERE tenant_id = $1 AND deleted_at IS NULL
+            ORDER BY created_at DESC
             "#,
         )
         .bind(tenant_id.as_uuid())
@@ -146,7 +154,8 @@ impl InsightsRepo {
         let row: Option<Row> = sqlx::query_as(
             r#"
             SELECT id, tenant_id, name, description, source_type, schema_json, created_at
-            FROM insights.datasets WHERE tenant_id = $1 AND id = $2
+            FROM insights.datasets
+            WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL
             "#,
         )
         .bind(tenant_id.as_uuid())
@@ -163,6 +172,46 @@ impl InsightsRepo {
             schema_json: r.schema_json,
             created_at: r.created_at,
         }))
+    }
+
+    pub async fn soft_delete_dataset(
+        &self,
+        tenant_id: TenantId,
+        dataset_id: Uuid,
+    ) -> HelixResult<Dataset> {
+        #[derive(sqlx::FromRow)]
+        struct Row {
+            id: Uuid,
+            tenant_id: Uuid,
+            name: String,
+            description: String,
+            source_type: String,
+            schema_json: serde_json::Value,
+            created_at: DateTime<Utc>,
+        }
+        let row: Option<Row> = sqlx::query_as(
+            r#"
+            UPDATE insights.datasets
+            SET deleted_at = now(), updated_at = now()
+            WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL
+            RETURNING id, tenant_id, name, description, source_type, schema_json, created_at
+            "#,
+        )
+        .bind(tenant_id.as_uuid())
+        .bind(dataset_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| HelixError::dependency(format!("insights soft delete dataset: {e}")))?;
+        row.map(|r| Dataset {
+            id: r.id,
+            tenant_id: TenantId::from_uuid(r.tenant_id),
+            name: r.name,
+            description: r.description,
+            source_type: r.source_type,
+            schema_json: r.schema_json,
+            created_at: r.created_at,
+        })
+        .ok_or_else(|| HelixError::not_found("dataset not found"))
     }
 
     pub async fn list_metrics(
@@ -185,7 +234,7 @@ impl InsightsRepo {
             r#"
             SELECT id, tenant_id, dataset_id, name, unit, aggregation, expression, created_at
             FROM insights.metrics
-            WHERE tenant_id = $1 AND dataset_id = $2
+            WHERE tenant_id = $1 AND dataset_id = $2 AND deleted_at IS NULL
             ORDER BY created_at DESC
             "#,
         )
@@ -194,6 +243,48 @@ impl InsightsRepo {
         .fetch_all(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("insights list metrics: {e}")))?;
+        Ok(rows
+            .into_iter()
+            .map(|r| MetricDef {
+                id: r.id,
+                tenant_id: TenantId::from_uuid(r.tenant_id),
+                dataset_id: r.dataset_id,
+                name: r.name,
+                unit: r.unit,
+                aggregation: r.aggregation,
+                expression: r.expression,
+                created_at: r.created_at,
+            })
+            .collect())
+    }
+
+    pub async fn list_metrics_for_tenant(
+        &self,
+        tenant_id: TenantId,
+    ) -> HelixResult<Vec<MetricDef>> {
+        #[derive(sqlx::FromRow)]
+        struct Row {
+            id: Uuid,
+            tenant_id: Uuid,
+            dataset_id: Uuid,
+            name: String,
+            unit: String,
+            aggregation: String,
+            expression: String,
+            created_at: DateTime<Utc>,
+        }
+        let rows: Vec<Row> = sqlx::query_as(
+            r#"
+            SELECT id, tenant_id, dataset_id, name, unit, aggregation, expression, created_at
+            FROM insights.metrics
+            WHERE tenant_id = $1 AND deleted_at IS NULL
+            ORDER BY created_at DESC
+            "#,
+        )
+        .bind(tenant_id.as_uuid())
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| HelixError::dependency(format!("insights list tenant metrics: {e}")))?;
         Ok(rows
             .into_iter()
             .map(|r| MetricDef {
@@ -218,7 +309,7 @@ impl InsightsRepo {
         aggregation: &str,
         expression: &str,
     ) -> HelixResult<MetricDef> {
-        // Ensure dataset belongs to tenant
+        // Ensure dataset belongs to tenant and is not deleted
         let ds = self
             .get_dataset(tenant_id, dataset_id)
             .await?
@@ -286,7 +377,8 @@ impl InsightsRepo {
         let row: Option<Row> = sqlx::query_as(
             r#"
             SELECT id, tenant_id, dataset_id, name, unit, aggregation, expression, created_at
-            FROM insights.metrics WHERE tenant_id = $1 AND id = $2
+            FROM insights.metrics
+            WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL
             "#,
         )
         .bind(tenant_id.as_uuid())
@@ -304,6 +396,48 @@ impl InsightsRepo {
             expression: r.expression,
             created_at: r.created_at,
         }))
+    }
+
+    pub async fn soft_delete_metric(
+        &self,
+        tenant_id: TenantId,
+        metric_id: Uuid,
+    ) -> HelixResult<MetricDef> {
+        #[derive(sqlx::FromRow)]
+        struct Row {
+            id: Uuid,
+            tenant_id: Uuid,
+            dataset_id: Uuid,
+            name: String,
+            unit: String,
+            aggregation: String,
+            expression: String,
+            created_at: DateTime<Utc>,
+        }
+        let row: Option<Row> = sqlx::query_as(
+            r#"
+            UPDATE insights.metrics
+            SET deleted_at = now()
+            WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL
+            RETURNING id, tenant_id, dataset_id, name, unit, aggregation, expression, created_at
+            "#,
+        )
+        .bind(tenant_id.as_uuid())
+        .bind(metric_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| HelixError::dependency(format!("insights soft delete metric: {e}")))?;
+        row.map(|r| MetricDef {
+            id: r.id,
+            tenant_id: TenantId::from_uuid(r.tenant_id),
+            dataset_id: r.dataset_id,
+            name: r.name,
+            unit: r.unit,
+            aggregation: r.aggregation,
+            expression: r.expression,
+            created_at: r.created_at,
+        })
+        .ok_or_else(|| HelixError::not_found("metric not found"))
     }
 
     pub async fn record_point(
@@ -351,6 +485,19 @@ impl InsightsRepo {
         metric_id: Uuid,
         limit: i64,
     ) -> HelixResult<Vec<MetricPoint>> {
+        self.list_points_filtered(tenant_id, metric_id, None, None, None, limit)
+            .await
+    }
+
+    pub async fn list_points_filtered(
+        &self,
+        tenant_id: TenantId,
+        metric_id: Uuid,
+        from: Option<DateTime<Utc>>,
+        to: Option<DateTime<Utc>>,
+        dimensions: Option<&serde_json::Value>,
+        limit: i64,
+    ) -> HelixResult<Vec<MetricPoint>> {
         #[derive(sqlx::FromRow)]
         struct Row {
             id: Uuid,
@@ -361,21 +508,33 @@ impl InsightsRepo {
             recorded_at: DateTime<Utc>,
         }
         let lim = limit.clamp(1, 500);
-        let rows: Vec<Row> = sqlx::query_as(
-            r#"
-            SELECT id, metric_id, tenant_id, value, dimensions, recorded_at
-            FROM insights.metric_points
-            WHERE tenant_id = $1 AND metric_id = $2
-            ORDER BY recorded_at DESC
-            LIMIT $3
-            "#,
-        )
-        .bind(tenant_id.as_uuid())
-        .bind(metric_id)
-        .bind(lim)
-        .fetch_all(&self.pool)
-        .await
-        .map_err(|e| HelixError::dependency(format!("insights list points: {e}")))?;
+
+        let mut builder = QueryBuilder::new(
+            "SELECT id, metric_id, tenant_id, value, dimensions, recorded_at FROM insights.metric_points WHERE tenant_id = ",
+        );
+        builder.push_bind(tenant_id.as_uuid());
+        builder.push(" AND metric_id = ");
+        builder.push_bind(metric_id);
+        if let Some(f) = from {
+            builder.push(" AND recorded_at >= ");
+            builder.push_bind(f);
+        }
+        if let Some(t) = to {
+            builder.push(" AND recorded_at <= ");
+            builder.push_bind(t);
+        }
+        if let Some(d) = dimensions {
+            builder.push(" AND dimensions @> ");
+            builder.push_bind(d);
+        }
+        builder.push(" ORDER BY recorded_at DESC LIMIT ");
+        builder.push_bind(lim);
+
+        let rows: Vec<Row> = builder
+            .build_query_as::<Row>()
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| HelixError::dependency(format!("insights list points: {e}")))?;
         Ok(rows
             .into_iter()
             .map(|r| MetricPoint {
@@ -387,5 +546,58 @@ impl InsightsRepo {
                 recorded_at: r.recorded_at,
             })
             .collect())
+    }
+
+    pub async fn aggregate_points(
+        &self,
+        tenant_id: TenantId,
+        metric_id: Uuid,
+        aggregation: &str,
+        from: Option<DateTime<Utc>>,
+        to: Option<DateTime<Utc>>,
+        dimensions: Option<&serde_json::Value>,
+    ) -> HelixResult<AggregateResult> {
+        let agg = match aggregation.to_ascii_lowercase().as_str() {
+            "sum" => "SUM(value)",
+            "avg" => "AVG(value)",
+            "min" => "MIN(value)",
+            "max" => "MAX(value)",
+            "count" => "COUNT(*)::float8",
+            other => return Err(HelixError::validation(format!("unsupported aggregation: {other}"))),
+        };
+
+        let mut builder = QueryBuilder::new(format!(
+            "SELECT {agg} AS value, COUNT(*) AS count FROM insights.metric_points WHERE tenant_id = "
+        ));
+        builder.push_bind(tenant_id.as_uuid());
+        builder.push(" AND metric_id = ");
+        builder.push_bind(metric_id);
+        if let Some(f) = from {
+            builder.push(" AND recorded_at >= ");
+            builder.push_bind(f);
+        }
+        if let Some(t) = to {
+            builder.push(" AND recorded_at <= ");
+            builder.push_bind(t);
+        }
+        if let Some(d) = dimensions {
+            builder.push(" AND dimensions @> ");
+            builder.push_bind(d);
+        }
+
+        #[derive(sqlx::FromRow)]
+        struct Row {
+            value: Option<f64>,
+            count: Option<i64>,
+        }
+        let row: Row = builder
+            .build_query_as::<Row>()
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|e| HelixError::dependency(format!("insights aggregate points: {e}")))?;
+        Ok(AggregateResult {
+            value: row.value,
+            count: row.count.unwrap_or(0),
+        })
     }
 }
