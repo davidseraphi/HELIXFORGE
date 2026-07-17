@@ -38,11 +38,17 @@ Durable learning domain lives in `helix_db` (`EduRepo`) + routes in `backend/src
 | Method | Path | Notes |
 |--------|------|--------|
 | GET/POST | `/v1/courses` | List / create courses |
-| GET | `/v1/courses/{id}` | Fetch one course |
+| GET | `/v1/courses/{id}` | Fetch one course (excludes soft-deleted) |
+| PATCH | `/v1/courses/{id}` | Update title/description/level/metadata |
 | POST | `/v1/courses/{id}/publish` | Set status `published` |
+| POST | `/v1/courses/{id}/unpublish` | Set status `draft` |
+| POST | `/v1/courses/{id}/delete` | Soft-delete course |
+| POST | `/v1/courses/{id}/restore` | Restore soft-deleted course |
 | GET | `/v1/courses/{id}/enrollments` | Enrollments for a course |
 | GET/POST | `/v1/enrollments` | List / enroll (learner = caller) |
+| GET | `/v1/enrollments/{id}` | Fetch one enrollment |
 | POST | `/v1/enrollments/{id}/progress` | `{ "progress_pct": 0..100 }` |
-| GET | `/v1/domain/status` | `durable` flag |
+| POST | `/v1/enrollments/{id}/withdraw` | Withdraw enrollment |
+| GET | `/v1/domain/status` | `phase: wave2_w4` + capability planes |
 
 Auth (local): header `x-helix-dev-user: you@example.com`.

@@ -31,7 +31,7 @@ async fn main() -> HelixResult<()> {
     let state = builder.into_state();
     let app = ServiceBuilder::base_router(state.clone())
         .merge(ProductService::router(state.clone(), product))
-        .nest_service("/", domain_routes().with_state(state.clone()));
+        .merge(domain_routes());
 
     let cfg = shared_core::CoreConfig::from_env("helix-edu", 8106)?;
     service_kit::serve_with_shutdown(cfg.listen_addr, app, "helix-edu", state).await?;
@@ -40,13 +40,18 @@ async fn main() -> HelixResult<()> {
 
 fn domain_routes() -> Router<AppState> {
     Router::new()
+        .route("/v1/domain/status", get(domain_status))
         .route("/v1/courses", get(list_courses).post(create_course))
-        .route("/v1/courses/{id}", get(get_course))
+        .route("/v1/courses/{id}", get(get_course).patch(update_course))
         .route("/v1/courses/{id}/publish", post(publish_course))
+        .route("/v1/courses/{id}/unpublish", post(unpublish_course))
+        .route("/v1/courses/{id}/delete", post(delete_course))
+        .route("/v1/courses/{id}/restore", post(restore_course))
         .route("/v1/courses/{id}/enrollments", get(list_course_enrollments))
         .route("/v1/enrollments", get(list_enrollments).post(enroll))
+        .route("/v1/enrollments/{id}", get(get_enrollment))
         .route("/v1/enrollments/{id}/progress", post(update_progress))
-        .route("/v1/domain/status", get(domain_status))
+        .route("/v1/enrollments/{id}/withdraw", post(withdraw_enrollment))
 }
 
 async fn domain_status(
@@ -55,9 +60,21 @@ async fn domain_status(
 ) -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
     p.require_scope(shared_core::tenancy::Scope::Read)?;
     Ok(Json(ApiResponse::ok(serde_json::json!({
-        "domain": "ready",
+        "domain": "helix-edu",
+        "phase": "wave2_w4",
         "tenant": p.tenant_id.to_string(),
-        "durable": state.clients.db.is_some()
+        "durable": state.clients.db.is_some(),
+        "planes": {
+            "courses": true,
+            "enrollments": true,
+            "publish_unpublish": true,
+            "soft_delete": true,
+            "withdraw": true,
+            "progress_history": true,
+            "audit": true,
+            "metering": true,
+            "nats": true
+        }
     }))))
 }
 
@@ -102,12 +119,7 @@ async fn create_course(
     Json(body): Json<CreateCourse>,
 ) -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
     p.require_scope(shared_core::tenancy::Scope::Write)?;
-    if body.slug.trim().is_empty() {
-        return Err(HelixError::validation("slug required").into());
-    }
-    if body.title.trim().is_empty() {
-        return Err(HelixError::validation("title required").into());
-    }
+    validate_course_input(&body.slug, &body.title)?;
     let pool = state
         .clients
         .db
@@ -152,6 +164,19 @@ async fn create_course(
             serde_json::json!({}),
         )
         .await?;
+    state
+        .clients
+        .bus
+        .publish(
+            "helix.edu.course.created",
+            &serde_json::json!({
+                "course_id": course.id,
+                "slug": course.slug,
+                "tenant_id": p.tenant_id.to_string()
+            }),
+        )
+        .await
+        .ok();
     Ok(Json(ApiResponse::ok(serde_json::json!(course))))
 }
 
@@ -171,6 +196,85 @@ async fn get_course(
         .get_course(p.tenant_id, id)
         .await?
         .ok_or_else(|| HelixError::not_found("course not found"))?;
+    Ok(Json(ApiResponse::ok(serde_json::json!(course))))
+}
+
+#[derive(Deserialize, Default)]
+struct UpdateCourse {
+    #[serde(default)]
+    title: Option<String>,
+    #[serde(default)]
+    description: Option<String>,
+    #[serde(default)]
+    level: Option<String>,
+    #[serde(default)]
+    metadata: Option<serde_json::Value>,
+}
+
+async fn update_course(
+    State(state): State<AppState>,
+    RequireAuth(p): RequireAuth,
+    Path(id): Path<Uuid>,
+    Json(body): Json<UpdateCourse>,
+) -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
+    p.require_scope(shared_core::tenancy::Scope::Write)?;
+    let pool = state
+        .clients
+        .db
+        .as_ref()
+        .ok_or_else(|| HelixError::unavailable("Postgres required for durable courses"))?;
+    let repo = EduRepo::new(pool.clone());
+    let course = repo
+        .update_course(
+            p.tenant_id,
+            id,
+            body.title,
+            body.description,
+            body.level,
+            body.metadata,
+        )
+        .await?;
+    state
+        .clients
+        .audit
+        .append(AuditEvent {
+            tenant_id: Some(p.tenant_id),
+            actor: Actor::User {
+                user_id: p.user_id,
+                tenant_id: p.tenant_id,
+            },
+            action: "course.update".into(),
+            resource_type: "course".into(),
+            resource_id: course.id.to_string(),
+            metadata: serde_json::json!({"slug": course.slug, "status": course.status}),
+            residency_region: p.residency_region.clone(),
+        })
+        .await?;
+    state
+        .clients
+        .billing
+        .record_usage(
+            p.tenant_id,
+            "helix-edu",
+            "courses.updated",
+            1.0,
+            "count",
+            serde_json::json!({}),
+        )
+        .await?;
+    state
+        .clients
+        .bus
+        .publish(
+            "helix.edu.course.updated",
+            &serde_json::json!({
+                "course_id": course.id,
+                "slug": course.slug,
+                "tenant_id": p.tenant_id.to_string()
+            }),
+        )
+        .await
+        .ok();
     Ok(Json(ApiResponse::ok(serde_json::json!(course))))
 }
 
@@ -205,9 +309,144 @@ async fn publish_course(
         .await?;
     state
         .clients
+        .billing
+        .record_usage(
+            p.tenant_id,
+            "helix-edu",
+            "courses.published",
+            1.0,
+            "count",
+            serde_json::json!({}),
+        )
+        .await?;
+    state
+        .clients
         .bus
         .publish(
             "helix.edu.course.published",
+            &serde_json::json!({"course_id": course.id, "slug": course.slug}),
+        )
+        .await
+        .ok();
+    Ok(Json(ApiResponse::ok(serde_json::json!(course))))
+}
+
+async fn unpublish_course(
+    State(state): State<AppState>,
+    RequireAuth(p): RequireAuth,
+    Path(id): Path<Uuid>,
+) -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
+    p.require_scope(shared_core::tenancy::Scope::Write)?;
+    let pool = state
+        .clients
+        .db
+        .as_ref()
+        .ok_or_else(|| HelixError::unavailable("Postgres required for durable courses"))?;
+    let repo = EduRepo::new(pool.clone());
+    let course = repo.unpublish_course(p.tenant_id, id).await?;
+    state
+        .clients
+        .audit
+        .append(AuditEvent {
+            tenant_id: Some(p.tenant_id),
+            actor: Actor::User {
+                user_id: p.user_id,
+                tenant_id: p.tenant_id,
+            },
+            action: "course.unpublish".into(),
+            resource_type: "course".into(),
+            resource_id: course.id.to_string(),
+            metadata: serde_json::json!({"slug": course.slug}),
+            residency_region: p.residency_region.clone(),
+        })
+        .await?;
+    state
+        .clients
+        .bus
+        .publish(
+            "helix.edu.course.unpublished",
+            &serde_json::json!({"course_id": course.id, "slug": course.slug}),
+        )
+        .await
+        .ok();
+    Ok(Json(ApiResponse::ok(serde_json::json!(course))))
+}
+
+async fn delete_course(
+    State(state): State<AppState>,
+    RequireAuth(p): RequireAuth,
+    Path(id): Path<Uuid>,
+) -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
+    p.require_scope(shared_core::tenancy::Scope::Write)?;
+    let pool = state
+        .clients
+        .db
+        .as_ref()
+        .ok_or_else(|| HelixError::unavailable("Postgres required for durable courses"))?;
+    let repo = EduRepo::new(pool.clone());
+    let course = repo.soft_delete_course(p.tenant_id, id).await?;
+    state
+        .clients
+        .audit
+        .append(AuditEvent {
+            tenant_id: Some(p.tenant_id),
+            actor: Actor::User {
+                user_id: p.user_id,
+                tenant_id: p.tenant_id,
+            },
+            action: "course.delete".into(),
+            resource_type: "course".into(),
+            resource_id: course.id.to_string(),
+            metadata: serde_json::json!({"slug": course.slug}),
+            residency_region: p.residency_region.clone(),
+        })
+        .await?;
+    state
+        .clients
+        .bus
+        .publish(
+            "helix.edu.course.deleted",
+            &serde_json::json!({"course_id": course.id, "slug": course.slug}),
+        )
+        .await
+        .ok();
+    Ok(Json(ApiResponse::ok(serde_json::json!(course))))
+}
+
+async fn restore_course(
+    State(state): State<AppState>,
+    RequireAuth(p): RequireAuth,
+    Path(id): Path<Uuid>,
+) -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
+    p.require_scope(shared_core::tenancy::Scope::Write)?;
+    let pool = state
+        .clients
+        .db
+        .as_ref()
+        .ok_or_else(|| HelixError::unavailable("Postgres required for durable courses"))?;
+    let repo = EduRepo::new(pool.clone());
+    let course = repo.restore_course(p.tenant_id, id).await?;
+    state
+        .clients
+        .audit
+        .append(AuditEvent {
+            tenant_id: Some(p.tenant_id),
+            actor: Actor::User {
+                user_id: p.user_id,
+                tenant_id: p.tenant_id,
+            },
+            action: "course.restore".into(),
+            resource_type: "course".into(),
+            resource_id: course.id.to_string(),
+            metadata: serde_json::json!({"slug": course.slug}),
+            residency_region: p.residency_region.clone(),
+        })
+        .await?;
+    state
+        .clients
+        .bus
+        .publish(
+            "helix.edu.course.restored",
             &serde_json::json!({"course_id": course.id, "slug": course.slug}),
         )
         .await
@@ -330,6 +569,25 @@ async fn enroll(
     Ok(Json(ApiResponse::ok(serde_json::json!(enrollment))))
 }
 
+async fn get_enrollment(
+    State(state): State<AppState>,
+    RequireAuth(p): RequireAuth,
+    Path(id): Path<Uuid>,
+) -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
+    p.require_scope(shared_core::tenancy::Scope::Read)?;
+    let pool = state
+        .clients
+        .db
+        .as_ref()
+        .ok_or_else(|| HelixError::unavailable("Postgres required for durable enrollments"))?;
+    let repo = EduRepo::new(pool.clone());
+    let enrollment = repo
+        .get_enrollment(p.tenant_id, id)
+        .await?
+        .ok_or_else(|| HelixError::not_found("enrollment not found"))?;
+    Ok(Json(ApiResponse::ok(serde_json::json!(enrollment))))
+}
+
 #[derive(Deserialize)]
 struct ProgressBody {
     progress_pct: i32,
@@ -342,6 +600,7 @@ async fn update_progress(
     Json(body): Json<ProgressBody>,
 ) -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
     p.require_scope(shared_core::tenancy::Scope::Write)?;
+    validate_progress_pct(body.progress_pct)?;
     let pool = state
         .clients
         .db
@@ -349,7 +608,32 @@ async fn update_progress(
         .ok_or_else(|| HelixError::unavailable("Postgres required for durable enrollments"))?;
     let repo = EduRepo::new(pool.clone());
     let enrollment = repo
-        .update_progress(p.tenant_id, id, body.progress_pct)
+        .update_progress(
+            p.tenant_id,
+            id,
+            body.progress_pct,
+            Some(p.user_id.as_uuid()),
+        )
+        .await?;
+    state
+        .clients
+        .audit
+        .append(AuditEvent {
+            tenant_id: Some(p.tenant_id),
+            actor: Actor::User {
+                user_id: p.user_id,
+                tenant_id: p.tenant_id,
+            },
+            action: "enrollment.progress".into(),
+            resource_type: "enrollment".into(),
+            resource_id: enrollment.id.to_string(),
+            metadata: serde_json::json!({
+                "course_id": enrollment.course_id,
+                "progress_pct": enrollment.progress_pct,
+                "status": enrollment.status
+            }),
+            residency_region: p.residency_region.clone(),
+        })
         .await?;
     state
         .clients
@@ -381,4 +665,254 @@ async fn update_progress(
             .ok();
     }
     Ok(Json(ApiResponse::ok(serde_json::json!(enrollment))))
+}
+
+async fn withdraw_enrollment(
+    State(state): State<AppState>,
+    RequireAuth(p): RequireAuth,
+    Path(id): Path<Uuid>,
+) -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
+    p.require_scope(shared_core::tenancy::Scope::Write)?;
+    let pool = state
+        .clients
+        .db
+        .as_ref()
+        .ok_or_else(|| HelixError::unavailable("Postgres required for durable enrollments"))?;
+    let repo = EduRepo::new(pool.clone());
+    let enrollment = repo.withdraw_enrollment(p.tenant_id, id).await?;
+    state
+        .clients
+        .audit
+        .append(AuditEvent {
+            tenant_id: Some(p.tenant_id),
+            actor: Actor::User {
+                user_id: p.user_id,
+                tenant_id: p.tenant_id,
+            },
+            action: "enrollment.withdraw".into(),
+            resource_type: "enrollment".into(),
+            resource_id: enrollment.id.to_string(),
+            metadata: serde_json::json!({"course_id": enrollment.course_id}),
+            residency_region: p.residency_region.clone(),
+        })
+        .await?;
+    state
+        .clients
+        .billing
+        .record_usage(
+            p.tenant_id,
+            "helix-edu",
+            "enrollments.withdrawn",
+            1.0,
+            "count",
+            serde_json::json!({"enrollment_id": enrollment.id}),
+        )
+        .await?;
+    state
+        .clients
+        .bus
+        .publish(
+            "helix.edu.enrollment.withdrawn",
+            &serde_json::json!({
+                "enrollment_id": enrollment.id,
+                "course_id": enrollment.course_id
+            }),
+        )
+        .await
+        .ok();
+    Ok(Json(ApiResponse::ok(serde_json::json!(enrollment))))
+}
+
+fn validate_course_input(slug: &str, title: &str) -> HelixResult<()> {
+    if slug.trim().is_empty() {
+        return Err(HelixError::validation("slug required"));
+    }
+    if title.trim().is_empty() {
+        return Err(HelixError::validation("title required"));
+    }
+    Ok(())
+}
+
+fn validate_progress_pct(progress_pct: i32) -> HelixResult<()> {
+    if !(0..=100).contains(&progress_pct) {
+        return Err(HelixError::validation("progress_pct must be 0..=100"));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Once;
+
+    use service_kit::{AppState, ProductApp, ServiceBuilder};
+    use shared_core::tenancy::{Principal, Scope};
+    use shared_core::{TenantId, UserId};
+    use tokio::sync::{Mutex, MutexGuard};
+    use uuid::Uuid;
+
+    use super::*;
+
+    static INIT_ENV: Once = Once::new();
+    static TEST_MUTEX: Mutex<()> = Mutex::const_new(());
+
+    fn init_test_env() {
+        INIT_ENV.call_once(|| {
+            std::env::set_var("HELIX_ENV", "local");
+            std::env::set_var("HELIX_LOCAL_DEV_UNSAFE", "1");
+            std::env::set_var("HELIX_ALLOW_DEV_HEADERS", "1");
+            std::env::set_var("HELIX_DEV_PLATFORM", "1");
+            std::env::set_var("PORT", "18106");
+            std::env::set_var("LOG_JSON", "false");
+            std::env::set_var("HELIX_DB_POOL_MAX_CONNECTIONS", "4");
+            std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT");
+        });
+    }
+
+    async fn locked_state() -> (AppState, MutexGuard<'static, ()>) {
+        init_test_env();
+        let guard = TEST_MUTEX.lock().await;
+        let product = ProductApp::from_slug("helix-edu").expect("helix-edu product known");
+        let builder = ServiceBuilder::new(product.slug, product.default_port)
+            .await
+            .expect("ServiceBuilder requires Postgres + optional NATS/MinIO");
+        (builder.into_state(), guard)
+    }
+
+    fn dev_principal(label: &str) -> Principal {
+        let tenant_id = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        let user_id = UserId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            format!("helixforge-user:{label}").as_bytes(),
+        ));
+        Principal {
+            user_id,
+            tenant_id,
+            org_id: None,
+            scopes: vec![
+                Scope::Read,
+                Scope::Write,
+                Scope::Admin,
+                Scope::AuditRead,
+                Scope::Platform,
+            ],
+            session_id: Some(format!("dev-session:{label}")),
+            residency_region: "local".into(),
+        }
+    }
+
+    #[test]
+    fn progress_pct_boundary_rejects_out_of_range() {
+        assert!(validate_progress_pct(-1).is_err());
+        assert!(validate_progress_pct(0).is_ok());
+        assert!(validate_progress_pct(100).is_ok());
+        assert!(validate_progress_pct(101).is_err());
+    }
+
+    #[test]
+    fn course_input_requires_slug_and_title() {
+        assert!(validate_course_input("", "Title").is_err());
+        assert!(validate_course_input("slug", "").is_err());
+        assert!(validate_course_input("  ", "Title").is_err());
+        assert!(validate_course_input("slug", "Title").is_ok());
+    }
+
+    #[test]
+    fn duplicate_enrollment_error_message_contains_enrolled() {
+        let msg = "already enrolled in this course";
+        assert!(msg.contains("enrolled"));
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn progress_update_creates_history_rows() {
+        let (state, _guard) = locked_state().await;
+        let principal = dev_principal("history-learner");
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = EduRepo::new(pool.clone());
+
+        let course = repo
+            .create_course(
+                principal.tenant_id,
+                "history-course",
+                "History Course",
+                "",
+                "beginner",
+                serde_json::json!({}),
+            )
+            .await
+            .expect("create course");
+        let published = repo
+            .publish_course(principal.tenant_id, course.id)
+            .await
+            .expect("publish course");
+        let enrollment = repo
+            .enroll(
+                principal.tenant_id,
+                published.id,
+                principal.user_id,
+                "learner",
+            )
+            .await
+            .expect("enroll");
+
+        repo.update_progress(
+            principal.tenant_id,
+            enrollment.id,
+            25,
+            Some(principal.user_id.as_uuid()),
+        )
+        .await
+        .expect("progress 25");
+        repo.update_progress(
+            principal.tenant_id,
+            enrollment.id,
+            75,
+            Some(principal.user_id.as_uuid()),
+        )
+        .await
+        .expect("progress 75");
+        repo.update_progress(
+            principal.tenant_id,
+            enrollment.id,
+            100,
+            Some(principal.user_id.as_uuid()),
+        )
+        .await
+        .expect("progress 100");
+
+        let history = repo
+            .list_progress_history(principal.tenant_id, enrollment.id)
+            .await
+            .expect("list history");
+        assert_eq!(history.len(), 3, "expected three progress history rows");
+        assert_eq!(history[0].progress_pct, 100, "latest row is 100%");
+
+        let completed = repo
+            .get_enrollment(principal.tenant_id, enrollment.id)
+            .await
+            .expect("reload enrollment")
+            .expect("enrollment exists");
+        assert_eq!(completed.status, "completed");
+        assert!(completed.completed_at.is_some());
+
+        // Rolling progress back clears completion.
+        repo.update_progress(
+            principal.tenant_id,
+            enrollment.id,
+            90,
+            Some(principal.user_id.as_uuid()),
+        )
+        .await
+        .expect("progress 90");
+        let rolled_back = repo
+            .get_enrollment(principal.tenant_id, enrollment.id)
+            .await
+            .expect("reload enrollment")
+            .expect("enrollment exists");
+        assert_eq!(rolled_back.status, "active");
+        assert!(rolled_back.completed_at.is_none());
+    }
 }

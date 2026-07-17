@@ -33,6 +33,17 @@ pub struct Enrollment {
     pub completed_at: Option<DateTime<Utc>>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProgressHistoryRecord {
+    pub id: Uuid,
+    pub enrollment_id: Uuid,
+    pub tenant_id: TenantId,
+    pub progress_pct: i32,
+    pub status: String,
+    pub actor_id: Option<Uuid>,
+    pub recorded_at: DateTime<Utc>,
+}
+
 #[derive(sqlx::FromRow)]
 struct CourseRow {
     id: Uuid,
@@ -79,7 +90,7 @@ impl EduRepo {
 
     pub async fn list_courses(&self, tenant_id: TenantId) -> HelixResult<Vec<Course>> {
         let rows: Vec<CourseRow> = sqlx::query_as(&format!(
-            "{COURSE_SELECT} WHERE tenant_id = $1 ORDER BY created_at DESC"
+            "{COURSE_SELECT} WHERE tenant_id = $1 AND deleted_at IS NULL ORDER BY created_at DESC"
         ))
         .bind(tenant_id.as_uuid())
         .fetch_all(&self.pool)
@@ -140,14 +151,117 @@ impl EduRepo {
         tenant_id: TenantId,
         course_id: Uuid,
     ) -> HelixResult<Option<Course>> {
+        let row: Option<CourseRow> = sqlx::query_as(&format!(
+            "{COURSE_SELECT} WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL"
+        ))
+        .bind(tenant_id.as_uuid())
+        .bind(course_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| HelixError::dependency(format!("edu get course: {e}")))?;
+        Ok(row.map(CourseRow::into_course))
+    }
+
+    pub async fn update_course(
+        &self,
+        tenant_id: TenantId,
+        course_id: Uuid,
+        title: Option<String>,
+        description: Option<String>,
+        level: Option<String>,
+        metadata: Option<serde_json::Value>,
+    ) -> HelixResult<Course> {
+        let updated_at = Utc::now();
+        let res = sqlx::query(
+            r#"
+            UPDATE edu.courses
+            SET updated_at = $1,
+                title = COALESCE($2, title),
+                description = COALESCE($3, description),
+                level = COALESCE(NULLIF($4,''), level),
+                metadata = COALESCE($5, metadata)
+            WHERE tenant_id = $6 AND id = $7 AND deleted_at IS NULL
+            "#,
+        )
+        .bind(updated_at)
+        .bind(title)
+        .bind(description)
+        .bind(level)
+        .bind(metadata)
+        .bind(tenant_id.as_uuid())
+        .bind(course_id)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| HelixError::dependency(format!("edu update course: {e}")))?;
+        if res.rows_affected() == 0 {
+            return Err(HelixError::not_found("course not found"));
+        }
+        self.get_course(tenant_id, course_id)
+            .await?
+            .ok_or_else(|| HelixError::not_found("course not found"))
+    }
+
+    pub async fn soft_delete_course(
+        &self,
+        tenant_id: TenantId,
+        course_id: Uuid,
+    ) -> HelixResult<Course> {
+        let deleted_at = Utc::now();
+        let res = sqlx::query(
+            r#"
+            UPDATE edu.courses
+            SET deleted_at = $1
+            WHERE tenant_id = $2 AND id = $3 AND deleted_at IS NULL
+            "#,
+        )
+        .bind(deleted_at)
+        .bind(tenant_id.as_uuid())
+        .bind(course_id)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| HelixError::dependency(format!("edu soft delete course: {e}")))?;
+        if res.rows_affected() == 0 {
+            return Err(HelixError::not_found("course not found"));
+        }
+        // Return the course row without exposing deleted_at.
         let row: Option<CourseRow> =
             sqlx::query_as(&format!("{COURSE_SELECT} WHERE tenant_id = $1 AND id = $2"))
                 .bind(tenant_id.as_uuid())
                 .bind(course_id)
                 .fetch_optional(&self.pool)
                 .await
-                .map_err(|e| HelixError::dependency(format!("edu get course: {e}")))?;
-        Ok(row.map(CourseRow::into_course))
+                .map_err(|e| HelixError::dependency(format!("edu get course after delete: {e}")))?;
+        row.map(CourseRow::into_course)
+            .ok_or_else(|| HelixError::not_found("course not found"))
+    }
+
+    pub async fn restore_course(
+        &self,
+        tenant_id: TenantId,
+        course_id: Uuid,
+    ) -> HelixResult<Course> {
+        let updated_at = Utc::now();
+        let res = sqlx::query(
+            r#"
+            UPDATE edu.courses
+            SET deleted_at = NULL,
+                status = 'draft',
+                updated_at = $1
+            WHERE tenant_id = $2 AND id = $3 AND deleted_at IS NOT NULL
+            "#,
+        )
+        .bind(updated_at)
+        .bind(tenant_id.as_uuid())
+        .bind(course_id)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| HelixError::dependency(format!("edu restore course: {e}")))?;
+        if res.rows_affected() == 0 {
+            return Err(HelixError::not_found("course not found"));
+        }
+        self.get_course(tenant_id, course_id)
+            .await?
+            .ok_or_else(|| HelixError::not_found("course not found"))
     }
 
     pub async fn publish_course(
@@ -160,7 +274,7 @@ impl EduRepo {
             r#"
             UPDATE edu.courses
             SET status = 'published', updated_at = $1
-            WHERE tenant_id = $2 AND id = $3
+            WHERE tenant_id = $2 AND id = $3 AND deleted_at IS NULL
             "#,
         )
         .bind(updated_at)
@@ -169,6 +283,33 @@ impl EduRepo {
         .execute(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("edu publish course: {e}")))?;
+        if res.rows_affected() == 0 {
+            return Err(HelixError::not_found("course not found"));
+        }
+        self.get_course(tenant_id, course_id)
+            .await?
+            .ok_or_else(|| HelixError::not_found("course not found"))
+    }
+
+    pub async fn unpublish_course(
+        &self,
+        tenant_id: TenantId,
+        course_id: Uuid,
+    ) -> HelixResult<Course> {
+        let updated_at = Utc::now();
+        let res = sqlx::query(
+            r#"
+            UPDATE edu.courses
+            SET status = 'draft', updated_at = $1
+            WHERE tenant_id = $2 AND id = $3 AND deleted_at IS NULL
+            "#,
+        )
+        .bind(updated_at)
+        .bind(tenant_id.as_uuid())
+        .bind(course_id)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| HelixError::dependency(format!("edu unpublish course: {e}")))?;
         if res.rows_affected() == 0 {
             return Err(HelixError::not_found("course not found"));
         }
@@ -251,9 +392,9 @@ impl EduRepo {
             .get_course(tenant_id, course_id)
             .await?
             .ok_or_else(|| HelixError::not_found("course not found"))?;
-        if course.status != "published" && course.status != "draft" {
+        if course.status != "published" {
             return Err(HelixError::validation(format!(
-                "course {} is not open for enrollment",
+                "course {} is not published",
                 course.slug
             )));
         }
@@ -297,15 +438,79 @@ impl EduRepo {
         })
     }
 
+    pub async fn withdraw_enrollment(
+        &self,
+        tenant_id: TenantId,
+        enrollment_id: Uuid,
+    ) -> HelixResult<Enrollment> {
+        let existing = self
+            .get_enrollment(tenant_id, enrollment_id)
+            .await?
+            .ok_or_else(|| HelixError::not_found("enrollment not found"))?;
+        if existing.status == "withdrawn" {
+            return Err(HelixError::validation("enrollment is already withdrawn"));
+        }
+
+        let res = sqlx::query(
+            r#"
+            UPDATE edu.enrollments
+            SET status = 'withdrawn'
+            WHERE tenant_id = $1 AND id = $2
+            "#,
+        )
+        .bind(tenant_id.as_uuid())
+        .bind(enrollment_id)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| HelixError::dependency(format!("edu withdraw enrollment: {e}")))?;
+        if res.rows_affected() == 0 {
+            return Err(HelixError::not_found("enrollment not found"));
+        }
+        self.get_enrollment(tenant_id, enrollment_id)
+            .await?
+            .ok_or_else(|| HelixError::not_found("enrollment not found"))
+    }
+
     pub async fn update_progress(
         &self,
         tenant_id: TenantId,
         enrollment_id: Uuid,
         progress_pct: i32,
+        actor_id: Option<Uuid>,
     ) -> HelixResult<Enrollment> {
         if !(0..=100).contains(&progress_pct) {
             return Err(HelixError::validation("progress_pct must be 0..=100"));
         }
+
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| HelixError::dependency(format!("edu progress tx begin: {e}")))?;
+
+        let existing: Option<(String,)> = sqlx::query_as(
+            r#"
+            SELECT status
+            FROM edu.enrollments
+            WHERE tenant_id = $1 AND id = $2
+            FOR UPDATE
+            "#,
+        )
+        .bind(tenant_id.as_uuid())
+        .bind(enrollment_id)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(|e| HelixError::dependency(format!("edu lock enrollment: {e}")))?;
+
+        let current_status = existing
+            .ok_or_else(|| HelixError::not_found("enrollment not found"))?
+            .0;
+        if current_status == "withdrawn" {
+            return Err(HelixError::validation(
+                "cannot update progress on a withdrawn enrollment",
+            ));
+        }
+
         let completed_at = if progress_pct >= 100 {
             Some(Utc::now())
         } else {
@@ -316,12 +521,13 @@ impl EduRepo {
         } else {
             "active"
         };
-        let res = sqlx::query(
+
+        sqlx::query(
             r#"
             UPDATE edu.enrollments
             SET progress_pct = $1,
                 status = $2,
-                completed_at = COALESCE($3, completed_at)
+                completed_at = $3
             WHERE tenant_id = $4 AND id = $5
             "#,
         )
@@ -330,12 +536,34 @@ impl EduRepo {
         .bind(completed_at)
         .bind(tenant_id.as_uuid())
         .bind(enrollment_id)
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await
         .map_err(|e| HelixError::dependency(format!("edu update progress: {e}")))?;
-        if res.rows_affected() == 0 {
-            return Err(HelixError::not_found("enrollment not found"));
-        }
+
+        let history_id = Uuid::now_v7();
+        let recorded_at = Utc::now();
+        sqlx::query(
+            r#"
+            INSERT INTO edu.enrollment_progress_history
+                (id, enrollment_id, tenant_id, progress_pct, status, actor_id, recorded_at)
+            VALUES ($1,$2,$3,$4,$5,$6,$7)
+            "#,
+        )
+        .bind(history_id)
+        .bind(enrollment_id)
+        .bind(tenant_id.as_uuid())
+        .bind(progress_pct)
+        .bind(status)
+        .bind(actor_id)
+        .bind(recorded_at)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| HelixError::dependency(format!("edu insert progress history: {e}")))?;
+
+        tx.commit()
+            .await
+            .map_err(|e| HelixError::dependency(format!("edu progress tx commit: {e}")))?;
+
         self.get_enrollment(tenant_id, enrollment_id)
             .await?
             .ok_or_else(|| HelixError::not_found("enrollment not found"))
@@ -382,5 +610,47 @@ impl EduRepo {
             enrolled_at: r.enrolled_at,
             completed_at: r.completed_at,
         }))
+    }
+
+    pub async fn list_progress_history(
+        &self,
+        tenant_id: TenantId,
+        enrollment_id: Uuid,
+    ) -> HelixResult<Vec<ProgressHistoryRecord>> {
+        #[derive(sqlx::FromRow)]
+        struct Row {
+            id: Uuid,
+            enrollment_id: Uuid,
+            tenant_id: Uuid,
+            progress_pct: i32,
+            status: String,
+            actor_id: Option<Uuid>,
+            recorded_at: DateTime<Utc>,
+        }
+        let rows: Vec<Row> = sqlx::query_as(
+            r#"
+            SELECT id, enrollment_id, tenant_id, progress_pct, status, actor_id, recorded_at
+            FROM edu.enrollment_progress_history
+            WHERE tenant_id = $1 AND enrollment_id = $2
+            ORDER BY recorded_at DESC
+            "#,
+        )
+        .bind(tenant_id.as_uuid())
+        .bind(enrollment_id)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| HelixError::dependency(format!("edu list progress history: {e}")))?;
+        Ok(rows
+            .into_iter()
+            .map(|r| ProgressHistoryRecord {
+                id: r.id,
+                enrollment_id: r.enrollment_id,
+                tenant_id: TenantId::from_uuid(r.tenant_id),
+                progress_pct: r.progress_pct,
+                status: r.status,
+                actor_id: r.actor_id,
+                recorded_at: r.recorded_at,
+            })
+            .collect())
     }
 }
