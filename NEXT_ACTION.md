@@ -1,27 +1,36 @@
 # Next action
 
-## Latest: HELIXEDU-FULL — closed
+## Latest: HELIXCAPITAL-FULL
 
-HELIXEDU-FULL is proven and closed.
+**Goal:** move HelixCapital from durable scaffold to full second-wave depth.
 
-- CI run: `29607668365` — all green, including **HelixEdu smoke**.
-- Local proof: `cargo test --workspace --all-features`, `cargo clippy --workspace --all-targets -- -D warnings`, and `scripts/helix_edu_smoke.ps1` all pass.
-- Implementation commit: `ec9b01e` on `main`.
-- A pre-existing HelixCollab integration-test tenant-seed gap was also fixed in `cdaa4f1` so the overall CI run could go green.
+- Migration: `crates/helix-db/migrations/0042_capital_depth.sql`
+- Repo: `crates/helix-db/src/capital.rs`
+- API: `projects/helix-capital/backend/src/main.rs`
+- Smoke: `scripts/helix_capital_smoke.ps1`
+- CI: `.github/workflows/ci.yml` `capital-smoke` job
+- Docs: `docs/goals/HELIXCAPITAL_FULL.md`, `DECISION_LOG.md`
+
+### Scope
+
+Account + journal lifecycle depth:
+- account update, close, reopen, soft-delete
+- journal void with balance reversal
+- trial-balance report and durable balance snapshots
+- domain status with `phase: wave2_w7` and capability planes
+- in-process validation tests + ignored Postgres integration test
+- PowerShell smoke and CI job
 
 ### Active goal
 
-`PENDING_NAMED_GOAL` — waiting for founder to activate the next explicit named goal.
-
-Likely candidates from the second-wave roadmap:
-- `HELIXCAPITAL-FULL` (helix-capital, catalog order 7)
-- `HELIXWELL-FULL` (helix-well, catalog order 8)
-- `HELIXNETWORK-FULL` (helix-network, catalog order 9)
+`HELIXCAPITAL-FULL` — in progress.
 
 ## Paste-ready continuation prompt
 
 ```text
-Continue in C:\Users\divin\PROJECTS\HELIXFORGE. HELIXEDU-FULL is closed
-and CI-proven (run 29607668365). Pick and activate the next explicit named
-goal (e.g. HELIXCAPITAL-FULL, HELIXWELL-FULL, or HELIXNETWORK-FULL).
+Continue in C:\Users\divin\PROJECTS\HELIXFORGE. HELIXCAPITAL-FULL is the active
+goal. Implement migration 0042, extend CapitalRepo with account lifecycle,
+journal void, trial balance, and snapshots; add routes and domain status planes,
+write unit + integration tests, create scripts/helix_capital_smoke.ps1, add the
+capital-smoke CI job, and prove it green on CI.
 ```

@@ -4,10 +4,10 @@
   "stage": "prototype",
   "updated_at": "2026-07-17",
   "active_slice": "category-defining-product-program",
-  "active_goal": "PENDING_NAMED_GOAL",
-  "active_phase": "pending_next_named_goal",
+  "active_goal": "HELIXCAPITAL-FULL",
+  "active_phase": "helixcapital_full_depth",
   "previous_goal": "HELIXEDU-FULL_CI_PROVEN",
-  "review_gate": "HELIXEDU-FULL_CI_PROVEN",
+  "review_gate": "HELIXCAPITAL-FULL",
   "category_defining_program": {
     "status": "foundation_integrity_umbrella_011.7_closed",
     "root": "docs/product-program",
@@ -22,12 +22,12 @@
       "helix-anvil-standalone"
     ],
     "implementation_started": true,
-    "next_gate": "founder selects next named goal"
+    "next_gate": "HELIXCAPITAL-FULL depth packet"
   },
   "second_wave": {
     "roadmap": "docs/SECOND_WAVE.md",
     "status": "paused_by_category_defining_program",
-    "current": "helix-edu",
+    "current": "helix-capital",
     "completed": [
       "helix-commerce",
       "helix-flow",
