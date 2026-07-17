@@ -29,6 +29,7 @@ pub struct JournalLine {
     pub side: String,
     pub amount_cents: i64,
     pub memo: String,
+    pub is_reversal: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,6 +43,18 @@ pub struct Journal {
     pub lines: Vec<JournalLine>,
     pub posted_at: DateTime<Utc>,
     pub created_at: DateTime<Utc>,
+    pub voided_at: Option<DateTime<Utc>>,
+    pub void_reason: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct TrialBalanceRow {
+    pub id: Uuid,
+    pub code: String,
+    pub name: String,
+    pub kind: String,
+    pub currency: String,
+    pub balance_cents: i64,
 }
 
 #[derive(Debug, Clone)]
@@ -100,7 +113,7 @@ impl CapitalRepo {
 
     pub async fn list_accounts(&self, tenant_id: TenantId) -> HelixResult<Vec<Account>> {
         let rows: Vec<AccountRow> = sqlx::query_as(&format!(
-            "{ACCOUNT_SELECT} WHERE tenant_id = $1 ORDER BY code ASC"
+            "{ACCOUNT_SELECT} WHERE tenant_id = $1 AND deleted_at IS NULL ORDER BY code ASC"
         ))
         .bind(tenant_id.as_uuid())
         .fetch_all(&self.pool)
@@ -168,7 +181,7 @@ impl CapitalRepo {
         account_id: Uuid,
     ) -> HelixResult<Option<Account>> {
         let row: Option<AccountRow> = sqlx::query_as(&format!(
-            "{ACCOUNT_SELECT} WHERE tenant_id = $1 AND id = $2"
+            "{ACCOUNT_SELECT} WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL"
         ))
         .bind(tenant_id.as_uuid())
         .bind(account_id)
@@ -176,6 +189,178 @@ impl CapitalRepo {
         .await
         .map_err(|e| HelixError::dependency(format!("capital get account: {e}")))?;
         Ok(row.map(AccountRow::into_account))
+    }
+
+    pub async fn update_account(
+        &self,
+        tenant_id: TenantId,
+        account_id: Uuid,
+        name: Option<String>,
+        metadata: Option<serde_json::Value>,
+    ) -> HelixResult<Account> {
+        let mut builder = sqlx::QueryBuilder::new("UPDATE capital.accounts SET updated_at = ");
+        builder.push_bind(Utc::now());
+
+        if let Some(n) = name {
+            builder.push(", name = ");
+            builder.push_bind(n);
+        }
+        if let Some(m) = metadata {
+            builder.push(", metadata = ");
+            builder.push_bind(m);
+        }
+        builder.push(" WHERE tenant_id = ");
+        builder.push_bind(tenant_id.as_uuid());
+        builder.push(" AND id = ");
+        builder.push_bind(account_id);
+        builder.push(" AND deleted_at IS NULL");
+        builder.push(" RETURNING id, tenant_id, code, name, kind, currency, balance_cents, status, metadata, created_at");
+
+        let row: Option<AccountRow> = builder
+            .build_query_as::<AccountRow>()
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(|e| HelixError::dependency(format!("capital update account: {e}")))?;
+
+        row.map(AccountRow::into_account)
+            .ok_or_else(|| HelixError::not_found("account not found"))
+    }
+
+    pub async fn close_account(
+        &self,
+        tenant_id: TenantId,
+        account_id: Uuid,
+    ) -> HelixResult<Account> {
+        let closed_at = Utc::now();
+        let row: Option<AccountRow> = sqlx::query_as(&format!(
+            "{ACCOUNT_SELECT} WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL"
+        ))
+        .bind(tenant_id.as_uuid())
+        .bind(account_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| HelixError::dependency(format!("capital close account fetch: {e}")))?;
+
+        let account = row
+            .map(AccountRow::into_account)
+            .ok_or_else(|| HelixError::not_found("account not found"))?;
+
+        if account.status != "open" {
+            return Err(HelixError::validation(format!(
+                "account {} is not open",
+                account.code
+            )));
+        }
+        if account.balance_cents != 0 {
+            return Err(HelixError::validation(format!(
+                "account {} balance must be zero to close",
+                account.code
+            )));
+        }
+
+        let row: Option<AccountRow> = sqlx::query_as(
+            r#"
+            UPDATE capital.accounts
+            SET status = 'closed', closed_at = $1, updated_at = $1
+            WHERE tenant_id = $2 AND id = $3 AND deleted_at IS NULL
+            RETURNING id, tenant_id, code, name, kind, currency, balance_cents, status, metadata, created_at
+            "#,
+        )
+        .bind(closed_at)
+        .bind(tenant_id.as_uuid())
+        .bind(account_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| HelixError::dependency(format!("capital close account: {e}")))?;
+
+        row.map(AccountRow::into_account)
+            .ok_or_else(|| HelixError::not_found("account not found"))
+    }
+
+    pub async fn reopen_account(
+        &self,
+        tenant_id: TenantId,
+        account_id: Uuid,
+    ) -> HelixResult<Account> {
+        let reopened_at = Utc::now();
+        let row: Option<AccountRow> = sqlx::query_as(
+            r#"
+            UPDATE capital.accounts
+            SET status = 'open', closed_at = NULL, updated_at = $1
+            WHERE tenant_id = $2 AND id = $3 AND deleted_at IS NULL AND status = 'closed'
+            RETURNING id, tenant_id, code, name, kind, currency, balance_cents, status, metadata, created_at
+            "#,
+        )
+        .bind(reopened_at)
+        .bind(tenant_id.as_uuid())
+        .bind(account_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| HelixError::dependency(format!("capital reopen account: {e}")))?;
+
+        row.map(AccountRow::into_account)
+            .ok_or_else(|| HelixError::not_found("account not found or not closed"))
+    }
+
+    pub async fn soft_delete_account(
+        &self,
+        tenant_id: TenantId,
+        account_id: Uuid,
+    ) -> HelixResult<Account> {
+        let row: Option<AccountRow> = sqlx::query_as(&format!(
+            "{ACCOUNT_SELECT} WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL"
+        ))
+        .bind(tenant_id.as_uuid())
+        .bind(account_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| HelixError::dependency(format!("capital soft-delete account fetch: {e}")))?;
+
+        let account = row
+            .map(AccountRow::into_account)
+            .ok_or_else(|| HelixError::not_found("account not found"))?;
+
+        if account.status == "deleted" {
+            return Err(HelixError::validation(format!(
+                "account {} is already deleted",
+                account.code
+            )));
+        }
+
+        let count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM capital.journal_lines WHERE tenant_id = $1 AND account_id = $2",
+        )
+        .bind(tenant_id.as_uuid())
+        .bind(account_id)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| HelixError::dependency(format!("capital check account lines: {e}")))?;
+
+        if count > 0 {
+            return Err(HelixError::validation(format!(
+                "account {} has journal entries and cannot be deleted",
+                account.code
+            )));
+        }
+
+        let deleted_at = Utc::now();
+        let row: Option<AccountRow> = sqlx::query_as(
+            r#"
+            UPDATE capital.accounts
+            SET status = 'deleted', deleted_at = $1, updated_at = $1
+            WHERE tenant_id = $2 AND id = $3 AND deleted_at IS NULL
+            RETURNING id, tenant_id, code, name, kind, currency, balance_cents, status, metadata, created_at
+            "#,
+        )
+        .bind(deleted_at)
+        .bind(tenant_id.as_uuid())
+        .bind(account_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| HelixError::dependency(format!("capital soft-delete account: {e}")))?;
+
+        row.map(AccountRow::into_account)
+            .ok_or_else(|| HelixError::not_found("account not found"))
     }
 
     pub async fn list_journals(&self, tenant_id: TenantId) -> HelixResult<Vec<Journal>> {
@@ -189,10 +374,12 @@ impl CapitalRepo {
             metadata: serde_json::Value,
             posted_at: DateTime<Utc>,
             created_at: DateTime<Utc>,
+            voided_at: Option<DateTime<Utc>>,
+            void_reason: String,
         }
         let rows: Vec<Row> = sqlx::query_as(
             r#"
-            SELECT id, tenant_id, memo, status, currency, metadata, posted_at, created_at
+            SELECT id, tenant_id, memo, status, currency, metadata, posted_at, created_at, voided_at, void_reason
             FROM capital.journals
             WHERE tenant_id = $1
             ORDER BY posted_at DESC
@@ -216,6 +403,8 @@ impl CapitalRepo {
                 lines,
                 posted_at: r.posted_at,
                 created_at: r.created_at,
+                voided_at: r.voided_at,
+                void_reason: r.void_reason,
             });
         }
         Ok(out)
@@ -236,10 +425,12 @@ impl CapitalRepo {
             metadata: serde_json::Value,
             posted_at: DateTime<Utc>,
             created_at: DateTime<Utc>,
+            voided_at: Option<DateTime<Utc>>,
+            void_reason: String,
         }
         let row: Option<Row> = sqlx::query_as(
             r#"
-            SELECT id, tenant_id, memo, status, currency, metadata, posted_at, created_at
+            SELECT id, tenant_id, memo, status, currency, metadata, posted_at, created_at, voided_at, void_reason
             FROM capital.journals
             WHERE tenant_id = $1 AND id = $2
             "#,
@@ -263,6 +454,8 @@ impl CapitalRepo {
             lines,
             posted_at: r.posted_at,
             created_at: r.created_at,
+            voided_at: r.voided_at,
+            void_reason: r.void_reason,
         }))
     }
 
@@ -343,7 +536,7 @@ impl CapitalRepo {
         for line in lines {
             let side = line.side.trim().to_ascii_lowercase();
             let acct: Option<AccountRow> = sqlx::query_as(&format!(
-                "{ACCOUNT_SELECT} WHERE tenant_id = $1 AND id = $2 FOR UPDATE"
+                "{ACCOUNT_SELECT} WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL FOR UPDATE"
             ))
             .bind(tenant_id.as_uuid())
             .bind(line.account_id)
@@ -386,8 +579,8 @@ impl CapitalRepo {
             sqlx::query(
                 r#"
                 INSERT INTO capital.journal_lines
-                    (id, journal_id, tenant_id, account_id, side, amount_cents, memo)
-                VALUES ($1,$2,$3,$4,$5,$6,$7)
+                    (id, journal_id, tenant_id, account_id, side, amount_cents, memo, is_reversal)
+                VALUES ($1,$2,$3,$4,$5,$6,$7,false)
                 "#,
             )
             .bind(line_id)
@@ -408,6 +601,7 @@ impl CapitalRepo {
                 side,
                 amount_cents: line.amount_cents,
                 memo: line.memo.clone(),
+                is_reversal: false,
             });
         }
 
@@ -425,7 +619,213 @@ impl CapitalRepo {
             lines: out_lines,
             posted_at,
             created_at: posted_at,
+            voided_at: None,
+            void_reason: String::new(),
         })
+    }
+
+    pub async fn void_journal(
+        &self,
+        tenant_id: TenantId,
+        journal_id: Uuid,
+        reason: Option<String>,
+    ) -> HelixResult<Journal> {
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| HelixError::dependency(format!("capital void begin: {e}")))?;
+
+        #[derive(sqlx::FromRow)]
+        #[allow(dead_code)]
+        struct JournalRow {
+            id: Uuid,
+            tenant_id: Uuid,
+            memo: String,
+            status: String,
+            currency: String,
+            metadata: serde_json::Value,
+            posted_at: DateTime<Utc>,
+            created_at: DateTime<Utc>,
+            voided_at: Option<DateTime<Utc>>,
+            void_reason: String,
+        }
+
+        let row: Option<JournalRow> = sqlx::query_as(
+            r#"
+            SELECT id, tenant_id, memo, status, currency, metadata, posted_at, created_at, voided_at, void_reason
+            FROM capital.journals
+            WHERE tenant_id = $1 AND id = $2
+            FOR UPDATE
+            "#,
+        )
+        .bind(tenant_id.as_uuid())
+        .bind(journal_id)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(|e| HelixError::dependency(format!("capital lock journal: {e}")))?;
+
+        let journal = row.ok_or_else(|| HelixError::not_found("journal not found"))?;
+        if journal.status != "posted" {
+            return Err(HelixError::validation(format!(
+                "cannot void journal with status {}",
+                journal.status
+            )));
+        }
+
+        let lines = self.load_lines_in_tx(journal.id, &mut tx).await?;
+        let voided_at = Utc::now();
+        let void_reason = reason.unwrap_or_default();
+
+        for line in &lines {
+            let acct: Option<AccountRow> = sqlx::query_as(&format!(
+                "{ACCOUNT_SELECT} WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL FOR UPDATE"
+            ))
+            .bind(tenant_id.as_uuid())
+            .bind(line.account_id)
+            .fetch_optional(&mut *tx)
+            .await
+            .map_err(|e| HelixError::dependency(format!("capital void lock account: {e}")))?;
+
+            let account = acct
+                .map(AccountRow::into_account)
+                .ok_or_else(|| HelixError::not_found(format!("account {}", line.account_id)))?;
+            if account.status != "open" {
+                return Err(HelixError::validation(format!(
+                    "account {} is not open; cannot void against a closed account",
+                    account.code
+                )));
+            }
+
+            let reversal_delta = if line.side == "debit" {
+                -line.amount_cents
+            } else {
+                line.amount_cents
+            };
+
+            sqlx::query(
+                r#"
+                UPDATE capital.accounts
+                SET balance_cents = balance_cents + $1, updated_at = $2
+                WHERE id = $3 AND tenant_id = $4
+                "#,
+            )
+            .bind(reversal_delta)
+            .bind(voided_at)
+            .bind(account.id)
+            .bind(tenant_id.as_uuid())
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| HelixError::dependency(format!("capital void update balance: {e}")))?;
+
+            let reversal_side = if line.side == "debit" {
+                "credit"
+            } else {
+                "debit"
+            };
+            let reversal_id = Uuid::now_v7();
+            sqlx::query(
+                r#"
+                INSERT INTO capital.journal_lines
+                    (id, journal_id, tenant_id, account_id, side, amount_cents, memo, is_reversal)
+                VALUES ($1,$2,$3,$4,$5,$6,$7,true)
+                "#,
+            )
+            .bind(reversal_id)
+            .bind(journal.id)
+            .bind(tenant_id.as_uuid())
+            .bind(account.id)
+            .bind(reversal_side)
+            .bind(line.amount_cents)
+            .bind(format!("void: {}", line.memo))
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| HelixError::dependency(format!("capital insert reversal line: {e}")))?;
+        }
+
+        sqlx::query(
+            r#"
+            UPDATE capital.journals
+            SET status = 'voided', voided_at = $1, void_reason = $2
+            WHERE tenant_id = $3 AND id = $4
+            "#,
+        )
+        .bind(voided_at)
+        .bind(&void_reason)
+        .bind(tenant_id.as_uuid())
+        .bind(journal_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| HelixError::dependency(format!("capital void journal: {e}")))?;
+
+        tx.commit()
+            .await
+            .map_err(|e| HelixError::dependency(format!("capital commit void: {e}")))?;
+
+        self.get_journal(tenant_id, journal_id)
+            .await?
+            .ok_or_else(|| HelixError::internal("journal missing after void"))
+    }
+
+    pub async fn get_trial_balance(
+        &self,
+        tenant_id: TenantId,
+    ) -> HelixResult<Vec<TrialBalanceRow>> {
+        let rows: Vec<TrialBalanceRow> = sqlx::query_as(
+            r#"
+            SELECT id, code, name, kind, currency, balance_cents
+            FROM capital.accounts
+            WHERE tenant_id = $1 AND deleted_at IS NULL
+            ORDER BY kind, code
+            "#,
+        )
+        .bind(tenant_id.as_uuid())
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| HelixError::dependency(format!("capital trial balance: {e}")))?;
+        Ok(rows)
+    }
+
+    pub async fn record_balance_snapshot(&self, tenant_id: TenantId) -> HelixResult<u64> {
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| HelixError::dependency(format!("capital snapshot begin: {e}")))?;
+
+        let captured_at = Utc::now();
+        let rows: Vec<(Uuid, i64)> = sqlx::query_as(
+            "SELECT id, balance_cents FROM capital.accounts WHERE tenant_id = $1 AND deleted_at IS NULL",
+        )
+        .bind(tenant_id.as_uuid())
+        .fetch_all(&mut *tx)
+        .await
+        .map_err(|e| HelixError::dependency(format!("capital snapshot fetch: {e}")))?;
+
+        let count = rows.len();
+        for (account_id, balance_cents) in rows {
+            sqlx::query(
+                r#"
+                INSERT INTO capital.account_balance_history
+                    (id, tenant_id, account_id, balance_cents, captured_at)
+                VALUES ($1,$2,$3,$4,$5)
+                "#,
+            )
+            .bind(Uuid::now_v7())
+            .bind(tenant_id.as_uuid())
+            .bind(account_id)
+            .bind(balance_cents)
+            .bind(captured_at)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| HelixError::dependency(format!("capital snapshot insert: {e}")))?;
+        }
+
+        tx.commit()
+            .await
+            .map_err(|e| HelixError::dependency(format!("capital commit snapshot: {e}")))?;
+
+        Ok(count as u64)
     }
 
     async fn load_lines(&self, journal_id: Uuid) -> HelixResult<Vec<JournalLine>> {
@@ -437,10 +837,11 @@ impl CapitalRepo {
             side: String,
             amount_cents: i64,
             memo: String,
+            is_reversal: bool,
         }
         let rows: Vec<Row> = sqlx::query_as(
             r#"
-            SELECT id, journal_id, account_id, side, amount_cents, memo
+            SELECT id, journal_id, account_id, side, amount_cents, memo, is_reversal
             FROM capital.journal_lines
             WHERE journal_id = $1
             ORDER BY side, amount_cents DESC
@@ -459,6 +860,48 @@ impl CapitalRepo {
                 side: r.side,
                 amount_cents: r.amount_cents,
                 memo: r.memo,
+                is_reversal: r.is_reversal,
+            })
+            .collect())
+    }
+
+    async fn load_lines_in_tx(
+        &self,
+        journal_id: Uuid,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    ) -> HelixResult<Vec<JournalLine>> {
+        #[derive(sqlx::FromRow)]
+        struct Row {
+            id: Uuid,
+            journal_id: Uuid,
+            account_id: Uuid,
+            side: String,
+            amount_cents: i64,
+            memo: String,
+            is_reversal: bool,
+        }
+        let rows: Vec<Row> = sqlx::query_as(
+            r#"
+            SELECT id, journal_id, account_id, side, amount_cents, memo, is_reversal
+            FROM capital.journal_lines
+            WHERE journal_id = $1 AND is_reversal = false
+            ORDER BY side, amount_cents DESC
+            "#,
+        )
+        .bind(journal_id)
+        .fetch_all(&mut **tx)
+        .await
+        .map_err(|e| HelixError::dependency(format!("capital load lines in tx: {e}")))?;
+        Ok(rows
+            .into_iter()
+            .map(|r| JournalLine {
+                id: r.id,
+                journal_id: r.journal_id,
+                account_id: r.account_id,
+                side: r.side,
+                amount_cents: r.amount_cents,
+                memo: r.memo,
+                is_reversal: r.is_reversal,
             })
             .collect())
     }

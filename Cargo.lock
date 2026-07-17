@@ -2434,6 +2434,7 @@ dependencies = [
  "agent_framework",
  "audit_log",
  "axum",
+ "chrono",
  "helix_db",
  "serde",
  "serde_json",

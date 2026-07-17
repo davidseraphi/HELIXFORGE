@@ -48,7 +48,7 @@ pub use agents::AgentRunStore;
 pub use api_keys::{ApiKeyRecord, ApiKeyStore, IssuedApiKey};
 pub use audit_archive::ObjectStoreArchiveSink;
 pub use audit_pg::{PgAuditSink, TransactionalAuditSink};
-pub use capital::{Account, CapitalRepo, Journal, JournalLine, JournalLineInput};
+pub use capital::{Account, CapitalRepo, Journal, JournalLine, JournalLineInput, TrialBalanceRow};
 pub use climate::{ClimateRepo, RiskScore, Scenario};
 pub use code::{
     CodeAgentJob, CodePipeline, CodePipelineArtifact, CodePipelineRun, CodeRef, CodeRepo,
