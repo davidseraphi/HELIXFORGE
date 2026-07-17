@@ -2,11 +2,11 @@
   "schema_version": "1.0.0",
   "project": "helixforge",
   "stage": "prototype",
-  "updated_at": "2026-07-16",
+  "updated_at": "2026-07-17",
   "active_slice": "category-defining-product-program",
-  "active_goal": "HELIXCOMMERCE-FULL",
-  "active_phase": "helixcommerce_full_depth",
-  "previous_goal": "HELIXINSIGHTS-FULL_CI_PROVEN",
+  "active_goal": "PENDING_NAMED_GOAL",
+  "active_phase": "pending_next_named_goal",
+  "previous_goal": "HELIXCOMMERCE-FULL_CI_PROVEN",
   "review_gate": "HELIXCOMMERCE-FULL_CI_PROVEN",
   "category_defining_program": {
     "status": "foundation_integrity_umbrella_011.7_closed",
@@ -22,14 +22,16 @@
       "helix-anvil-standalone"
     ],
     "implementation_started": true,
-    "next_gate": "HELIXCOMMERCE-FULL depth packet"
+    "next_gate": "founder selects next named goal"
   },
   "second_wave": {
     "roadmap": "docs/SECOND_WAVE.md",
     "status": "paused_by_category_defining_program",
-    "current": "helix-insights",
+    "current": "helix-commerce",
     "completed": [
-      "helix-flow"
+      "helix-commerce",
+      "helix-flow",
+      "helix-insights"
     ],
     "order": [
       "helix-flow",
@@ -327,7 +329,13 @@
       "metering",
       "nats"
     ],
-    "aggregations": ["sum", "avg", "min", "max", "count"],
+    "aggregations": [
+      "sum",
+      "avg",
+      "min",
+      "max",
+      "count"
+    ],
     "smoke": "PASS",
     "smoke_script": "scripts/helix_insights_smoke.ps1",
     "ci_run": "29597119407",

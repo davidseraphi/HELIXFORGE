@@ -553,3 +553,30 @@
 - Evidence: `scripts/verify_helixcore_full.ps1` exits 0 on Windows MSVC host with
   19/19 `helix_db` tests passing against the restored database.
 - Remaining work: CI re-proof of the installer / live-restore roundtrip.
+
+## 2026-07-17 — HELIXCOMMERCE-FULL closed and CI-proven
+
+- Completed the HelixCommerce second-wave depth packet:
+  - Migration `0040_commerce_depth.sql` + down migration: soft-delete columns,
+    partial active indexes, and `commerce.order_status_history`.
+  - Extended `CommerceRepo` (`crates/helix-db/src/commerce.rs`) with
+    `soft_delete_product`, `restore_product`, `update_order_status`, and
+    `cancel_order` with inventory restore + status-history audit.
+  - Added routes in `projects/helix-commerce/backend/src/main.rs`:
+    `POST /v1/products/{id}/delete`, `POST /v1/products/{id}/restore`,
+    `POST /v1/orders/{id}/cancel`, `POST /v1/orders/{id}/status`, and
+    `GET /v1/domain/status` with planes.
+  - In-process tests: mixed-currency rejection, checked arithmetic.
+  - Ignored data-plane race test `two_buyers_cannot_oversell_last_unit` for
+    Postgres CI.
+  - PowerShell smoke `scripts/helix_commerce_smoke.ps1` and `commerce-smoke`
+    CI job in `.github/workflows/ci.yml`.
+- Verification:
+  - `cargo fmt --all -- --check` clean.
+  - `cargo clippy --workspace --all-targets -- -D warnings` clean.
+  - `cargo test --workspace --all-features` clean.
+  - Local smoke against Postgres/NATS/MinIO passes.
+  - GitHub Actions run `29599963866` is all green, including the new
+    **HelixCommerce smoke** job.
+- Commit `6bb1a65` pushed to `main`.
+- Next action: founder selects the next explicit named goal.
