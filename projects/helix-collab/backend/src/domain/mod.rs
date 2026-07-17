@@ -95,6 +95,20 @@ pub mod test_support {
             hub: Arc::new(RealtimeHub::with_bus(core.clients.bus.clone())),
             mls: Arc::new(MlsEngine::new()),
         };
+
+        // Integration tests run against a freshly-migrated, empty Postgres.
+        // The dev principal's tenant is deterministic but not seeded, so create
+        // it here before any audited operation tries to reference it.
+        let local_dev_tenant = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        if let Some(tenants) = state.core.clients.tenants.as_ref() {
+            let _ = tenants
+                .create(local_dev_tenant, "local-dev", "local", None)
+                .await;
+        }
+
         (state, guard)
     }
 
