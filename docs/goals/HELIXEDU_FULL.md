@@ -13,7 +13,7 @@ and durable progress history.
 
 1. Migration `0041_edu_depth.sql` adds:
    - `deleted_at` soft-delete column on `edu.courses` with partial active index
-   - `edu.enrollment_progress_history` side table
+   - `edu.progress_history` side table
 2. `EduRepo` enforces:
    - courses list/get exclude deleted courses
    - `update_course`, `soft_delete_course`, `restore_course`, `unpublish_course`
@@ -40,7 +40,9 @@ and durable progress history.
 
 ## Status
 
-- **In progress**
+- **Closed / CI-proven**
+- Implementation commit: `ec9b01e`
+- CI run: `29607668365` — all green
 
 ## Out of scope
 

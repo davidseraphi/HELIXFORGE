@@ -4,9 +4,9 @@
   "stage": "prototype",
   "updated_at": "2026-07-17",
   "active_slice": "category-defining-product-program",
-  "active_goal": "HELIXEDU-FULL",
-  "active_phase": "helixedu_full_depth",
-  "previous_goal": "HELIXCOMMERCE-FULL_CI_PROVEN",
+  "active_goal": "PENDING_NAMED_GOAL",
+  "active_phase": "pending_next_named_goal",
+  "previous_goal": "HELIXEDU-FULL_CI_PROVEN",
   "review_gate": "HELIXEDU-FULL_CI_PROVEN",
   "category_defining_program": {
     "status": "foundation_integrity_umbrella_011.7_closed",
@@ -22,7 +22,7 @@
       "helix-anvil-standalone"
     ],
     "implementation_started": true,
-    "next_gate": "HELIXEDU-FULL depth packet"
+    "next_gate": "founder selects next named goal"
   },
   "second_wave": {
     "roadmap": "docs/SECOND_WAVE.md",
@@ -31,7 +31,8 @@
     "completed": [
       "helix-commerce",
       "helix-flow",
-      "helix-insights"
+      "helix-insights",
+      "helix-edu"
     ],
     "order": [
       "helix-flow",
@@ -292,7 +293,7 @@
       "date": "2026-07-17",
       "total": 11,
       "passed": 11,
-      "ci_run": "29568293434",
+      "ci_run": "29607668365",
       "ignored_without_infra": true,
       "suites": [
         "offline_merge_optimistic_conflict",
@@ -366,10 +367,46 @@
       "metering",
       "nats"
     ],
-    "smoke": "pending",
+    "smoke": "PASS",
     "smoke_script": "scripts/helix_commerce_smoke.ps1",
-    "unit": "pending",
-    "next": "implement and prove CI"
+    "unit": "2/2 PASS",
+    "next": "CI proven",
+    "ci_run": "29599963866"
+  },
+  "helix_edu_full_depth": {
+    "migration": "0041_edu_depth.sql",
+    "routes": [
+      "GET /v1/courses",
+      "POST /v1/courses",
+      "GET /v1/courses/{id}",
+      "PATCH /v1/courses/{id}",
+      "POST /v1/courses/{id}/publish",
+      "POST /v1/courses/{id}/delete",
+      "POST /v1/courses/{id}/restore",
+      "POST /v1/courses/{id}/unpublish",
+      "GET /v1/courses/{id}/enrollments",
+      "GET /v1/enrollments",
+      "POST /v1/enrollments",
+      "GET /v1/enrollments/{id}",
+      "POST /v1/enrollments/{id}/progress",
+      "POST /v1/enrollments/{id}/withdraw",
+      "GET /v1/domain/status"
+    ],
+    "planes": [
+      "courses",
+      "enrollments",
+      "progress_history",
+      "soft_delete",
+      "publish_guards",
+      "audit",
+      "metering",
+      "nats"
+    ],
+    "smoke": "PASS",
+    "smoke_script": "scripts/helix_edu_smoke.ps1",
+    "ci_run": "29607668365",
+    "unit": "4/4 PASS",
+    "next": "CI proven"
   },
   "helix_collab_client_e2ee_pm": {
     "client_e2ee_hc1": true,

@@ -1,39 +1,27 @@
 # Next action
 
-## Latest: HELIXEDU-FULL
+## Latest: HELIXEDU-FULL — closed
 
-**Goal:** move HelixEdu from durable scaffold to full second-wave depth.
+HELIXEDU-FULL is proven and closed.
 
-- Migration: `crates/helix-db/migrations/0041_edu_depth.sql`
-- Repo: `crates/helix-db/src/edu.rs`
-- API: `projects/helix-edu/backend/src/main.rs`
-- Smoke: `scripts/helix_edu_smoke.ps1`
-- CI: `.github/workflows/ci.yml` `edu-smoke` job
-- Docs: `projects/helix-edu/README.md`, `DECISION_LOG.md`,
-  `docs/goals/HELIXEDU_FULL.md`
-
-### Scope
-
-Course + enrollment lifecycle depth:
-- soft-delete and restore courses
-- update course metadata
-- publish / unpublish course
-- enroll only into published courses
-- withdraw enrollment
-- progress history side table
-- progress 0..=100 validation and completion transitions
-- domain status planes + smoke test
+- CI run: `29607668365` — all green, including **HelixEdu smoke**.
+- Local proof: `cargo test --workspace --all-features`, `cargo clippy --workspace --all-targets -- -D warnings`, and `scripts/helix_edu_smoke.ps1` all pass.
+- Implementation commit: `ec9b01e` on `main`.
+- A pre-existing HelixCollab integration-test tenant-seed gap was also fixed in `cdaa4f1` so the overall CI run could go green.
 
 ### Active goal
 
-`HELIXEDU-FULL` — in progress.
+`PENDING_NAMED_GOAL` — waiting for founder to activate the next explicit named goal.
+
+Likely candidates from the second-wave roadmap:
+- `HELIXCAPITAL-FULL` (helix-capital, catalog order 7)
+- `HELIXWELL-FULL` (helix-well, catalog order 8)
+- `HELIXNETWORK-FULL` (helix-network, catalog order 9)
 
 ## Paste-ready continuation prompt
 
 ```text
-Continue in C:\Users\divin\PROJECTS\HELIXFORGE. HELIXEDU-FULL is the active
-goal. Implement migration 0041, extend EduRepo with soft-delete, course update,
-unpublish, withdraw enrollment, and progress history; add routes and domain
-status planes, write unit + integration tests, create scripts/helix_edu_smoke.ps1,
-add the edu-smoke CI job, and prove it green on CI.
+Continue in C:\Users\divin\PROJECTS\HELIXFORGE. HELIXEDU-FULL is closed
+and CI-proven (run 29607668365). Pick and activate the next explicit named
+goal (e.g. HELIXCAPITAL-FULL, HELIXWELL-FULL, or HELIXNETWORK-FULL).
 ```

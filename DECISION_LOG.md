@@ -1,5 +1,40 @@
 # Decision log (append-only)
 
+## 2026-07-17 — HELIXEDU-FULL second-wave depth packet
+
+- Activated goal: `HELIXEDU-FULL` (catalog order 6, port 8106).
+- Added migration `0041_edu_depth.sql` for course soft-delete, active indexes,
+  and the `edu.progress_history` audit side table.
+- Extended `EduRepo` with course update/soft-delete/restore/unpublish,
+  published-only enrollment guard, enrollment withdrawal, and progress history
+  recording with `completed_at` transitions.
+- Added backend routes: `PATCH /v1/courses/{id}`, `POST /v1/courses/{id}/delete`,
+  `POST /v1/courses/{id}/restore`, `POST /v1/courses/{id}/unpublish`,
+  `GET /v1/enrollments/{id}`, and `POST /v1/enrollments/{id}/withdraw`.
+- Wired audit, metering, and NATS events for course/enrollment lifecycle and
+  progress updates.
+- Added `GET /v1/domain/status` returning `phase: wave2_w4` and capability
+  planes.
+- Added in-process validation/boundary tests plus an ignored Postgres
+  integration test for progress history persistence.
+- Added `scripts/helix_edu_smoke.ps1` and an `edu-smoke` CI job.
+- Verification: `cargo test --workspace --all-features` pass,
+  `cargo clippy --workspace --all-targets -- -D warnings` clean,
+  local smoke PASS, CI run `29607668365` green.
+- Out of scope for this packet: lessons, modules, assessments, rubrics,
+  submissions, feedback, credentials, learner UI, offline sync, mastery graph,
+  and certification issuance.
+
+## 2026-07-17 — HelixCollab integration-test tenant seed fix
+
+- `Run HelixCollab integration tests` failed on fresh CI Postgres with
+  `audit_events_tenant_fk` violation because the deterministic local-dev tenant
+  used by `dev_principal` was not seeded.
+- Updated `projects/helix-collab/backend/src/domain/mod.rs` test harness to
+  upsert the local-dev tenant before each ignored integration test.
+- Verification: all 11 ignored Collab integration tests pass on a freshly
+  migrated database; full CI run `29607668365` green.
+
 ## 2026-07-17 — HELIXCOMMERCE-FULL second-wave depth packet
 
 - Activated goal: `HELIXCOMMERCE-FULL` (catalog order 5, port 8105).
