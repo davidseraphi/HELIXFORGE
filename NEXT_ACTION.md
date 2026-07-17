@@ -1,8 +1,10 @@
 # Next action
 
-## Latest: HELIXCAPITAL-FULL
+## Latest: HELIXCAPITAL-FULL closed and CI-proven
 
-**Goal:** move HelixCapital from durable scaffold to full second-wave depth.
+HELIXCAPITAL-FULL is complete. The implementation passed local verification and
+GitHub Actions run `29621350739` is all green, including the new
+**HelixCapital smoke** job.
 
 - Migration: `crates/helix-db/migrations/0042_capital_depth.sql`
 - Repo: `crates/helix-db/src/capital.rs`
@@ -11,7 +13,7 @@
 - CI: `.github/workflows/ci.yml` `capital-smoke` job
 - Docs: `docs/goals/HELIXCAPITAL_FULL.md`, `DECISION_LOG.md`
 
-### Scope
+### What was delivered
 
 Account + journal lifecycle depth:
 - account update, close, reopen, soft-delete
@@ -23,14 +25,8 @@ Account + journal lifecycle depth:
 
 ### Active goal
 
-`HELIXCAPITAL-FULL` — in progress.
+None. HELIXCAPITAL-FULL is closed.
 
-## Paste-ready continuation prompt
+### Next action
 
-```text
-Continue in C:\Users\divin\PROJECTS\HELIXFORGE. HELIXCAPITAL-FULL is the active
-goal. Implement migration 0042, extend CapitalRepo with account lifecycle,
-journal void, trial balance, and snapshots; add routes and domain status planes,
-write unit + integration tests, create scripts/helix_capital_smoke.ps1, add the
-capital-smoke CI job, and prove it green on CI.
-```
+Founder selects the next explicit named goal.

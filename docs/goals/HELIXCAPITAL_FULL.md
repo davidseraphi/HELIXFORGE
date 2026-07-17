@@ -44,7 +44,10 @@ trial-balance reporting, and durable balance snapshots.
 
 ## Status
 
-- **In progress**
+- **Closed / CI-proven**
+- CI run: `29621350739`
+- Smoke script: `scripts/helix_capital_smoke.ps1`
+- Unit tests: `4/4 PASS` (plus one ignored Postgres integration test)
 
 ## Out of scope
 

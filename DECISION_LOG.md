@@ -615,3 +615,36 @@
     **HelixCommerce smoke** job.
 - Commit `6bb1a65` pushed to `main`.
 - Next action: founder selects the next explicit named goal.
+
+## 2026-07-18 — HELIXCAPITAL-FULL closed and CI-proven
+
+- Completed the HelixCapital second-wave depth packet:
+  - Migration `0042_capital_depth.sql` + down migration: `closed_at`/`deleted_at`
+    lifecycle columns on `capital.accounts`, `voided_at`/`void_reason` on
+    `capital.journals`, `is_reversal` marker on `capital.journal_lines`, partial
+    active indexes, and `capital.account_balance_history` snapshot table.
+  - Extended `CapitalRepo` (`crates/helix-db/src/capital.rs`) with
+    `update_account`, `close_account`, `reopen_account`,
+    `soft_delete_account`, `void_journal`, `get_trial_balance`, and
+    `record_balance_snapshot`.
+  - Added routes in `projects/helix-capital/backend/src/main.rs`:
+    `PATCH /v1/accounts/{id}`, `POST /v1/accounts/{id}/close`,
+    `POST /v1/accounts/{id}/reopen`, `POST /v1/accounts/{id}/delete`,
+    `POST /v1/journals/{id}/void`, `GET /v1/reports/trial-balance`,
+    `POST /v1/reports/balance-snapshot`, and `GET /v1/domain/status` with planes.
+  - In-process tests: validation, reversal, voiding, trial balance.
+  - Ignored Postgres integration test for account lifecycle + journal void + trial balance.
+  - PowerShell smoke `scripts/helix_capital_smoke.ps1` and `capital-smoke`
+    CI job in `.github/workflows/ci.yml`.
+- Verification:
+  - `cargo fmt --all -- --check` clean.
+  - `cargo clippy --workspace --all-targets -- -D warnings` clean.
+  - `cargo test --workspace --all-features` clean.
+  - Local smoke against Postgres/NATS/MinIO passes.
+  - GitHub Actions run `29621350739` is all green, including the new
+    **HelixCapital smoke** job and the gitleaks security scan.
+- Commit `21e6522` pushed to `main`; a follow-up commit `4434982` fixed the
+  gitleaks scan by fetching full history in the security job.
+- `PROJECT_STATE.json` and `NEXT_ACTION.md` updated to mark HELIXCAPITAL-FULL
+  closed and clear the active goal.
+- Next action: founder selects the next explicit named goal.

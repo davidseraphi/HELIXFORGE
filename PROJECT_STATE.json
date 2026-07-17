@@ -2,12 +2,12 @@
   "schema_version": "1.0.0",
   "project": "helixforge",
   "stage": "prototype",
-  "updated_at": "2026-07-17",
+  "updated_at": "2026-07-18",
   "active_slice": "category-defining-product-program",
-  "active_goal": "HELIXCAPITAL-FULL",
-  "active_phase": "helixcapital_full_depth",
-  "previous_goal": "HELIXEDU-FULL_CI_PROVEN",
-  "review_gate": "HELIXCAPITAL-FULL",
+  "active_goal": null,
+  "active_phase": null,
+  "previous_goal": "HELIXCAPITAL-FULL_CI_PROVEN",
+  "review_gate": null,
   "category_defining_program": {
     "status": "foundation_integrity_umbrella_011.7_closed",
     "root": "docs/product-program",
@@ -22,17 +22,18 @@
       "helix-anvil-standalone"
     ],
     "implementation_started": true,
-    "next_gate": "HELIXCAPITAL-FULL depth packet"
+    "next_gate": "awaiting_founder_goal_selection"
   },
   "second_wave": {
     "roadmap": "docs/SECOND_WAVE.md",
     "status": "paused_by_category_defining_program",
-    "current": "helix-capital",
+    "current": null,
     "completed": [
       "helix-commerce",
       "helix-flow",
       "helix-insights",
-      "helix-edu"
+      "helix-edu",
+      "helix-capital"
     ],
     "order": [
       "helix-flow",
@@ -68,7 +69,7 @@
     "current_validity": "unverified_after_later_tree_changes"
   },
   "foundation_integrity_current_gate": "011.7_CLOSED",
-  "full_workspace_current_status": "fmt_clippy_test_helm_verify_helixcore_full_pass_helixcore_full_p0_p1_p2_closed_locally_ci_reproof_pending",
+  "full_workspace_current_status": "fmt_clippy_test_helm_verify_helixcore_full_pass_helixcapital_full_ci_proven_run_29621350739",
   "core_services": [
     "gateway",
     "agent-hub",
@@ -143,12 +144,12 @@
   },
   "ratified_specs": [],
   "last_smoke": {
-    "date": "2026-07-16",
-    "service": "helix-collab",
+    "date": "2026-07-18",
+    "service": "helix-capital",
     "postgres": true,
     "minio": true,
     "nats": true,
-    "path": "scripts/helix_collab_smoke.ps1 PASS \u2014 local + CI"
+    "path": "scripts/helix_capital_smoke.ps1 PASS \u2014 local + CI"
   },
   "helix_code_extreme": {
     "phase": "endstate",
@@ -405,6 +406,42 @@
     "smoke": "PASS",
     "smoke_script": "scripts/helix_edu_smoke.ps1",
     "ci_run": "29607668365",
+    "unit": "4/4 PASS",
+    "next": "CI proven"
+  },
+  "helix_capital_full_depth": {
+    "migration": "0042_capital_depth.sql",
+    "routes": [
+      "GET /v1/accounts",
+      "POST /v1/accounts",
+      "GET /v1/accounts/{id}",
+      "PATCH /v1/accounts/{id}",
+      "POST /v1/accounts/{id}/close",
+      "POST /v1/accounts/{id}/reopen",
+      "POST /v1/accounts/{id}/delete",
+      "GET /v1/journals",
+      "POST /v1/journals",
+      "GET /v1/journals/{id}",
+      "POST /v1/journals/{id}/void",
+      "GET /v1/reports/trial-balance",
+      "POST /v1/reports/balance-snapshot",
+      "GET /v1/domain/status"
+    ],
+    "planes": [
+      "accounts",
+      "journals",
+      "double_entry",
+      "account_lifecycle",
+      "journal_void",
+      "trial_balance",
+      "balance_snapshots",
+      "audit",
+      "metering",
+      "nats"
+    ],
+    "smoke": "PASS",
+    "smoke_script": "scripts/helix_capital_smoke.ps1",
+    "ci_run": "29621350739",
     "unit": "4/4 PASS",
     "next": "CI proven"
   },
