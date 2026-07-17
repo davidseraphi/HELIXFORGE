@@ -1,36 +1,36 @@
 # Next action
 
-## Latest: HELIXINSIGHTS-FULL (CI-proven)
+## Latest: HELIXCOMMERCE-FULL
 
-**Goal:** move HelixInsights from scaffold to full second-wave depth.
+**Goal:** move HelixCommerce from durable scaffold to full second-wave depth.
 
-- Migration: `crates/helix-db/migrations/0039_insights_depth.sql`
-- Repo: `crates/helix-db/src/insights.rs`
-- API: `projects/helix-insights/backend/src/main.rs`
-- Smoke: `scripts/helix_insights_smoke.ps1`
-- CI: `.github/workflows/ci.yml` `insights-smoke` job
-- Docs: `projects/helix-insights/README.md`, `DECISION_LOG.md`,
-  `docs/goals/HELIXINSIGHTS_FULL.md`
+- Migration: `crates/helix-db/migrations/0040_commerce_depth.sql`
+- Repo: `crates/helix-db/src/commerce.rs`
+- API: `projects/helix-commerce/backend/src/main.rs`
+- Smoke: `scripts/helix_commerce_smoke.ps1`
+- CI: `.github/workflows/ci.yml` `commerce-smoke` job
+- Docs: `projects/helix-commerce/README.md`, `DECISION_LOG.md`,
+  `docs/goals/HELIXCOMMERCE_FULL.md`
 
-### Current status
+### Scope
 
-- Backend routes added and smoke-tested locally.
-- `cargo test --workspace --all-features` passes.
-- `cargo clippy --workspace --all-targets -- -D warnings` clean.
-- Local smoke PASS.
-- CI run `29597119407` all green, including the new `HelixInsights smoke` job.
+Exact multi-currency order truth + atomic stock/order writes:
+- reject mixed-currency carts
+- atomic inventory reservation on order create
+- order cancel restores inventory
+- two-buyer race test
+- domain status planes + smoke test
 
 ### Active goal
 
-`HELIXINSIGHTS-FULL` is complete. Awaiting the next explicit product/program goal.
+`HELIXCOMMERCE-FULL` — in progress.
 
 ## Paste-ready continuation prompt
 
 ```text
-Continue in C:\Users\divin\PROJECTS\HELIXFORGE. HELIXINSIGHTS-FULL is
-CI-proven (run 29597119407). The wave-2 depth packet added soft delete,
-in-process aggregates, filtered point queries, a PowerShell smoke script,
-and a CI job. HELIXCORE-FULL, HELIXCOLLAB-FULL, and HELIXINSIGHTS-FULL are
-all green.
-Next step is to set the next explicit product/program goal.
+Continue in C:\Users\divin\PROJECTS\HELIXFORGE. HELIXCOMMERCE-FULL is the
+active goal. Implement migration 0040, extend CommerceRepo with
+mixed-currency guard and cancel, add routes and domain status planes,
+write unit + race tests, create scripts/helix_commerce_smoke.ps1, add the
+commerce-smoke CI job, and prove it green on CI.
 ```

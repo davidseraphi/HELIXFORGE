@@ -189,6 +189,121 @@ impl CommerceRepo {
         Ok(row.map(ProductRow::into_product))
     }
 
+    pub async fn update_product(
+        &self,
+        tenant_id: TenantId,
+        product_id: Uuid,
+        name: Option<String>,
+        description: Option<String>,
+        price_cents: Option<i64>,
+        inventory_delta: Option<i32>,
+        status: Option<String>,
+    ) -> HelixResult<Product> {
+        if let Some(p) = price_cents {
+            if p < 0 {
+                return Err(HelixError::validation("price_cents must be >= 0"));
+            }
+        }
+
+        let mut builder = sqlx::QueryBuilder::new("UPDATE commerce.products SET updated_at = ");
+        builder.push_bind(Utc::now());
+
+        if let Some(n) = name {
+            builder.push(", name = ");
+            builder.push_bind(n);
+        }
+        if let Some(d) = description {
+            builder.push(", description = ");
+            builder.push_bind(d);
+        }
+        if let Some(p) = price_cents {
+            builder.push(", price_cents = ");
+            builder.push_bind(p);
+        }
+        if let Some(delta) = inventory_delta {
+            builder.push(", inventory = inventory + ");
+            builder.push_bind(delta);
+        }
+        if let Some(s) = status {
+            builder.push(", status = ");
+            builder.push_bind(s);
+        }
+        builder.push(" WHERE tenant_id = ");
+        builder.push_bind(tenant_id.as_uuid());
+        builder.push(" AND id = ");
+        builder.push_bind(product_id);
+        builder.push(" RETURNING id, tenant_id, sku, name, description, price_cents, currency, inventory, status, metadata, created_at");
+
+        let row: Option<ProductRow> = builder
+            .build_query_as::<ProductRow>()
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(|e| HelixError::dependency(format!("commerce update product: {e}")))?;
+
+        row.map(ProductRow::into_product)
+            .ok_or_else(|| HelixError::not_found("product not found"))
+    }
+
+    pub async fn cancel_order(&self, tenant_id: TenantId, order_id: Uuid) -> HelixResult<Order> {
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| HelixError::dependency(format!("commerce begin: {e}")))?;
+
+        let row: Option<String> = sqlx::query_scalar(
+            "SELECT status FROM commerce.orders WHERE tenant_id = $1 AND id = $2 FOR UPDATE",
+        )
+        .bind(tenant_id.as_uuid())
+        .bind(order_id)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(|e| HelixError::dependency(format!("commerce lock order: {e}")))?;
+
+        let status = row.ok_or_else(|| HelixError::not_found("order not found"))?;
+        if status != "pending" {
+            return Err(HelixError::validation(format!(
+                "cannot cancel order with status {}",
+                status
+            )));
+        }
+
+        let cancelled_at = Utc::now();
+        sqlx::query(
+            "UPDATE commerce.orders SET status = 'cancelled', cancelled_at = $1, updated_at = $1 WHERE tenant_id = $2 AND id = $3",
+        )
+        .bind(cancelled_at)
+        .bind(tenant_id.as_uuid())
+        .bind(order_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| HelixError::dependency(format!("commerce cancel order: {e}")))?;
+
+        let items = self.load_items(order_id).await?;
+        for item in &items {
+            sqlx::query(
+                "UPDATE commerce.products SET inventory = inventory + $1, updated_at = $2 WHERE tenant_id = $3 AND id = $4",
+            )
+            .bind(item.quantity)
+            .bind(cancelled_at)
+            .bind(tenant_id.as_uuid())
+            .bind(item.product_id)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| HelixError::dependency(format!("commerce restore inventory: {e}")))?;
+        }
+
+        tx.commit()
+            .await
+            .map_err(|e| HelixError::dependency(format!("commerce commit cancel: {e}")))?;
+
+        let order = self
+            .get_order(tenant_id, order_id)
+            .await?
+            .ok_or_else(|| HelixError::not_found("order not found"))?;
+        Ok(order)
+    }
+
     pub async fn list_orders(&self, tenant_id: TenantId) -> HelixResult<Vec<Order>> {
         #[derive(sqlx::FromRow)]
         struct Row {
@@ -297,7 +412,7 @@ impl CommerceRepo {
 
         let mut resolved: Vec<(Product, i32)> = Vec::with_capacity(lines.len());
         let mut total_cents: i64 = 0;
-        let mut currency = "USD".to_string();
+        let mut currency: Option<String> = None;
 
         for line in lines {
             if line.quantity < 1 {
@@ -329,7 +444,17 @@ impl CommerceRepo {
                 )));
             }
 
-            currency = product.currency.clone();
+            match currency.as_ref() {
+                None => currency = Some(product.currency.clone()),
+                Some(c) if c == &product.currency => {}
+                Some(c) => {
+                    return Err(HelixError::validation(format!(
+                        "mixed currency in order: {} and {}",
+                        c, product.currency
+                    )));
+                }
+            }
+
             let line_total = product
                 .price_cents
                 .checked_mul(line.quantity as i64)
@@ -351,7 +476,7 @@ impl CommerceRepo {
         )
         .bind(order_id)
         .bind(tenant_id.as_uuid())
-        .bind(&currency)
+        .bind(currency.as_deref().unwrap_or("USD"))
         .bind(total_cents)
         .bind(customer_email)
         .bind(&metadata)
@@ -420,7 +545,7 @@ impl CommerceRepo {
             id: order_id,
             tenant_id,
             status: "pending".into(),
-            currency,
+            currency: currency.unwrap_or_else(|| "USD".to_string()),
             total_cents,
             customer_email: customer_email.into(),
             metadata,

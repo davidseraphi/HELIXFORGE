@@ -4,10 +4,10 @@
   "stage": "prototype",
   "updated_at": "2026-07-16",
   "active_slice": "category-defining-product-program",
-  "active_goal": "HELIXINSIGHTS-FULL",
-  "active_phase": "helixinsights_full_ci_proven",
-  "previous_goal": "HELIXCOLLAB-FULL_CI_PROVEN",
-  "review_gate": "HELIXINSIGHTS-FULL_CI_PROVEN",
+  "active_goal": "HELIXCOMMERCE-FULL",
+  "active_phase": "helixcommerce_full_depth",
+  "previous_goal": "HELIXINSIGHTS-FULL_CI_PROVEN",
+  "review_gate": "HELIXCOMMERCE-FULL_CI_PROVEN",
   "category_defining_program": {
     "status": "foundation_integrity_umbrella_011.7_closed",
     "root": "docs/product-program",
@@ -22,7 +22,7 @@
       "helix-anvil-standalone"
     ],
     "implementation_started": true,
-    "next_gate": "HELIXINSIGHTS-FULL depth packet"
+    "next_gate": "HELIXCOMMERCE-FULL depth packet"
   },
   "second_wave": {
     "roadmap": "docs/SECOND_WAVE.md",
@@ -333,6 +333,35 @@
     "ci_run": "29597119407",
     "unit": "4/4 PASS",
     "next": "CI proven"
+  },
+  "helix_commerce_full_depth": {
+    "migration": "0040_commerce_depth.sql",
+    "scope": "exact quote + atomic stock/order + cancel + race proof",
+    "routes": [
+      "POST /v1/products",
+      "GET /v1/products",
+      "GET /v1/products/{id}",
+      "PATCH /v1/products/{id}",
+      "POST /v1/orders",
+      "GET /v1/orders",
+      "GET /v1/orders/{id}",
+      "POST /v1/orders/{id}/cancel",
+      "GET /v1/domain/status"
+    ],
+    "planes": [
+      "products",
+      "orders",
+      "inventory_reservation",
+      "mixed_currency_guard",
+      "cancel",
+      "audit",
+      "metering",
+      "nats"
+    ],
+    "smoke": "pending",
+    "smoke_script": "scripts/helix_commerce_smoke.ps1",
+    "unit": "pending",
+    "next": "implement and prove CI"
   },
   "helix_collab_client_e2ee_pm": {
     "client_e2ee_hc1": true,

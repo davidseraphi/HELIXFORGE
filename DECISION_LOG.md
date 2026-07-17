@@ -1,5 +1,23 @@
 # Decision log (append-only)
 
+## 2026-07-17 — HELIXCOMMERCE-FULL second-wave depth packet
+
+- Activated goal: `HELIXCOMMERCE-FULL` (catalog order 5, port 8105).
+- Added migration `0040_commerce_depth.sql` for order cancel tracking and indexes.
+- Extended `CommerceRepo` with mixed-currency order rejection, atomic inventory
+  reservation, order cancel with inventory restoration, and product update.
+- Added backend routes: `PATCH /v1/products/{id}`, `POST /v1/orders/{id}/cancel`.
+- Wired audit, metering, and NATS events for product update, order create, and
+  order cancel.
+- Added `scripts/helix_commerce_smoke.ps1` and a `commerce-smoke` CI job.
+- Added unit test for checked money arithmetic and ignored integration test for
+  the two-buyer race for the last unit.
+- Verification: `cargo test --workspace --all-features` pass,
+  `cargo clippy --workspace --all-targets -- -D warnings` clean,
+  local smoke PASS, CI run green.
+- Out of scope for this packet: carts, payment intents, fulfilment, returns,
+  refunds, buyer UI, channels, and reconciliation.
+
 ## 2026-07-17 — HELIXINSIGHTS-FULL second-wave depth packet
 
 - Activated goal: `HELIXINSIGHTS-FULL` (catalog order 4, port 8104).
@@ -14,7 +32,7 @@
 - Added `scripts/helix_insights_smoke.ps1` and an `insights-smoke` CI job.
 - Verification: `cargo test --workspace --all-features` pass,
   `cargo clippy --workspace --all-targets -- -D warnings` clean,
-  local smoke PASS.
+  local smoke PASS, CI run `29597119407` green.
 - Out of scope for this packet: decision records, alerts, reports, dashboards,
   forecasts, federated aggregates, and web UI changes.
 
