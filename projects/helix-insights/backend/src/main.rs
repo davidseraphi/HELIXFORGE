@@ -47,7 +47,10 @@ fn domain_routes() -> Router<AppState> {
         )
         .route("/v1/metrics", get(list_all_metrics))
         .route("/v1/metrics/{id}", get(get_metric))
-        .route("/v1/metrics/{id}/points", get(list_points).post(record_point))
+        .route(
+            "/v1/metrics/{id}/points",
+            get(list_points).post(record_point),
+        )
         .route("/v1/metrics/{id}/aggregate", post(aggregate_metric))
         .route("/v1/metrics/{id}", delete(delete_metric))
 }
@@ -467,8 +470,9 @@ fn parse_dimensions(raw: Option<String>) -> HelixResult<Option<serde_json::Value
         None => Ok(None),
         Some(s) if s.trim().is_empty() => Ok(None),
         Some(s) => {
-            let v: serde_json::Value = serde_json::from_str(&s)
-                .map_err(|e| HelixError::validation(format!("dimensions must be valid JSON: {e}")))?;
+            let v: serde_json::Value = serde_json::from_str(&s).map_err(|e| {
+                HelixError::validation(format!("dimensions must be valid JSON: {e}"))
+            })?;
             if !v.is_object() {
                 return Err(HelixError::validation("dimensions must be a JSON object"));
             }

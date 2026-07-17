@@ -563,7 +563,11 @@ impl InsightsRepo {
             "min" => "MIN(value)",
             "max" => "MAX(value)",
             "count" => "COUNT(*)::float8",
-            other => return Err(HelixError::validation(format!("unsupported aggregation: {other}"))),
+            other => {
+                return Err(HelixError::validation(format!(
+                    "unsupported aggregation: {other}"
+                )))
+            }
         };
 
         let mut builder = QueryBuilder::new(format!(
