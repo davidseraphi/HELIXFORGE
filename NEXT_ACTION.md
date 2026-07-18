@@ -1,9 +1,10 @@
 # Next action
 
-## Latest: HELIXTERRAPRIME-FULL
+## Latest: HELIXTERRAPRIME-FULL closed and CI-proven
 
-**Goal:** move HelixTerra Prime from thin durable scaffold to full second-wave
-depth.
+HELIXTERRAPRIME-FULL is complete. The implementation passed local
+verification and GitHub Actions run `29648775239` is all green, including the
+new **HelixTerra Prime smoke** job.
 
 - Migration: `crates/helix-db/migrations/0049_terra_depth.sql`
 - Repo: `crates/helix-db/src/terra.rs`
@@ -12,7 +13,7 @@ depth.
 - CI: `.github/workflows/ci.yml` `terra-prime-smoke` job
 - Docs: `docs/goals/HELIXTERRAPRIME_FULL.md`, `DECISION_LOG.md`
 
-### Scope
+### What was delivered
 
 Field + observation lifecycle depth:
 - field update, activate, retire (rejected while draft observations remain),
@@ -25,14 +26,8 @@ Field + observation lifecycle depth:
 
 ### Active goal
 
-`HELIXTERRAPRIME-FULL` — in progress.
+None. HELIXTERRAPRIME-FULL is closed.
 
-## Paste-ready continuation prompt
+### Next action
 
-```text
-Continue in C:\Users\divin\PROJECTS\HELIXFORGE. HELIXTERRAPRIME-FULL is the
-active goal. Implement migration 0049, extend TerraRepo with field/observation
-lifecycle and terra summary; add routes and domain status planes, write unit +
-integration tests, create scripts/helix_terra_prime_smoke.ps1, add the
-terra-prime-smoke CI job, and prove it green on CI.
-```
+Founder selects the next explicit named goal.

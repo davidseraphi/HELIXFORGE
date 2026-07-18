@@ -1,5 +1,47 @@
 # Decision log (append-only)
 
+## 2026-07-18 — HELIXTERRAPRIME-FULL closed and CI-proven
+
+- Completed the HelixTerra Prime second-wave depth packet:
+  - Migration `0049_terra_depth.sql` + down migration: `activated_at`/
+    `retired_at`/`deleted_at` lifecycle columns on `terra.fields`;
+    `updated_at`, `confirmed_at`, `dismissed_at`, `deleted_at` on
+    `terra.observations`; legacy `open` observation status backfilled to
+    `draft`; partial active indexes.
+  - Extended `TerraRepo` (`crates/helix-db/src/terra.rs`) with
+    `update_field`, `activate_field`, `retire_field` (rejected while draft
+    observations remain), `reopen_field`, `soft_delete_field`,
+    `restore_field`; parent-verified `update_observation`,
+    `confirm_observation`, `dismiss_observation`, `soft_delete_observation`,
+    `restore_observation`; and `get_terra_summary`.
+  - Added routes in `projects/helix-terra-prime/backend/src/main.rs`:
+    `PATCH /v1/fields/{id}`, `POST /v1/fields/{id}/activate`,
+    `POST /v1/fields/{id}/retire`, `POST /v1/fields/{id}/reopen`,
+    `POST /v1/fields/{id}/delete`, `POST /v1/fields/{id}/restore`,
+    `PATCH /v1/fields/{id}/observations/{obs_id}`,
+    `POST /v1/fields/{id}/observations/{obs_id}/confirm`,
+    `POST /v1/fields/{id}/observations/{obs_id}/dismiss`,
+    `POST /v1/fields/{id}/observations/{obs_id}/delete`,
+    `POST /v1/fields/{id}/observations/{obs_id}/restore`,
+    `GET /v1/reports/terra-summary`, and `GET /v1/domain/status` with planes.
+  - In-process tests: field and observation status transition guards.
+  - Ignored Postgres integration test for the retire guard, field/observation
+    lifecycle, and terra summary.
+  - PowerShell smoke `scripts/helix_terra_prime_smoke.ps1` and
+    `terra-prime-smoke` CI job in `.github/workflows/ci.yml`.
+- Verification:
+  - `cargo fmt --all -- --check` clean.
+  - `cargo clippy --workspace --all-targets -- -D warnings` clean.
+  - `cargo test --workspace --all-features` clean.
+  - Local smoke against Postgres/NATS/MinIO passes.
+  - GitHub Actions run `29648775239` is all green, including the new
+    **HelixTerra Prime smoke** job.
+- Commits `60f5eef` (activation) and `2eb2347` (implementation) pushed to
+  `main`.
+- `PROJECT_STATE.json` and `NEXT_ACTION.md` updated to mark
+  HELIXTERRAPRIME-FULL closed and clear the active goal.
+- Next action: founder selects the next explicit named goal.
+
 ## 2026-07-18 — HELIXCURAPRIME-FULL closed and CI-proven
 
 - Completed the HelixCura Prime second-wave depth packet:

@@ -4,10 +4,10 @@
   "stage": "prototype",
   "updated_at": "2026-07-18",
   "active_slice": "category-defining-product-program",
-  "active_goal": "HELIXTERRAPRIME-FULL",
-  "active_phase": "helixterraprime_full_depth",
-  "previous_goal": "HELIXCURAPRIME-FULL_CI_PROVEN",
-  "review_gate": "HELIXTERRAPRIME-FULL",
+  "active_goal": null,
+  "active_phase": null,
+  "previous_goal": "HELIXTERRAPRIME-FULL_CI_PROVEN",
+  "review_gate": null,
   "category_defining_program": {
     "status": "foundation_integrity_umbrella_011.7_closed",
     "root": "docs/product-program",
@@ -22,12 +22,12 @@
       "helix-anvil-standalone"
     ],
     "implementation_started": true,
-    "next_gate": "HELIXTERRAPRIME-FULL depth packet"
+    "next_gate": "awaiting_founder_goal_selection"
   },
   "second_wave": {
     "roadmap": "docs/SECOND_WAVE.md",
     "status": "paused_by_category_defining_program",
-    "current": "helix-terra-prime",
+    "current": null,
     "completed": [
       "helix-commerce",
       "helix-flow",
@@ -39,7 +39,8 @@
       "helix-forge-studio",
       "helix-synthbio",
       "helix-lex-prime",
-      "helix-cura-prime"
+      "helix-cura-prime",
+      "helix-terra-prime"
     ],
     "order": [
       "helix-flow",
@@ -75,7 +76,7 @@
     "current_validity": "unverified_after_later_tree_changes"
   },
   "foundation_integrity_current_gate": "011.7_CLOSED",
-  "full_workspace_current_status": "fmt_clippy_test_helm_verify_helixcore_full_pass_helixcuraprime_full_ci_proven_run_29647567869",
+  "full_workspace_current_status": "fmt_clippy_test_helm_verify_helixcore_full_pass_helixterraprime_full_ci_proven_run_29648775239",
   "core_services": [
     "gateway",
     "agent-hub",
@@ -151,11 +152,11 @@
   "ratified_specs": [],
   "last_smoke": {
     "date": "2026-07-18",
-    "service": "helix-cura-prime",
+    "service": "helix-terra-prime",
     "postgres": true,
     "minio": true,
     "nats": true,
-    "path": "scripts/helix_cura_prime_smoke.ps1 PASS \u2014 local + CI"
+    "path": "scripts/helix_terra_prime_smoke.ps1 PASS \u2014 local + CI"
   },
   "helix_code_extreme": {
     "phase": "endstate",
@@ -695,6 +696,45 @@
     "smoke": "PASS",
     "smoke_script": "scripts/helix_cura_prime_smoke.ps1",
     "ci_run": "29647567869",
+    "unit": "2/2 PASS",
+    "next": "CI proven"
+  },
+  "helix_terra_prime_full_depth": {
+    "migration": "0049_terra_depth.sql",
+    "routes": [
+      "GET /v1/fields",
+      "POST /v1/fields",
+      "GET /v1/fields/{id}",
+      "PATCH /v1/fields/{id}",
+      "POST /v1/fields/{id}/activate",
+      "POST /v1/fields/{id}/retire",
+      "POST /v1/fields/{id}/reopen",
+      "POST /v1/fields/{id}/delete",
+      "POST /v1/fields/{id}/restore",
+      "GET /v1/fields/{id}/observations",
+      "POST /v1/fields/{id}/observations",
+      "PATCH /v1/fields/{id}/observations/{obs_id}",
+      "POST /v1/fields/{id}/observations/{obs_id}/confirm",
+      "POST /v1/fields/{id}/observations/{obs_id}/dismiss",
+      "POST /v1/fields/{id}/observations/{obs_id}/delete",
+      "POST /v1/fields/{id}/observations/{obs_id}/restore",
+      "GET /v1/reports/terra-summary",
+      "GET /v1/domain/status"
+    ],
+    "planes": [
+      "fields",
+      "observations",
+      "field_lifecycle",
+      "observation_lifecycle",
+      "retire_guards",
+      "terra_summary",
+      "audit",
+      "metering",
+      "nats"
+    ],
+    "smoke": "PASS",
+    "smoke_script": "scripts/helix_terra_prime_smoke.ps1",
+    "ci_run": "29648775239",
     "unit": "2/2 PASS",
     "next": "CI proven"
   },
