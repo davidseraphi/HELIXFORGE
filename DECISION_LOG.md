@@ -1,5 +1,47 @@
 # Decision log (append-only)
 
+## 2026-07-18 — HELIXQUANTUMFORGE-FULL closed and CI-proven
+
+- Completed the HelixQuantum Forge second-wave depth packet:
+  - Migration `0052_quantum_depth.sql` + down migration: `submitted_at`/
+    `completed_at`/`failed_at`/`deleted_at` lifecycle columns on
+    `quantum.jobs`; `updated_at`, `validated_at`, `archived_at`, `deleted_at`
+    on `quantum.circuits`; legacy `open` circuit status backfilled to
+    `draft`; partial active indexes.
+  - Extended `QuantumRepo` (`crates/helix-db/src/quantum.rs`) with
+    `update_job`, `submit_job` (requires at least one non-deleted circuit),
+    `complete_job`, `fail_job`, `soft_delete_job`, `restore_job`;
+    parent-verified `update_circuit`, `validate_circuit`, `archive_circuit`,
+    `soft_delete_circuit`, `restore_circuit`; and `get_quantum_summary`.
+  - Added routes in `projects/helix-quantum-forge/backend/src/main.rs`:
+    `PATCH /v1/jobs/{id}`, `POST /v1/jobs/{id}/submit`,
+    `POST /v1/jobs/{id}/complete`, `POST /v1/jobs/{id}/fail`,
+    `POST /v1/jobs/{id}/delete`, `POST /v1/jobs/{id}/restore`,
+    `PATCH /v1/jobs/{id}/circuits/{circuit_id}`,
+    `POST /v1/jobs/{id}/circuits/{circuit_id}/validate`,
+    `POST /v1/jobs/{id}/circuits/{circuit_id}/archive`,
+    `POST /v1/jobs/{id}/circuits/{circuit_id}/delete`,
+    `POST /v1/jobs/{id}/circuits/{circuit_id}/restore`,
+    `GET /v1/reports/quantum-summary`, and `GET /v1/domain/status` with
+    planes.
+  - In-process tests: job and circuit status transition guards.
+  - Ignored Postgres integration test for the submit guard, job/circuit
+    lifecycle, and quantum summary.
+  - PowerShell smoke `scripts/helix_quantum_forge_smoke.ps1` and
+    `quantum-forge-smoke` CI job in `.github/workflows/ci.yml`.
+- Verification:
+  - `cargo fmt --all -- --check` clean.
+  - `cargo clippy --workspace --all-targets -- -D warnings` clean.
+  - `cargo test --workspace --all-features` clean.
+  - Local smoke against Postgres/NATS/MinIO passes.
+  - GitHub Actions run `29652895313` is all green, including the new
+    **HelixQuantum Forge smoke** job.
+- Commits `9c9d300` (activation) and `928b04f` (implementation) pushed to
+  `main`.
+- `PROJECT_STATE.json` and `NEXT_ACTION.md` updated to mark
+  HELIXQUANTUMFORGE-FULL closed and clear the active goal.
+- Next action: founder selects the next explicit named goal.
+
 ## 2026-07-18 — HELIXORBITPRIME-FULL closed and CI-proven
 
 - Completed the HelixOrbit Prime second-wave depth packet:

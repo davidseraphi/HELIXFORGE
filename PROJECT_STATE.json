@@ -4,10 +4,10 @@
   "stage": "prototype",
   "updated_at": "2026-07-18",
   "active_slice": "category-defining-product-program",
-  "active_goal": "HELIXQUANTUMFORGE-FULL",
-  "active_phase": "helixquantumforge_full_depth",
-  "previous_goal": "HELIXORBITPRIME-FULL_CI_PROVEN",
-  "review_gate": "HELIXQUANTUMFORGE-FULL",
+  "active_goal": null,
+  "active_phase": null,
+  "previous_goal": "HELIXQUANTUMFORGE-FULL_CI_PROVEN",
+  "review_gate": null,
   "category_defining_program": {
     "status": "foundation_integrity_umbrella_011.7_closed",
     "root": "docs/product-program",
@@ -22,12 +22,12 @@
       "helix-anvil-standalone"
     ],
     "implementation_started": true,
-    "next_gate": "HELIXQUANTUMFORGE-FULL depth packet"
+    "next_gate": "awaiting_founder_goal_selection"
   },
   "second_wave": {
     "roadmap": "docs/SECOND_WAVE.md",
     "status": "paused_by_category_defining_program",
-    "current": "helix-quantum-forge",
+    "current": null,
     "completed": [
       "helix-commerce",
       "helix-flow",
@@ -42,7 +42,8 @@
       "helix-cura-prime",
       "helix-terra-prime",
       "helix-climate-prime",
-      "helix-orbit-prime"
+      "helix-orbit-prime",
+      "helix-quantum-forge"
     ],
     "order": [
       "helix-flow",
@@ -78,7 +79,7 @@
     "current_validity": "unverified_after_later_tree_changes"
   },
   "foundation_integrity_current_gate": "011.7_CLOSED",
-  "full_workspace_current_status": "fmt_clippy_test_helm_verify_helixcore_full_pass_helixorbitprime_full_ci_proven_run_29651383990",
+  "full_workspace_current_status": "fmt_clippy_test_helm_verify_helixcore_full_pass_helixquantumforge_full_ci_proven_run_29652895313",
   "core_services": [
     "gateway",
     "agent-hub",
@@ -154,11 +155,11 @@
   "ratified_specs": [],
   "last_smoke": {
     "date": "2026-07-18",
-    "service": "helix-orbit-prime",
+    "service": "helix-quantum-forge",
     "postgres": true,
     "minio": true,
     "nats": true,
-    "path": "scripts/helix_orbit_prime_smoke.ps1 PASS \u2014 local + CI"
+    "path": "scripts/helix_quantum_forge_smoke.ps1 PASS \u2014 local + CI"
   },
   "helix_code_extreme": {
     "phase": "endstate",
@@ -816,6 +817,45 @@
     "smoke": "PASS",
     "smoke_script": "scripts/helix_orbit_prime_smoke.ps1",
     "ci_run": "29651383990",
+    "unit": "2/2 PASS",
+    "next": "CI proven"
+  },
+  "helix_quantum_forge_full_depth": {
+    "migration": "0052_quantum_depth.sql",
+    "routes": [
+      "GET /v1/jobs",
+      "POST /v1/jobs",
+      "GET /v1/jobs/{id}",
+      "PATCH /v1/jobs/{id}",
+      "POST /v1/jobs/{id}/submit",
+      "POST /v1/jobs/{id}/complete",
+      "POST /v1/jobs/{id}/fail",
+      "POST /v1/jobs/{id}/delete",
+      "POST /v1/jobs/{id}/restore",
+      "GET /v1/jobs/{id}/circuits",
+      "POST /v1/jobs/{id}/circuits",
+      "PATCH /v1/jobs/{id}/circuits/{circuit_id}",
+      "POST /v1/jobs/{id}/circuits/{circuit_id}/validate",
+      "POST /v1/jobs/{id}/circuits/{circuit_id}/archive",
+      "POST /v1/jobs/{id}/circuits/{circuit_id}/delete",
+      "POST /v1/jobs/{id}/circuits/{circuit_id}/restore",
+      "GET /v1/reports/quantum-summary",
+      "GET /v1/domain/status"
+    ],
+    "planes": [
+      "jobs",
+      "circuits",
+      "job_lifecycle",
+      "circuit_lifecycle",
+      "submit_guards",
+      "quantum_summary",
+      "audit",
+      "metering",
+      "nats"
+    ],
+    "smoke": "PASS",
+    "smoke_script": "scripts/helix_quantum_forge_smoke.ps1",
+    "ci_run": "29652895313",
     "unit": "2/2 PASS",
     "next": "CI proven"
   },
