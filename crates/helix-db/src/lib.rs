@@ -97,7 +97,10 @@ pub use network::{
     can_revive_connection, next_opportunity_status, next_profile_status, Connection, NetworkRepo,
     NetworkSummaryRow, Opportunity, OpportunityUpdate, Profile, ProfileUpdate,
 };
-pub use nova::{Experiment, Finding, NovaRepo};
+pub use nova::{
+    next_experiment_status, next_finding_status, Experiment, ExperimentUpdate, Finding,
+    FindingUpdate, NovaRepo, NovaSummaryRow,
+};
 pub use orbit::{
     next_asset_status, next_pass_status, AssetUpdate, OrbitRepo, OrbitSummaryRow, Pass, PassUpdate,
     SpaceAsset,
