@@ -1,33 +1,38 @@
 # Next action
 
-## Latest: HELIXORBITPRIME-FULL closed and CI-proven
+## Latest: HELIXQUANTUMFORGE-FULL
 
-HELIXORBITPRIME-FULL is complete. The implementation passed local
-verification and GitHub Actions run `29651383990` is all green, including the
-new **HelixOrbit Prime smoke** job.
+**Goal:** move HelixQuantum Forge from thin durable scaffold to full
+second-wave depth.
 
-- Migration: `crates/helix-db/migrations/0051_orbit_depth.sql`
-- Repo: `crates/helix-db/src/orbit.rs`
-- API: `projects/helix-orbit-prime/backend/src/main.rs`
-- Smoke: `scripts/helix_orbit_prime_smoke.ps1`
-- CI: `.github/workflows/ci.yml` `orbit-prime-smoke` job
-- Docs: `docs/goals/HELIXORBITPRIME_FULL.md`, `DECISION_LOG.md`
+- Migration: `crates/helix-db/migrations/0052_quantum_depth.sql`
+- Repo: `crates/helix-db/src/quantum.rs`
+- API: `projects/helix-quantum-forge/backend/src/main.rs`
+- Smoke: `scripts/helix_quantum_forge_smoke.ps1`
+- CI: `.github/workflows/ci.yml` `quantum-forge-smoke` job
+- Docs: `docs/goals/HELIXQUANTUMFORGE_FULL.md`, `DECISION_LOG.md`
 
-### What was delivered
+### Scope
 
-Asset + pass lifecycle depth:
-- asset update, commission, decommission (rejected while draft or planned
-  passes remain), recommission, soft-delete, restore
-- pass update, plan, complete, cancel, soft-delete, restore
-- orbit summary report
-- domain status with `phase: wave2_w16` and capability planes
+Job + circuit lifecycle depth:
+- job update, submit (requires a non-deleted circuit), complete, fail,
+  soft-delete, restore
+- circuit update, validate, archive, soft-delete, restore
+- quantum summary report
+- domain status with `phase: wave2_w17` and capability planes
 - in-process validation tests + ignored Postgres integration test
 - PowerShell smoke and CI job
 
 ### Active goal
 
-None. HELIXORBITPRIME-FULL is closed.
+`HELIXQUANTUMFORGE-FULL` — in progress.
 
-### Next action
+## Paste-ready continuation prompt
 
-Founder selects the next explicit named goal.
+```text
+Continue in C:\Users\divin\PROJECTS\HELIXFORGE. HELIXQUANTUMFORGE-FULL is the
+active goal. Implement migration 0052, extend QuantumRepo with job/circuit
+lifecycle and quantum summary; add routes and domain status planes, write
+unit + integration tests, create scripts/helix_quantum_forge_smoke.ps1, add
+the quantum-forge-smoke CI job, and prove it green on CI.
+```
