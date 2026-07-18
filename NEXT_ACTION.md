@@ -1,9 +1,10 @@
 # Next action
 
-## Latest: HELIXLEXPRIME-FULL
+## Latest: HELIXLEXPRIME-FULL closed and CI-proven
 
-**Goal:** move HelixLex Prime from thin durable scaffold to full second-wave
-depth.
+HELIXLEXPRIME-FULL is complete. The implementation passed local verification
+and GitHub Actions run `29646308966` is all green, including the new
+**HelixLex Prime smoke** job.
 
 - Migration: `crates/helix-db/migrations/0047_lex_depth.sql`
 - Repo: `crates/helix-db/src/lex.rs`
@@ -12,7 +13,7 @@ depth.
 - CI: `.github/workflows/ci.yml` `lex-prime-smoke` job
 - Docs: `docs/goals/HELIXLEXPRIME_FULL.md`, `DECISION_LOG.md`
 
-### Scope
+### What was delivered
 
 Matter + filing lifecycle depth:
 - matter update, open, close (rejected while draft filings remain), reopen,
@@ -25,14 +26,8 @@ Matter + filing lifecycle depth:
 
 ### Active goal
 
-`HELIXLEXPRIME-FULL` — in progress.
+None. HELIXLEXPRIME-FULL is closed.
 
-## Paste-ready continuation prompt
+### Next action
 
-```text
-Continue in C:\Users\divin\PROJECTS\HELIXFORGE. HELIXLEXPRIME-FULL is the
-active goal. Implement migration 0047, extend LexRepo with matter/filing
-lifecycle and lex summary; add routes and domain status planes, write unit +
-integration tests, create scripts/helix_lex_prime_smoke.ps1, add the
-lex-prime-smoke CI job, and prove it green on CI.
-```
+Founder selects the next explicit named goal.

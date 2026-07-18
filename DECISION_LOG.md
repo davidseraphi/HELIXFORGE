@@ -1,5 +1,45 @@
 # Decision log (append-only)
 
+## 2026-07-18 — HELIXLEXPRIME-FULL closed and CI-proven
+
+- Completed the HelixLex Prime second-wave depth packet:
+  - Migration `0047_lex_depth.sql` + down migration: `opened_at`/`closed_at`/
+    `deleted_at` lifecycle columns on `lex.matters`; `updated_at`, `filed_at`,
+    `withdrawn_at`, `deleted_at` on `lex.filings`; legacy `open` filing status
+    backfilled to `draft`; partial active indexes.
+  - Extended `LexRepo` (`crates/helix-db/src/lex.rs`) with `update_matter`,
+    `open_matter`, `close_matter` (rejected while draft filings remain),
+    `reopen_matter`, `soft_delete_matter`, `restore_matter`; parent-verified
+    `update_filing`, `file_filing`, `withdraw_filing`, `soft_delete_filing`,
+    `restore_filing`; and `get_lex_summary`.
+  - Added routes in `projects/helix-lex-prime/backend/src/main.rs`:
+    `PATCH /v1/matters/{id}`, `POST /v1/matters/{id}/open`,
+    `POST /v1/matters/{id}/close`, `POST /v1/matters/{id}/reopen`,
+    `POST /v1/matters/{id}/delete`, `POST /v1/matters/{id}/restore`,
+    `PATCH /v1/matters/{id}/filings/{filing_id}`,
+    `POST /v1/matters/{id}/filings/{filing_id}/file`,
+    `POST /v1/matters/{id}/filings/{filing_id}/withdraw`,
+    `POST /v1/matters/{id}/filings/{filing_id}/delete`,
+    `POST /v1/matters/{id}/filings/{filing_id}/restore`,
+    `GET /v1/reports/lex-summary`, and `GET /v1/domain/status` with planes.
+  - In-process tests: matter and filing status transition guards.
+  - Ignored Postgres integration test for the close guard, matter/filing
+    lifecycle, and lex summary.
+  - PowerShell smoke `scripts/helix_lex_prime_smoke.ps1` and
+    `lex-prime-smoke` CI job in `.github/workflows/ci.yml`.
+- Verification:
+  - `cargo fmt --all -- --check` clean.
+  - `cargo clippy --workspace --all-targets -- -D warnings` clean.
+  - `cargo test --workspace --all-features` clean.
+  - Local smoke against Postgres/NATS/MinIO passes.
+  - GitHub Actions run `29646308966` is all green, including the new
+    **HelixLex Prime smoke** job.
+- Commits `082f548` (activation) and `0e42fce` (implementation) pushed to
+  `main`.
+- `PROJECT_STATE.json` and `NEXT_ACTION.md` updated to mark
+  HELIXLEXPRIME-FULL closed and clear the active goal.
+- Next action: founder selects the next explicit named goal.
+
 ## 2026-07-18 — HELIXSYNTHBIO-FULL closed and CI-proven
 
 - Completed the HelixSynthBio second-wave depth packet:

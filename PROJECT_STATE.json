@@ -4,10 +4,10 @@
   "stage": "prototype",
   "updated_at": "2026-07-18",
   "active_slice": "category-defining-product-program",
-  "active_goal": "HELIXLEXPRIME-FULL",
-  "active_phase": "helixlexprime_full_depth",
-  "previous_goal": "HELIXSYNTHBIO-FULL_CI_PROVEN",
-  "review_gate": "HELIXLEXPRIME-FULL",
+  "active_goal": null,
+  "active_phase": null,
+  "previous_goal": "HELIXLEXPRIME-FULL_CI_PROVEN",
+  "review_gate": null,
   "category_defining_program": {
     "status": "foundation_integrity_umbrella_011.7_closed",
     "root": "docs/product-program",
@@ -22,12 +22,12 @@
       "helix-anvil-standalone"
     ],
     "implementation_started": true,
-    "next_gate": "HELIXLEXPRIME-FULL depth packet"
+    "next_gate": "awaiting_founder_goal_selection"
   },
   "second_wave": {
     "roadmap": "docs/SECOND_WAVE.md",
     "status": "paused_by_category_defining_program",
-    "current": "helix-lex-prime",
+    "current": null,
     "completed": [
       "helix-commerce",
       "helix-flow",
@@ -37,7 +37,8 @@
       "helix-well",
       "helix-network",
       "helix-forge-studio",
-      "helix-synthbio"
+      "helix-synthbio",
+      "helix-lex-prime"
     ],
     "order": [
       "helix-flow",
@@ -73,7 +74,7 @@
     "current_validity": "unverified_after_later_tree_changes"
   },
   "foundation_integrity_current_gate": "011.7_CLOSED",
-  "full_workspace_current_status": "fmt_clippy_test_helm_verify_helixcore_full_pass_helixsynthbio_full_ci_proven_run_29644975351",
+  "full_workspace_current_status": "fmt_clippy_test_helm_verify_helixcore_full_pass_helixlexprime_full_ci_proven_run_29646308966",
   "core_services": [
     "gateway",
     "agent-hub",
@@ -149,11 +150,11 @@
   "ratified_specs": [],
   "last_smoke": {
     "date": "2026-07-18",
-    "service": "helix-synthbio",
+    "service": "helix-lex-prime",
     "postgres": true,
     "minio": true,
     "nats": true,
-    "path": "scripts/helix_synthbio_smoke.ps1 PASS \u2014 local + CI"
+    "path": "scripts/helix_lex_prime_smoke.ps1 PASS \u2014 local + CI"
   },
   "helix_code_extreme": {
     "phase": "endstate",
@@ -614,6 +615,45 @@
     "smoke": "PASS",
     "smoke_script": "scripts/helix_synthbio_smoke.ps1",
     "ci_run": "29644975351",
+    "unit": "2/2 PASS",
+    "next": "CI proven"
+  },
+  "helix_lex_prime_full_depth": {
+    "migration": "0047_lex_depth.sql",
+    "routes": [
+      "GET /v1/matters",
+      "POST /v1/matters",
+      "GET /v1/matters/{id}",
+      "PATCH /v1/matters/{id}",
+      "POST /v1/matters/{id}/open",
+      "POST /v1/matters/{id}/close",
+      "POST /v1/matters/{id}/reopen",
+      "POST /v1/matters/{id}/delete",
+      "POST /v1/matters/{id}/restore",
+      "GET /v1/matters/{id}/filings",
+      "POST /v1/matters/{id}/filings",
+      "PATCH /v1/matters/{id}/filings/{filing_id}",
+      "POST /v1/matters/{id}/filings/{filing_id}/file",
+      "POST /v1/matters/{id}/filings/{filing_id}/withdraw",
+      "POST /v1/matters/{id}/filings/{filing_id}/delete",
+      "POST /v1/matters/{id}/filings/{filing_id}/restore",
+      "GET /v1/reports/lex-summary",
+      "GET /v1/domain/status"
+    ],
+    "planes": [
+      "matters",
+      "filings",
+      "matter_lifecycle",
+      "filing_lifecycle",
+      "close_guards",
+      "lex_summary",
+      "audit",
+      "metering",
+      "nats"
+    ],
+    "smoke": "PASS",
+    "smoke_script": "scripts/helix_lex_prime_smoke.ps1",
+    "ci_run": "29646308966",
     "unit": "2/2 PASS",
     "next": "CI proven"
   },
