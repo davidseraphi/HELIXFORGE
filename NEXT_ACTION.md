@@ -1,30 +1,36 @@
 # Next action
 
-## Latest: HELIXCAPITAL-DURABILITY closed — second product through the gate
+## Latest: HELIXCOMMERCE-DURABILITY
 
-HELIXCAPITAL-DURABILITY is complete. The implementation passed local
-verification and GitHub Actions run `29662883748` is all green, including
-the new **HelixCapital durability gate** job.
+**Goal:** prove the Foundation Integrity durability gate on HelixCommerce —
+third product through the gate (after helix-collab, helix-capital).
 
-- Tests: `projects/helix-capital/backend/src/main.rs`
-  (`concurrent_voids_single_winner`, `concurrent_journals_exact_balances`)
-- Proof: `scripts/helix_capital_durability.ps1` (forced-kill + restore)
-- CI: `.github/workflows/ci.yml` `capital-durability` job
-- Docs: `docs/goals/HELIXCAPITAL_DURABILITY.md`, `DECISION_LOG.md`
+- Tests: `projects/helix-commerce/backend/src/main.rs`
+  (`concurrent_cancels_single_winner`)
+- Proof: `scripts/helix_commerce_durability.ps1` (forced-kill + restore)
+- CI: `.github/workflows/ci.yml` `commerce-durability` job
+- Docs: `docs/goals/HELIXCOMMERCE_DURABILITY.md`, `DECISION_LOG.md`
 
-### What was delivered
+### Scope
 
-- concurrency proof: 8 racing voids → exactly one winner, one reversal;
-  8 concurrent journals → exact summed balances (trial balance agrees)
-- crash proof: acknowledged journal survives a forced kill of the API
-- restore proof: schema dump roundtrip with equal counts + content hashes
-- `helix-capital` recorded in `durability_gate_proven_products`
+- concurrency proof: N concurrent cancels → exactly one winner, inventory
+  restored once (oversell race already proven by
+  `two_buyers_cannot_oversell_last_unit`)
+- crash proof: acknowledged order survives a forced kill of the API
+- restore proof: `commerce` schema dump roundtrip with equal counts + hashes
+- ignored-test step added to durability CI jobs so race proofs run in CI
 
 ### Active goal
 
-None. HELIXCAPITAL-DURABILITY is closed.
+`HELIXCOMMERCE-DURABILITY` — in progress.
 
-### Next action
+## Paste-ready continuation prompt
 
-Founder selects the next explicit named goal. Open: durability gates for
-the remaining 19 products.
+```text
+Continue in C:\Users\divin\PROJECTS\HELIXFORGE. HELIXCOMMERCE-DURABILITY is
+the active goal. Add the concurrent_cancels_single_winner integration test;
+create scripts/helix_commerce_durability.ps1 (forced-kill + restore proofs)
+and the commerce-durability CI job (with the ignored-test step, also added to
+capital-durability); prove it green on CI; record helix-commerce in
+durability_gate_proven_products.
+```
