@@ -1,34 +1,38 @@
 # Next action
 
-## Latest: HELIXNETWORK-FULL closed and CI-proven
+## Latest: HELIXFORGESTUDIO-FULL
 
-HELIXNETWORK-FULL is complete. The implementation passed local verification
-and GitHub Actions run `29642796843` is all green, including the new
-**HelixNetwork smoke** job.
+**Goal:** move HelixForge Studio from thin durable scaffold to full
+second-wave depth.
 
-- Migration: `crates/helix-db/migrations/0044_network_depth.sql`
-- Repo: `crates/helix-db/src/network.rs`
-- API: `projects/helix-network/backend/src/main.rs`
-- Smoke: `scripts/helix_network_smoke.ps1`
-- CI: `.github/workflows/ci.yml` `network-smoke` job
-- Docs: `docs/goals/HELIXNETWORK_FULL.md`, `DECISION_LOG.md`
+- Migration: `crates/helix-db/migrations/0045_studio_depth.sql`
+- Repo: `crates/helix-db/src/studio.rs`
+- API: `projects/helix-forge-studio/backend/src/main.rs`
+- Smoke: `scripts/helix_forge_studio_smoke.ps1`
+- CI: `.github/workflows/ci.yml` `forge-studio-smoke` job
+- Docs: `docs/goals/HELIXFORGESTUDIO_FULL.md`, `DECISION_LOG.md`
 
-### What was delivered
+### Scope
 
-Profile + connection + opportunity lifecycle depth:
-- profile update, deactivate, reactivate, soft-delete, restore (owner-scoped)
-- connection decline, remove, block; declined/removed re-request revival;
-  blocked pairs rejected in both directions
-- opportunity update, close, reopen, soft-delete, restore (owner-scoped)
-- network summary report
-- domain status with `phase: wave2_w9` and capability planes
+App + page lifecycle depth:
+- app update, publish (requires a non-deleted page), unpublish, soft-delete,
+  restore
+- page update, archive, reopen, soft-delete, restore
+- studio summary report
+- domain status with `phase: wave2_w10` and capability planes
 - in-process validation tests + ignored Postgres integration test
 - PowerShell smoke and CI job
 
 ### Active goal
 
-None. HELIXNETWORK-FULL is closed.
+`HELIXFORGESTUDIO-FULL` — in progress.
 
-### Next action
+## Paste-ready continuation prompt
 
-Founder selects the next explicit named goal.
+```text
+Continue in C:\Users\divin\PROJECTS\HELIXFORGE. HELIXFORGESTUDIO-FULL is the
+active goal. Implement migration 0045, extend StudioRepo with app/page
+lifecycle and studio summary; add routes and domain status planes, write
+unit + integration tests, create scripts/helix_forge_studio_smoke.ps1, add
+the forge-studio-smoke CI job, and prove it green on CI.
+```
