@@ -1,33 +1,38 @@
 # Next action
 
-## Latest: HELIXSYNTHBIO-FULL closed and CI-proven
+## Latest: HELIXLEXPRIME-FULL
 
-HELIXSYNTHBIO-FULL is complete. The implementation passed local verification
-and GitHub Actions run `29644975351` is all green, including the new
-**HelixSynthBio smoke** job.
+**Goal:** move HelixLex Prime from thin durable scaffold to full second-wave
+depth.
 
-- Migration: `crates/helix-db/migrations/0046_synthbio_depth.sql`
-- Repo: `crates/helix-db/src/synthbio.rs`
-- API: `projects/helix-synthbio/backend/src/main.rs`
-- Smoke: `scripts/helix_synthbio_smoke.ps1`
-- CI: `.github/workflows/ci.yml` `synthbio-smoke` job
-- Docs: `docs/goals/HELIXSYNTHBIO_FULL.md`, `DECISION_LOG.md`
+- Migration: `crates/helix-db/migrations/0047_lex_depth.sql`
+- Repo: `crates/helix-db/src/lex.rs`
+- API: `projects/helix-lex-prime/backend/src/main.rs`
+- Smoke: `scripts/helix_lex_prime_smoke.ps1`
+- CI: `.github/workflows/ci.yml` `lex-prime-smoke` job
+- Docs: `docs/goals/HELIXLEXPRIME_FULL.md`, `DECISION_LOG.md`
 
-### What was delivered
+### Scope
 
-Design + sim lifecycle depth:
-- design update, submit, approve (requires a completed sim), return,
+Matter + filing lifecycle depth:
+- matter update, open, close (rejected while draft filings remain), reopen,
   soft-delete, restore
-- sim update, start, complete, fail, soft-delete, restore
-- synthbio summary report
-- domain status with `phase: wave2_w11` and capability planes
+- filing update, file, withdraw, soft-delete, restore
+- lex summary report
+- domain status with `phase: wave2_w12` and capability planes
 - in-process validation tests + ignored Postgres integration test
 - PowerShell smoke and CI job
 
 ### Active goal
 
-None. HELIXSYNTHBIO-FULL is closed.
+`HELIXLEXPRIME-FULL` — in progress.
 
-### Next action
+## Paste-ready continuation prompt
 
-Founder selects the next explicit named goal.
+```text
+Continue in C:\Users\divin\PROJECTS\HELIXFORGE. HELIXLEXPRIME-FULL is the
+active goal. Implement migration 0047, extend LexRepo with matter/filing
+lifecycle and lex summary; add routes and domain status planes, write unit +
+integration tests, create scripts/helix_lex_prime_smoke.ps1, add the
+lex-prime-smoke CI job, and prove it green on CI.
+```
