@@ -279,7 +279,45 @@ impl CommerceRepo {
         .await
         .map_err(|e| HelixError::dependency(format!("commerce cancel order: {e}")))?;
 
-        let items = self.load_items(order_id).await?;
+        // Load items inside the transaction: a pool fetch here could deadlock
+        // under concurrency (row lock held while waiting for a free connection).
+        #[derive(sqlx::FromRow)]
+        struct ItemRow {
+            id: Uuid,
+            order_id: Uuid,
+            product_id: Uuid,
+            sku: String,
+            name: String,
+            quantity: i32,
+            unit_price_cents: i64,
+            line_total_cents: i64,
+        }
+        let item_rows: Vec<ItemRow> = sqlx::query_as(
+            r#"
+            SELECT id, order_id, product_id, sku, name, quantity, unit_price_cents, line_total_cents
+            FROM commerce.order_items
+            WHERE order_id = $1
+            ORDER BY sku
+            "#,
+        )
+        .bind(order_id)
+        .fetch_all(&mut *tx)
+        .await
+        .map_err(|e| HelixError::dependency(format!("commerce load items in tx: {e}")))?;
+        let items: Vec<OrderItem> = item_rows
+            .into_iter()
+            .map(|r| OrderItem {
+                id: r.id,
+                order_id: r.order_id,
+                product_id: r.product_id,
+                sku: r.sku,
+                name: r.name,
+                quantity: r.quantity,
+                unit_price_cents: r.unit_price_cents,
+                line_total_cents: r.line_total_cents,
+            })
+            .collect();
+
         for item in &items {
             sqlx::query(
                 "UPDATE commerce.products SET inventory = inventory + $1, updated_at = $2 WHERE tenant_id = $3 AND id = $4",

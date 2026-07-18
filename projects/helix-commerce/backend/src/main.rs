@@ -558,10 +558,11 @@ mod tests {
         let repo = CommerceRepo::new(pool.clone());
 
         // Create a product with exactly one unit in stock.
+        let sku = format!("race-sku-{}", Uuid::now_v7());
         let product = repo
             .create_product(
                 principal.tenant_id,
-                "race-sku-001",
+                &sku,
                 "Race Product",
                 "",
                 1_00,
@@ -616,5 +617,81 @@ mod tests {
             product_after.inventory, 1,
             "inventory restored after cancel"
         );
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn concurrent_cancels_single_winner() {
+        let (state, _guard) = locked_state().await;
+        let principal = dev_principal("cancel-race");
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = CommerceRepo::new(pool.clone());
+
+        // Product with two units; an order reserving both.
+        let sku = format!("cancel-sku-{}", Uuid::now_v7());
+        let product = repo
+            .create_product(
+                principal.tenant_id,
+                &sku,
+                "Cancel Product",
+                "",
+                5_00,
+                "USD",
+                2,
+                serde_json::json!({}),
+            )
+            .await
+            .expect("create product");
+        let order = repo
+            .create_order(
+                principal.tenant_id,
+                "c@example.com",
+                &[OrderLineInput {
+                    product_id: product.id,
+                    quantity: 2,
+                }],
+                serde_json::json!({}),
+            )
+            .await
+            .expect("create order");
+
+        // 8 racing cancels of the same order.
+        let mut handles = Vec::new();
+        for _ in 0..8u32 {
+            let repo = repo.clone();
+            let tenant_id = principal.tenant_id;
+            handles.push(tokio::spawn(async move {
+                repo.cancel_order(tenant_id, order.id).await
+            }));
+        }
+        let mut winners = 0usize;
+        let mut rejected = 0usize;
+        for h in handles {
+            match h.await.expect("cancel task panicked") {
+                Ok(_) => winners += 1,
+                Err(e) if e.code == shared_core::ErrorCode::Validation => rejected += 1,
+                Err(e) => panic!("unexpected cancel error: {e}"),
+            }
+        }
+        assert_eq!(winners, 1, "exactly one racing cancel may win");
+        assert_eq!(rejected, 7, "all losers must be rejected");
+
+        // Inventory was restored exactly once.
+        let product_after = repo
+            .get_product(principal.tenant_id, product.id)
+            .await
+            .expect("reload product")
+            .expect("product exists");
+        assert_eq!(
+            product_after.inventory, 2,
+            "inventory restored exactly once"
+        );
+
+        let cancelled = repo
+            .get_order(principal.tenant_id, order.id)
+            .await
+            .expect("reload order")
+            .expect("order exists");
+        assert_eq!(cancelled.status, "cancelled");
     }
 }
