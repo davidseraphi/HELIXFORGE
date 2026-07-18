@@ -78,7 +78,10 @@ pub use governance::{DeleteDecision, GovernanceRepo, LegalHold, PurposeBinding, 
 pub use grid::{GridRepo, GridSite, Reading};
 pub use insights::{AggregateResult, Dataset, InsightsRepo, MetricDef, MetricPoint};
 pub use jobs::{Job, JobCheckpoint, JobRepo, JobStatus};
-pub use lex::{Filing, LexRepo, Matter};
+pub use lex::{
+    next_filing_status, next_matter_status, Filing, FilingUpdate, LexRepo, LexSummaryRow, Matter,
+    MatterUpdate,
+};
 pub use membership::MembershipRepo;
 pub use meter_pg::PgMetering;
 pub use network::{
