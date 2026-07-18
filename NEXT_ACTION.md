@@ -1,9 +1,10 @@
 # Next action
 
-## Latest: HELIXGRIDPRIME-FULL
+## Latest: HELIXGRIDPRIME-FULL closed and CI-proven
 
-**Goal:** move HelixGrid Prime from thin durable scaffold to full second-wave
-depth.
+HELIXGRIDPRIME-FULL is complete. The implementation passed local verification
+and GitHub Actions run `29656995350` is all green, including the new
+**HelixGrid Prime smoke** job.
 
 - Migration: `crates/helix-db/migrations/0054_grid_depth.sql`
 - Repo: `crates/helix-db/src/grid.rs`
@@ -12,7 +13,7 @@ depth.
 - CI: `.github/workflows/ci.yml` `grid-prime-smoke` job
 - Docs: `docs/goals/HELIXGRIDPRIME_FULL.md`, `DECISION_LOG.md`
 
-### Scope
+### What was delivered
 
 Site + reading lifecycle depth:
 - site update, energize, offline (rejected while draft readings remain),
@@ -25,14 +26,8 @@ Site + reading lifecycle depth:
 
 ### Active goal
 
-`HELIXGRIDPRIME-FULL` — in progress.
+None. HELIXGRIDPRIME-FULL is closed.
 
-## Paste-ready continuation prompt
+### Next action
 
-```text
-Continue in C:\Users\divin\PROJECTS\HELIXFORGE. HELIXGRIDPRIME-FULL is the
-active goal. Implement migration 0054, extend GridRepo with site/reading
-lifecycle and grid summary; add routes and domain status planes, write unit +
-integration tests, create scripts/helix_grid_prime_smoke.ps1, add the
-grid-prime-smoke CI job, and prove it green on CI.
-```
+Founder selects the next explicit named goal.

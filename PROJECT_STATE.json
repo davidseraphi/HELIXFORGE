@@ -4,10 +4,10 @@
   "stage": "prototype",
   "updated_at": "2026-07-18",
   "active_slice": "category-defining-product-program",
-  "active_goal": "HELIXGRIDPRIME-FULL",
-  "active_phase": "helixgridprime_full_depth",
-  "previous_goal": "HELIXVITAPRIME-FULL_CI_PROVEN",
-  "review_gate": "HELIXGRIDPRIME-FULL",
+  "active_goal": null,
+  "active_phase": null,
+  "previous_goal": "HELIXGRIDPRIME-FULL_CI_PROVEN",
+  "review_gate": null,
   "category_defining_program": {
     "status": "foundation_integrity_umbrella_011.7_closed",
     "root": "docs/product-program",
@@ -22,12 +22,12 @@
       "helix-anvil-standalone"
     ],
     "implementation_started": true,
-    "next_gate": "HELIXGRIDPRIME-FULL depth packet"
+    "next_gate": "awaiting_founder_goal_selection"
   },
   "second_wave": {
     "roadmap": "docs/SECOND_WAVE.md",
     "status": "paused_by_category_defining_program",
-    "current": "helix-grid-prime",
+    "current": null,
     "completed": [
       "helix-commerce",
       "helix-flow",
@@ -44,7 +44,8 @@
       "helix-climate-prime",
       "helix-orbit-prime",
       "helix-quantum-forge",
-      "helix-vita-prime"
+      "helix-vita-prime",
+      "helix-grid-prime"
     ],
     "order": [
       "helix-flow",
@@ -80,7 +81,7 @@
     "current_validity": "unverified_after_later_tree_changes"
   },
   "foundation_integrity_current_gate": "011.7_CLOSED",
-  "full_workspace_current_status": "fmt_clippy_test_helm_verify_helixcore_full_pass_helixvitaprime_full_ci_proven_run_29655268193",
+  "full_workspace_current_status": "fmt_clippy_test_helm_verify_helixcore_full_pass_helixgridprime_full_ci_proven_run_29656995350",
   "core_services": [
     "gateway",
     "agent-hub",
@@ -156,11 +157,11 @@
   "ratified_specs": [],
   "last_smoke": {
     "date": "2026-07-18",
-    "service": "helix-vita-prime",
+    "service": "helix-grid-prime",
     "postgres": true,
     "minio": true,
     "nats": true,
-    "path": "scripts/helix_vita_prime_smoke.ps1 PASS \u2014 local + CI"
+    "path": "scripts/helix_grid_prime_smoke.ps1 PASS \u2014 local + CI"
   },
   "helix_code_extreme": {
     "phase": "endstate",
@@ -896,6 +897,45 @@
     "smoke": "PASS",
     "smoke_script": "scripts/helix_vita_prime_smoke.ps1",
     "ci_run": "29655268193",
+    "unit": "2/2 PASS",
+    "next": "CI proven"
+  },
+  "helix_grid_prime_full_depth": {
+    "migration": "0054_grid_depth.sql",
+    "routes": [
+      "GET /v1/sites",
+      "POST /v1/sites",
+      "GET /v1/sites/{id}",
+      "PATCH /v1/sites/{id}",
+      "POST /v1/sites/{id}/energize",
+      "POST /v1/sites/{id}/offline",
+      "POST /v1/sites/{id}/online",
+      "POST /v1/sites/{id}/delete",
+      "POST /v1/sites/{id}/restore",
+      "GET /v1/sites/{id}/readings",
+      "POST /v1/sites/{id}/readings",
+      "PATCH /v1/sites/{id}/readings/{reading_id}",
+      "POST /v1/sites/{id}/readings/{reading_id}/verify",
+      "POST /v1/sites/{id}/readings/{reading_id}/reject",
+      "POST /v1/sites/{id}/readings/{reading_id}/delete",
+      "POST /v1/sites/{id}/readings/{reading_id}/restore",
+      "GET /v1/reports/grid-summary",
+      "GET /v1/domain/status"
+    ],
+    "planes": [
+      "sites",
+      "readings",
+      "site_lifecycle",
+      "reading_lifecycle",
+      "offline_guards",
+      "grid_summary",
+      "audit",
+      "metering",
+      "nats"
+    ],
+    "smoke": "PASS",
+    "smoke_script": "scripts/helix_grid_prime_smoke.ps1",
+    "ci_run": "29656995350",
     "unit": "2/2 PASS",
     "next": "CI proven"
   },

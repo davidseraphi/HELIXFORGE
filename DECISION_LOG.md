@@ -1,5 +1,46 @@
 # Decision log (append-only)
 
+## 2026-07-18 — HELIXGRIDPRIME-FULL closed and CI-proven
+
+- Completed the HelixGrid Prime second-wave depth packet:
+  - Migration `0054_grid_depth.sql` + down migration: `energized_at`/
+    `offline_at`/`deleted_at` lifecycle columns on `grid.sites`;
+    `updated_at`, `verified_at`, `rejected_at`, `deleted_at` on
+    `grid.readings`; legacy `open` reading status backfilled to `draft`;
+    partial active indexes.
+  - Extended `GridRepo` (`crates/helix-db/src/grid.rs`) with `update_site`,
+    `energize_site`, `take_offline` (rejected while draft readings remain),
+    `bring_online`, `soft_delete_site`, `restore_site`; parent-verified
+    `update_reading`, `verify_reading`, `reject_reading`,
+    `soft_delete_reading`, `restore_reading`; and `get_grid_summary`.
+  - Added routes in `projects/helix-grid-prime/backend/src/main.rs`:
+    `PATCH /v1/sites/{id}`, `POST /v1/sites/{id}/energize`,
+    `POST /v1/sites/{id}/offline`, `POST /v1/sites/{id}/online`,
+    `POST /v1/sites/{id}/delete`, `POST /v1/sites/{id}/restore`,
+    `PATCH /v1/sites/{id}/readings/{reading_id}`,
+    `POST /v1/sites/{id}/readings/{reading_id}/verify`,
+    `POST /v1/sites/{id}/readings/{reading_id}/reject`,
+    `POST /v1/sites/{id}/readings/{reading_id}/delete`,
+    `POST /v1/sites/{id}/readings/{reading_id}/restore`,
+    `GET /v1/reports/grid-summary`, and `GET /v1/domain/status` with planes.
+  - In-process tests: site and reading status transition guards.
+  - Ignored Postgres integration test for the offline guard, site/reading
+    lifecycle, and grid summary.
+  - PowerShell smoke `scripts/helix_grid_prime_smoke.ps1` and
+    `grid-prime-smoke` CI job in `.github/workflows/ci.yml`.
+- Verification:
+  - `cargo fmt --all -- --check` clean.
+  - `cargo clippy --workspace --all-targets -- -D warnings` clean.
+  - `cargo test --workspace --all-features` clean.
+  - Local smoke against Postgres/NATS/MinIO passes.
+  - GitHub Actions run `29656995350` is all green, including the new
+    **HelixGrid Prime smoke** job.
+- Commits `ef09e73` (activation) and `d5f3ad3` (implementation) pushed to
+  `main`.
+- `PROJECT_STATE.json` and `NEXT_ACTION.md` updated to mark
+  HELIXGRIDPRIME-FULL closed and clear the active goal.
+- Next action: founder selects the next explicit named goal.
+
 ## 2026-07-18 — HELIXVITAPRIME-FULL closed and CI-proven
 
 - Completed the HelixVita Prime second-wave depth packet:

@@ -50,7 +50,10 @@ verify/reject lifecycle, and a grid summary report.
 
 ## Status
 
-- **Active**
+- **Closed / CI-proven**
+- CI run: `29656995350`
+- Smoke script: `scripts/helix_grid_prime_smoke.ps1`
+- Unit tests: `2/2 PASS` (plus one ignored Postgres integration test)
 
 ## Out of scope
 
