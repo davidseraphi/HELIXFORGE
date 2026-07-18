@@ -1,36 +1,34 @@
 # Next action
 
-## Latest: HELIXCOMMERCE-DURABILITY
+## Latest: HELIXCOMMERCE-DURABILITY closed — third product through the gate
 
-**Goal:** prove the Foundation Integrity durability gate on HelixCommerce —
-third product through the gate (after helix-collab, helix-capital).
+HELIXCOMMERCE-DURABILITY is complete. The implementation passed local
+verification and GitHub Actions run `29664024211` is all green, including
+the new **HelixCommerce durability gate** job.
 
+- Fix: `crates/helix-db/src/commerce.rs` (`cancel_order` loads items inside
+  its transaction — the race proof caught a pool-exhaustion deadlock)
 - Tests: `projects/helix-commerce/backend/src/main.rs`
-  (`concurrent_cancels_single_winner`)
+  (`concurrent_cancels_single_winner`; oversell race already covered)
 - Proof: `scripts/helix_commerce_durability.ps1` (forced-kill + restore)
-- CI: `.github/workflows/ci.yml` `commerce-durability` job
+- CI: `.github/workflows/ci.yml` `commerce-durability` job (durability jobs
+  now also run the ignored integration tests)
 - Docs: `docs/goals/HELIXCOMMERCE_DURABILITY.md`, `DECISION_LOG.md`
 
-### Scope
+### What was delivered
 
-- concurrency proof: N concurrent cancels → exactly one winner, inventory
-  restored once (oversell race already proven by
-  `two_buyers_cannot_oversell_last_unit`)
+- deadlock fix: cancel_order no longer fetches items outside its tx
+- concurrency proof: 8 racing cancels → exactly one winner, inventory
+  restored once
 - crash proof: acknowledged order survives a forced kill of the API
-- restore proof: `commerce` schema dump roundtrip with equal counts + hashes
-- ignored-test step added to durability CI jobs so race proofs run in CI
+- restore proof: schema dump roundtrip with equal counts + content hashes
+- `helix-commerce` recorded in `durability_gate_proven_products`
 
 ### Active goal
 
-`HELIXCOMMERCE-DURABILITY` — in progress.
+None. HELIXCOMMERCE-DURABILITY is closed.
 
-## Paste-ready continuation prompt
+### Next action
 
-```text
-Continue in C:\Users\divin\PROJECTS\HELIXFORGE. HELIXCOMMERCE-DURABILITY is
-the active goal. Add the concurrent_cancels_single_winner integration test;
-create scripts/helix_commerce_durability.ps1 (forced-kill + restore proofs)
-and the commerce-durability CI job (with the ignored-test step, also added to
-capital-durability); prove it green on CI; record helix-commerce in
-durability_gate_proven_products.
-```
+Founder selects the next explicit named goal. Open: durability gates for
+the remaining 18 products.

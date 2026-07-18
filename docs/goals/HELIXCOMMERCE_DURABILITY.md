@@ -32,7 +32,11 @@ cancel-side race proof, the crash proof, and the restore proof.
 
 ## Status
 
-- **Active**
+- **Closed / CI-proven**
+- CI run: `29664024211` (**HelixCommerce durability gate** job green;
+  ignored integration tests also run in CI in both durability jobs)
+- Proof script: `scripts/helix_commerce_durability.ps1`
+- Gate proven locally (Windows) and in CI (ubuntu)
 
 ## Out of scope
 

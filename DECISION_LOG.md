@@ -1,5 +1,41 @@
 # Decision log (append-only)
 
+## 2026-07-18 — HELIXCOMMERCE-DURABILITY closed; third product through the gate
+
+- Completed the HelixCommerce durability-gate packet (`helix-commerce`
+  added to `durability_gate_proven_products`):
+  - **Real fix found by the race proof:** `CommerceRepo::cancel_order`
+    loaded order items through the pool while holding the order row lock;
+    under concurrency this deadlocked on pool exhaustion. Items are now
+    loaded inside the transaction (`crates/helix-db/src/commerce.rs`).
+  - New ignored Postgres integration test `concurrent_cancels_single_winner`
+    (8 racing cancels → exactly one success, 7 validation rejections,
+    inventory restored exactly once). The pre-existing
+    `two_buyers_cannot_oversell_last_unit` covers the oversell race; both
+    tests now use per-run unique SKUs so they rerun cleanly on a persistent
+    database.
+  - `scripts/helix_commerce_durability.ps1` proves: reservation/restoration
+    consistency; an acknowledged order surviving an immediate forced kill
+    of the API (order and inventory reservation present after restart);
+    and a `commerce` schema `pg_dump` roundtrip into a scratch database
+    with equal product/order/item counts and equal content hashes.
+  - `commerce-durability` CI job in `.github/workflows/ci.yml`; both
+    durability jobs now run the ignored integration tests
+    (`cargo test -p <pkg> -- --ignored`) so the race proofs run in CI too.
+- Verification:
+  - `cargo fmt --all -- --check` clean.
+  - `cargo clippy --workspace --all-targets -- -D warnings` clean.
+  - `cargo test --workspace --all-features` clean.
+  - Race proofs pass against live Postgres; durability script passes
+    locally (Windows) and in CI (ubuntu).
+  - GitHub Actions run `29664024211` is all green, including the new
+    **HelixCommerce durability gate** job and all 19 product smoke jobs.
+- Commits `e788bf5` (activation) and `644b58d` (implementation) pushed to
+  `main`.
+- `PROJECT_STATE.json` and `NEXT_ACTION.md` updated; `helix-commerce`
+  recorded in `durability_gate_proven_products`.
+- Next action: founder selects the next explicit named goal.
+
 ## 2026-07-18 — HELIXCAPITAL-DURABILITY closed; second product through the gate
 
 - Completed the HelixCapital durability-gate packet (`helix-capital` added
