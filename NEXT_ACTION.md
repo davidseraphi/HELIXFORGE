@@ -1,19 +1,20 @@
 # Next action
 
-## Latest: HELIXPULSE-FULL
+## Latest: HELIXPULSE-FULL closed and CI-proven — all 21 products at depth
 
-**Goal:** move HelixPulse from scaffold-only to full second-wave depth.
-Deferral precondition met: products 1–20 are all at second-wave depth and
-CI-proven.
+HELIXPULSE-FULL is complete. The implementation passed local verification
+and GitHub Actions run `29659931964` is all green, including the new
+**HelixPulse smoke** job. Every one of the 21 catalog products now has
+second-wave depth with a CI-proven smoke job.
 
 - Migration: `crates/helix-db/migrations/0056_pulse_depth.sql`
-- Repo: `crates/helix-db/src/pulse.rs` (new)
+- Repo: `crates/helix-db/src/pulse.rs`
 - API: `projects/helix-pulse/backend/src/main.rs`
 - Smoke: `scripts/helix_pulse_smoke.ps1`
 - CI: `.github/workflows/ci.yml` `pulse-smoke` job
 - Docs: `docs/goals/HELIXPULSE_FULL.md`, `DECISION_LOG.md`
 
-### Scope
+### What was delivered
 
 First durable domain slice (cluster engine stays deferred):
 - monitor create, update, activate, pause (rejected while open incidents
@@ -26,15 +27,11 @@ First durable domain slice (cluster engine stays deferred):
 
 ### Active goal
 
-`HELIXPULSE-FULL` — in progress.
+None. HELIXPULSE-FULL is closed.
 
-## Paste-ready continuation prompt
+### Next action
 
-```text
-Continue in C:\Users\divin\PROJECTS\HELIXFORGE. HELIXPULSE-FULL is the active
-goal. Implement migration 0056 creating the pulse schema, create PulseRepo
-with monitor/incident lifecycle and pulse summary; add routes and domain
-status planes, write unit + integration tests, create
-scripts/helix_pulse_smoke.ps1, add the pulse-smoke CI job, and prove it
-green on CI.
-```
+Founder selects the next explicit named goal. The second-wave catalog is
+complete; open directions include the Foundation Integrity durability gate
+(`durability_gate_proven_products` is still empty) and HelixAnvil, which
+remains portfolio-last and location-blocked.

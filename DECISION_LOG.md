@@ -1,5 +1,46 @@
 # Decision log (append-only)
 
+## 2026-07-18 — HELIXPULSE-FULL closed and CI-proven; all 21 products at second-wave depth
+
+- Completed the HelixPulse second-wave depth packet (deferral precondition
+  met: products 1–20 all CI-proven beforehand):
+  - Migration `0056_pulse_depth.sql` + down migration: created the `pulse`
+    schema with `pulse.monitors` (`activated_at`/`paused_at`/`deleted_at`)
+    and `pulse.incidents` (`acknowledged_at`/`resolved_at`/`deleted_at`,
+    FK to monitors) plus tenant and partial active indexes.
+  - New `PulseRepo` (`crates/helix-db/src/pulse.rs`) with `create_monitor`,
+    `update_monitor`, `activate_monitor`, `pause_monitor` (rejected while
+    open incidents remain), `resume_monitor`, `soft_delete_monitor`,
+    `restore_monitor`; parent-verified `create_incident`, `update_incident`,
+    `acknowledge_incident`, `resolve_incident`, `soft_delete_incident`,
+    `restore_incident`; and `get_pulse_summary`.
+  - Added routes in `projects/helix-pulse/backend/src/main.rs`:
+    monitor CRUD + lifecycle (`activate`, `pause`, `resume`, `delete`,
+    `restore`), incident CRUD + lifecycle (`acknowledge`, `resolve`,
+    `delete`, `restore`), `GET /v1/reports/pulse-summary`, and
+    `GET /v1/domain/status` with planes. The `/v1/pulse/vision`,
+    `/v1/pulse/cluster`, and `/v1/pulse/capabilities` informational
+    endpoints stay; the Redis-class cluster engine remains deferred.
+  - In-process tests: monitor and incident status transition guards.
+  - Ignored Postgres integration test for the pause guard, monitor/incident
+    lifecycle, and pulse summary.
+  - PowerShell smoke `scripts/helix_pulse_smoke.ps1` and `pulse-smoke`
+    CI job in `.github/workflows/ci.yml`.
+- Verification:
+  - `cargo fmt --all -- --check` clean.
+  - `cargo clippy --workspace --all-targets -- -D warnings` clean.
+  - `cargo test --workspace --all-features` clean.
+  - Local smoke against Postgres/NATS/MinIO passes.
+  - GitHub Actions run `29659931964` is all green, including the new
+    **HelixPulse smoke** job.
+- Commits `7d2ee9f` (activation) and `668cd35` (implementation) pushed to
+  `main`.
+- `PROJECT_STATE.json` and `NEXT_ACTION.md` updated to mark HELIXPULSE-FULL
+  closed and clear the active goal.
+- All 21 catalog products now have second-wave depth with CI-proven smoke
+  jobs (migrations 0042–0056, phases `wave2_w7`–`wave2_w21`).
+- Next action: founder selects the next explicit named goal.
+
 ## 2026-07-18 — HELIXNOVALABS-FULL closed and CI-proven
 
 - Completed the HelixNova Labs second-wave depth packet:

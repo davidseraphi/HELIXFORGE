@@ -4,10 +4,10 @@
   "stage": "prototype",
   "updated_at": "2026-07-18",
   "active_slice": "category-defining-product-program",
-  "active_goal": "HELIXPULSE-FULL",
-  "active_phase": "helixpulse_full_depth",
-  "previous_goal": "HELIXNOVALABS-FULL_CI_PROVEN",
-  "review_gate": "HELIXPULSE-FULL",
+  "active_goal": null,
+  "active_phase": null,
+  "previous_goal": "HELIXPULSE-FULL_CI_PROVEN",
+  "review_gate": null,
   "category_defining_program": {
     "status": "foundation_integrity_umbrella_011.7_closed",
     "root": "docs/product-program",
@@ -22,12 +22,12 @@
       "helix-anvil-standalone"
     ],
     "implementation_started": true,
-    "next_gate": "HELIXPULSE-FULL depth packet"
+    "next_gate": "awaiting_founder_goal_selection"
   },
   "second_wave": {
     "roadmap": "docs/SECOND_WAVE.md",
     "status": "paused_by_category_defining_program",
-    "current": "helix-pulse",
+    "current": null,
     "completed": [
       "helix-commerce",
       "helix-flow",
@@ -46,7 +46,8 @@
       "helix-quantum-forge",
       "helix-vita-prime",
       "helix-grid-prime",
-      "helix-nova-labs"
+      "helix-nova-labs",
+      "helix-pulse"
     ],
     "order": [
       "helix-flow",
@@ -82,7 +83,7 @@
     "current_validity": "unverified_after_later_tree_changes"
   },
   "foundation_integrity_current_gate": "011.7_CLOSED",
-  "full_workspace_current_status": "fmt_clippy_test_helm_verify_helixcore_full_pass_helixnovalabs_full_ci_proven_run_29658744542",
+  "full_workspace_current_status": "fmt_clippy_test_helm_verify_helixcore_full_pass_helixpulse_full_ci_proven_run_29659931964",
   "core_services": [
     "gateway",
     "agent-hub",
@@ -122,12 +123,13 @@
     "helix-pulse": {
       "order": 21,
       "port": 8121,
-      "phase": "p0_scaffold",
+      "phase": "wave2_w21_full_depth",
       "build_after": [
         "helixcore-full",
         "products-1-20"
       ],
-      "cluster": "p3_deferred"
+      "cluster": "p3_deferred",
+      "note": "durable monitor/incident slice done; Redis-class cluster engine remains deferred"
     }
   },
   "related_portfolio_projects": {
@@ -158,11 +160,11 @@
   "ratified_specs": [],
   "last_smoke": {
     "date": "2026-07-18",
-    "service": "helix-nova-labs",
+    "service": "helix-pulse",
     "postgres": true,
     "minio": true,
     "nats": true,
-    "path": "scripts/helix_nova_labs_smoke.ps1 PASS \u2014 local + CI"
+    "path": "scripts/helix_pulse_smoke.ps1 PASS \u2014 local + CI"
   },
   "helix_code_extreme": {
     "phase": "endstate",
@@ -976,6 +978,45 @@
     "smoke": "PASS",
     "smoke_script": "scripts/helix_nova_labs_smoke.ps1",
     "ci_run": "29658744542",
+    "unit": "2/2 PASS",
+    "next": "CI proven"
+  },
+  "helix_pulse_full_depth": {
+    "migration": "0056_pulse_depth.sql",
+    "routes": [
+      "GET /v1/monitors",
+      "POST /v1/monitors",
+      "GET /v1/monitors/{id}",
+      "PATCH /v1/monitors/{id}",
+      "POST /v1/monitors/{id}/activate",
+      "POST /v1/monitors/{id}/pause",
+      "POST /v1/monitors/{id}/resume",
+      "POST /v1/monitors/{id}/delete",
+      "POST /v1/monitors/{id}/restore",
+      "GET /v1/monitors/{id}/incidents",
+      "POST /v1/monitors/{id}/incidents",
+      "PATCH /v1/monitors/{id}/incidents/{incident_id}",
+      "POST /v1/monitors/{id}/incidents/{incident_id}/acknowledge",
+      "POST /v1/monitors/{id}/incidents/{incident_id}/resolve",
+      "POST /v1/monitors/{id}/incidents/{incident_id}/delete",
+      "POST /v1/monitors/{id}/incidents/{incident_id}/restore",
+      "GET /v1/reports/pulse-summary",
+      "GET /v1/domain/status"
+    ],
+    "planes": [
+      "monitors",
+      "incidents",
+      "monitor_lifecycle",
+      "incident_lifecycle",
+      "pause_guards",
+      "pulse_summary",
+      "audit",
+      "metering",
+      "nats"
+    ],
+    "smoke": "PASS",
+    "smoke_script": "scripts/helix_pulse_smoke.ps1",
+    "ci_run": "29659931964",
     "unit": "2/2 PASS",
     "next": "CI proven"
   },

@@ -55,7 +55,10 @@ product slice, not the cluster.
 
 ## Status
 
-- **Active**
+- **Closed / CI-proven**
+- CI run: `29659931964`
+- Smoke script: `scripts/helix_pulse_smoke.ps1`
+- Unit tests: `2/2 PASS` (plus one ignored Postgres integration test)
 
 ## Out of scope
 
