@@ -95,7 +95,10 @@ pub use network::{
     NetworkSummaryRow, Opportunity, OpportunityUpdate, Profile, ProfileUpdate,
 };
 pub use nova::{Experiment, Finding, NovaRepo};
-pub use orbit::{OrbitRepo, Pass, SpaceAsset};
+pub use orbit::{
+    next_asset_status, next_pass_status, AssetUpdate, OrbitRepo, OrbitSummaryRow, Pass, PassUpdate,
+    SpaceAsset,
+};
 pub use outbox::{OutboxItem, OutboxRepo};
 pub use payments::{PaymentIntent, PaymentStatus, PaymentStore};
 pub use plans_pg::PgPlanStore;
