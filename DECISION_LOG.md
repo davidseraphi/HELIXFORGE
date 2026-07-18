@@ -1,5 +1,45 @@
 # Decision log (append-only)
 
+## 2026-07-18 — HELIXCOLLAB-DURABILITY closed; first product through the durability gate
+
+- Completed the HelixCollab durability-gate packet (first entry in
+  `durability_gate_proven_products`):
+  - `CollabRepo::create_document_full_ex` (`crates/helix-db/src/collab.rs`)
+    now writes the document and its initial revision in one transaction;
+    the prior two-INSERT window could leave a document with no revision.
+  - `SovereignCollabRepo::register_attachment`
+    (`crates/helix-db/src/collab_sovereign.rs`) records `body_stored` in the
+    single INSERT (parameterized: upload passes `true` after the MinIO put,
+    metadata-only register passes the caller's value); the follow-up UPDATE
+    in the upload handler was removed.
+  - New ignored Postgres integration tests (run in the existing
+    `collab-smoke` CI job): `concurrent_patches_single_winner` (8 racing
+    patches → exactly one winner, 7 conflicts, exactly one v2 revision row)
+    and `concurrent_creates_never_torn` (8 concurrent creates → every
+    document pairs with exactly one v1 revision).
+  - `scripts/helix_collab_durability.ps1` proves: revision chain v1..v3;
+    an acknowledged write surviving an immediate forced kill of the API
+    (`Stop-Process -Force`, restart, full document + revision present);
+    and a `collab` schema `pg_dump` roundtrip into a scratch database with
+    equal document/revision counts and equal ordered content hashes
+    (82 docs, 116 revisions locally).
+  - `collab-durability` CI job in `.github/workflows/ci.yml`.
+- Verification:
+  - `cargo fmt --all -- --check` clean.
+  - `cargo clippy --workspace --all-targets -- -D warnings` clean.
+  - `cargo test --workspace --all-features` clean.
+  - Both race proofs pass against live Postgres; durability script passes
+    locally (Windows) and in CI (ubuntu).
+  - GitHub Actions run `29661659103` is all green, including the new
+    **HelixCollab durability gate** job and all 19 product smoke jobs.
+- Commits `8b44dee` (activation) and `df5ea80` (implementation) pushed to
+  `main`.
+- `PROJECT_STATE.json` and `NEXT_ACTION.md` updated; `helix-collab`
+  recorded in `durability_gate_proven_products`.
+- Follow-ups (not in this gate): idempotency keys on collab writes;
+  audit/NATS/outbox transactionality; durability gates for other products.
+- Next action: founder selects the next explicit named goal.
+
 ## 2026-07-18 — HELIXPULSE-FULL closed and CI-proven; all 21 products at second-wave depth
 
 - Completed the HelixPulse second-wave depth packet (deferral precondition

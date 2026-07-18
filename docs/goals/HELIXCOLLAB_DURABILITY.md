@@ -50,7 +50,11 @@ Close the crash windows the write paths had, then prove the gate end to end:
 
 ## Status
 
-- **Active**
+- **Closed / CI-proven**
+- CI run: `29661659103` (**HelixCollab durability gate** job green; race
+  proofs run inside the existing `collab-smoke` job)
+- Proof script: `scripts/helix_collab_durability.ps1`
+- Gate proven locally (Windows) and in CI (ubuntu)
 
 ## Out of scope
 
