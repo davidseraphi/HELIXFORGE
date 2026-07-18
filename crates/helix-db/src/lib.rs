@@ -100,7 +100,10 @@ pub use studio::{
     next_app_status, next_page_status, App, AppUpdate, Page, PageUpdate, StudioRepo,
     StudioSummaryRow,
 };
-pub use synthbio::{Design, SimRun, SynthbioRepo};
+pub use synthbio::{
+    next_design_status, next_sim_status, Design, DesignUpdate, SimRun, SimUpdate, SynthbioRepo,
+    SynthbioSummaryRow,
+};
 pub use tenants::{TenantRecord, TenantRepo, TenantStatus};
 pub use terra::{Field, Observation, TerraRepo};
 pub use vault_objects::{VaultObjectRef, VaultObjectStore};
