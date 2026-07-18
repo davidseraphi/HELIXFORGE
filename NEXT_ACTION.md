@@ -1,34 +1,35 @@
 # Next action
 
-## Latest: HELIXCOLLAB-DURABILITY closed — first product through the gate
+## Latest: HELIXCAPITAL-DURABILITY
 
-HELIXCOLLAB-DURABILITY is complete. The implementation passed local
-verification and GitHub Actions run `29661659103` is all green, including
-the new **HelixCollab durability gate** job.
+**Goal:** prove the Foundation Integrity durability gate on HelixCapital —
+second product through the gate (after helix-collab).
 
-- Repo: `crates/helix-db/src/collab.rs` (atomic create),
-  `crates/helix-db/src/collab_sovereign.rs` (single-INSERT attachment)
-- Tests: `projects/helix-collab/backend/src/domain/documents.rs`
-  (`concurrent_patches_single_winner`, `concurrent_creates_never_torn`)
-- Proof: `scripts/helix_collab_durability.ps1` (forced-kill + restore)
-- CI: `.github/workflows/ci.yml` `collab-durability` job
-- Docs: `docs/goals/HELIXCOLLAB_DURABILITY.md`, `DECISION_LOG.md`
+- Tests: `projects/helix-capital/backend/src/main.rs`
+  (`concurrent_voids_single_winner`, `concurrent_journals_exact_balances`)
+- Proof: `scripts/helix_capital_durability.ps1` (forced-kill + restore)
+- CI: `.github/workflows/ci.yml` `capital-durability` job
+- Docs: `docs/goals/HELIXCAPITAL_DURABILITY.md`, `DECISION_LOG.md`
 
-### What was delivered
+### Scope
 
-- atomic document create (document + initial revision in one transaction)
-- single-statement attachment register
-- concurrency proof: 8 racing patches → exactly one winner
-- crash proof: acknowledged write survives a forced kill of the API
-- restore proof: schema dump roundtrip with equal counts + content hashes
-- `helix-collab` recorded in `durability_gate_proven_products`
+Journal writes are already transactional; this packet proves the gate:
+- concurrency proof: N concurrent voids → exactly one winner, one reversal;
+  N concurrent journals → exact summed balances
+- crash proof: acknowledged journal survives a forced kill of the API
+- restore proof: `capital` schema dump roundtrip with equal counts + hashes
 
 ### Active goal
 
-None. HELIXCOLLAB-DURABILITY is closed.
+`HELIXCAPITAL-DURABILITY` — in progress.
 
-### Next action
+## Paste-ready continuation prompt
 
-Founder selects the next explicit named goal. Open: durability gates for
-the remaining 20 products; idempotency keys on collab writes; audit/NATS/
-outbox transactionality on collab writes.
+```text
+Continue in C:\Users\divin\PROJECTS\HELIXFORGE. HELIXCAPITAL-DURABILITY is the
+active goal. Add concurrent_voids_single_winner and
+concurrent_journals_exact_balances integration tests; create
+scripts/helix_capital_durability.ps1 (forced-kill + restore proofs) and the
+capital-durability CI job; prove it green on CI; record helix-capital in
+durability_gate_proven_products.
+```
