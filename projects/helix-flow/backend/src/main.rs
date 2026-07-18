@@ -28,7 +28,7 @@ async fn main() -> HelixResult<()> {
     let state = builder.into_state();
     let app = ServiceBuilder::base_router(state.clone())
         .merge(ProductService::router(state.clone(), product))
-        .nest_service("/", domain_routes().with_state(state.clone()));
+        .merge(domain_routes());
 
     let cfg = shared_core::CoreConfig::from_env("helix-flow", 8103)?;
     service_kit::serve_with_shutdown(cfg.listen_addr, app, "helix-flow", state).await?;
@@ -525,4 +525,164 @@ async fn list_events(
     let repo = FlowRepo::new(pool.clone());
     let items = repo.list_step_events(p.tenant_id, id).await?;
     Ok(Json(ApiResponse::ok(serde_json::json!({ "items": items }))))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Once;
+
+    use service_kit::{ProductApp, ServiceBuilder};
+    use shared_core::tenancy::{Principal, Scope};
+    use shared_core::{TenantId, UserId};
+    use tokio::sync::{Mutex, MutexGuard};
+    use uuid::Uuid;
+
+    use super::*;
+
+    static INIT_ENV: Once = Once::new();
+    static TEST_MUTEX: Mutex<()> = Mutex::const_new(());
+
+    pub fn init_test_env() {
+        INIT_ENV.call_once(|| {
+            std::env::set_var("HELIX_ENV", "local");
+            std::env::set_var("HELIX_LOCAL_DEV_UNSAFE", "1");
+            std::env::set_var("HELIX_ALLOW_DEV_HEADERS", "1");
+            std::env::set_var("HELIX_DEV_PLATFORM", "1");
+            std::env::set_var("PORT", "18103");
+            std::env::set_var("LOG_JSON", "false");
+            std::env::set_var("HELIX_DB_POOL_MAX_CONNECTIONS", "4");
+            std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT");
+        });
+    }
+
+    pub async fn locked_state() -> (AppState, MutexGuard<'static, ()>) {
+        init_test_env();
+        let guard = TEST_MUTEX.lock().await;
+        let product = ProductApp::from_slug("helix-flow").expect("helix-flow product known");
+        let builder = ServiceBuilder::new(product.slug, product.default_port)
+            .await
+            .expect("ServiceBuilder requires Postgres + optional NATS/MinIO");
+        let state = builder.into_state();
+
+        // Integration tests run against a freshly-migrated, empty Postgres.
+        // The dev principal's tenant is deterministic but not seeded, so create
+        // it here before any audited operation tries to reference it.
+        let local_dev_tenant = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        if let Some(tenants) = state.clients.tenants.as_ref() {
+            let _ = tenants
+                .create(local_dev_tenant, "local-dev", "local", None)
+                .await;
+        }
+
+        (state, guard)
+    }
+
+    pub fn dev_principal(label: &str) -> Principal {
+        let tenant_id = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        let user_id = UserId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            format!("helixforge-user:{label}").as_bytes(),
+        ));
+        Principal {
+            user_id,
+            tenant_id,
+            org_id: None,
+            scopes: vec![
+                Scope::Read,
+                Scope::Write,
+                Scope::Admin,
+                Scope::AuditRead,
+                Scope::Platform,
+            ],
+            session_id: Some(format!("dev-session:{label}")),
+            residency_region: "local".into(),
+        }
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn finished_runs_are_immutable() {
+        let (state, _guard) = locked_state().await;
+        let p = dev_principal("flow-race");
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = FlowRepo::new(pool.clone());
+
+        let wf = repo
+            .create(p.tenant_id, "immutable-check", 1, serde_json::json!({}))
+            .await
+            .expect("create workflow");
+        let run = repo
+            .enqueue_run(p.tenant_id, wf.id)
+            .await
+            .expect("enqueue run");
+
+        // Progress once, then finish.
+        repo.update_run(
+            p.tenant_id,
+            run.id,
+            "running",
+            1,
+            serde_json::json!({}),
+            "",
+            false,
+        )
+        .await
+        .expect("progress");
+        repo.update_run(
+            p.tenant_id,
+            run.id,
+            "completed",
+            1,
+            serde_json::json!({"ok": true}),
+            "",
+            true,
+        )
+        .await
+        .expect("finish");
+
+        // 8 concurrent update attempts after finish: all must be rejected.
+        let mut handles = Vec::new();
+        for i in 0..8u32 {
+            let repo = repo.clone();
+            let tenant_id = p.tenant_id;
+            let run_id = run.id;
+            handles.push(tokio::spawn(async move {
+                let finished = i % 2 == 0;
+                repo.update_run(
+                    tenant_id,
+                    run_id,
+                    "running",
+                    99,
+                    serde_json::json!({}),
+                    "",
+                    finished,
+                )
+                .await
+            }));
+        }
+        let mut rejected = 0usize;
+        for h in handles {
+            match h.await.expect("update task panicked") {
+                Err(e) if e.code == shared_core::ErrorCode::Validation => rejected += 1,
+                Ok(_) => panic!("update after finish must be rejected"),
+                Err(e) => panic!("unexpected update error: {e}"),
+            }
+        }
+        assert_eq!(rejected, 8, "every post-finish update must be rejected");
+
+        let after = repo
+            .get_run(p.tenant_id, run.id)
+            .await
+            .expect("get run")
+            .expect("run exists");
+        assert_eq!(after.status, "completed");
+        assert_eq!(after.current_step, 1);
+        assert!(after.finished_at.is_some());
+    }
 }

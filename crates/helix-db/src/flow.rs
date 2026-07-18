@@ -353,10 +353,11 @@ impl FlowRepo {
         error_text: &str,
         finished: bool,
     ) -> HelixResult<()> {
-        if finished {
+        // Terminal runs are immutable: no progress or re-finish after finished_at.
+        let res = if finished {
             sqlx::query(
                 r#"UPDATE flow.runs SET status = $3, current_step = $4, result = $5, error_text = $6, finished_at = now()
-                   WHERE tenant_id = $1 AND id = $2"#,
+                   WHERE tenant_id = $1 AND id = $2 AND finished_at IS NULL"#,
             )
             .bind(tenant_id.as_uuid())
             .bind(run_id)
@@ -369,7 +370,7 @@ impl FlowRepo {
         } else {
             sqlx::query(
                 r#"UPDATE flow.runs SET status = $3, current_step = $4, result = $5, error_text = $6
-                   WHERE tenant_id = $1 AND id = $2"#,
+                   WHERE tenant_id = $1 AND id = $2 AND finished_at IS NULL"#,
             )
             .bind(tenant_id.as_uuid())
             .bind(run_id)
@@ -381,6 +382,9 @@ impl FlowRepo {
             .await
         }
         .map_err(|e| HelixError::dependency(format!("flow update run: {e}")))?;
+        if res.rows_affected() == 0 {
+            return Err(HelixError::validation("run not found or already finished"));
+        }
         Ok(())
     }
 
