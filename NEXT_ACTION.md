@@ -1,37 +1,39 @@
 # Next action
 
-## Latest: HELIXPULSE-FULL closed and CI-proven — all 21 products at depth
+## Latest: HELIXCOLLAB-DURABILITY
 
-HELIXPULSE-FULL is complete. The implementation passed local verification
-and GitHub Actions run `29659931964` is all green, including the new
-**HelixPulse smoke** job. Every one of the 21 catalog products now has
-second-wave depth with a CI-proven smoke job.
+**Goal:** prove the Foundation Integrity durability gate on HelixCollab, the
+lead product — first product through the gate.
 
-- Migration: `crates/helix-db/migrations/0056_pulse_depth.sql`
-- Repo: `crates/helix-db/src/pulse.rs`
-- API: `projects/helix-pulse/backend/src/main.rs`
-- Smoke: `scripts/helix_pulse_smoke.ps1`
-- CI: `.github/workflows/ci.yml` `pulse-smoke` job
-- Docs: `docs/goals/HELIXPULSE_FULL.md`, `DECISION_LOG.md`
+- Repo: `crates/helix-db/src/collab.rs` (atomic create),
+  `crates/helix-db/src/collab_sovereign.rs` (single-INSERT attachment)
+- API: `projects/helix-collab/backend/src/domain/documents.rs` (race tests),
+  `projects/helix-collab/backend/src/domain/sovereign.rs` (drop UPDATE)
+- Smoke: `scripts/helix_collab_durability.ps1`
+- CI: `.github/workflows/ci.yml` `collab-durability` job
+- Docs: `docs/goals/HELIXCOLLAB_DURABILITY.md`, `DECISION_LOG.md`
 
-### What was delivered
+### Scope
 
-First durable domain slice (cluster engine stays deferred):
-- monitor create, update, activate, pause (rejected while open incidents
-  remain), resume, soft-delete, restore
-- incident create, update, acknowledge, resolve, soft-delete, restore
-- pulse summary report
-- domain status with `phase: wave2_w21` and capability planes
-- in-process validation tests + ignored Postgres integration test
-- PowerShell smoke and CI job
+- atomic document create (document + initial revision in one transaction)
+- single-statement attachment register (`body_stored` in the INSERT)
+- concurrency proof: N racing patches → exactly one winner
+- crash proof: concurrent creates never torn; acknowledged write survives a
+  forced kill of the API
+- restore proof: `collab` schema dump restores with equal counts + hashes
 
 ### Active goal
 
-None. HELIXPULSE-FULL is closed.
+`HELIXCOLLAB-DURABILITY` — in progress.
 
-### Next action
+## Paste-ready continuation prompt
 
-Founder selects the next explicit named goal. The second-wave catalog is
-complete; open directions include the Foundation Integrity durability gate
-(`durability_gate_proven_products` is still empty) and HelixAnvil, which
-remains portfolio-last and location-blocked.
+```text
+Continue in C:\Users\divin\PROJECTS\HELIXFORGE. HELIXCOLLAB-DURABILITY is the
+active goal. Make create_document_full_ex transactional and register_attachment
+single-statement; add concurrent_patches_single_winner and
+concurrent_creates_never_torn integration tests; create
+scripts/helix_collab_durability.ps1 (forced-kill + restore proofs) and the
+collab-durability CI job; prove it green on CI; record helix-collab in
+durability_gate_proven_products.
+```
