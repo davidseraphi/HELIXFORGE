@@ -4,10 +4,10 @@
   "stage": "prototype",
   "updated_at": "2026-07-18",
   "active_slice": "category-defining-product-program",
-  "active_goal": "HELIXCLIMATEPRIME-FULL",
-  "active_phase": "helixclimateprime_full_depth",
-  "previous_goal": "HELIXTERRAPRIME-FULL_CI_PROVEN",
-  "review_gate": "HELIXCLIMATEPRIME-FULL",
+  "active_goal": null,
+  "active_phase": null,
+  "previous_goal": "HELIXCLIMATEPRIME-FULL_CI_PROVEN",
+  "review_gate": null,
   "category_defining_program": {
     "status": "foundation_integrity_umbrella_011.7_closed",
     "root": "docs/product-program",
@@ -22,12 +22,12 @@
       "helix-anvil-standalone"
     ],
     "implementation_started": true,
-    "next_gate": "HELIXCLIMATEPRIME-FULL depth packet"
+    "next_gate": "awaiting_founder_goal_selection"
   },
   "second_wave": {
     "roadmap": "docs/SECOND_WAVE.md",
     "status": "paused_by_category_defining_program",
-    "current": "helix-climate-prime",
+    "current": null,
     "completed": [
       "helix-commerce",
       "helix-flow",
@@ -40,7 +40,8 @@
       "helix-synthbio",
       "helix-lex-prime",
       "helix-cura-prime",
-      "helix-terra-prime"
+      "helix-terra-prime",
+      "helix-climate-prime"
     ],
     "order": [
       "helix-flow",
@@ -76,7 +77,7 @@
     "current_validity": "unverified_after_later_tree_changes"
   },
   "foundation_integrity_current_gate": "011.7_CLOSED",
-  "full_workspace_current_status": "fmt_clippy_test_helm_verify_helixcore_full_pass_helixterraprime_full_ci_proven_run_29648775239",
+  "full_workspace_current_status": "fmt_clippy_test_helm_verify_helixcore_full_pass_helixclimateprime_full_ci_proven_run_29650054052",
   "core_services": [
     "gateway",
     "agent-hub",
@@ -152,11 +153,11 @@
   "ratified_specs": [],
   "last_smoke": {
     "date": "2026-07-18",
-    "service": "helix-terra-prime",
+    "service": "helix-climate-prime",
     "postgres": true,
     "minio": true,
     "nats": true,
-    "path": "scripts/helix_terra_prime_smoke.ps1 PASS \u2014 local + CI"
+    "path": "scripts/helix_climate_prime_smoke.ps1 PASS \u2014 local + CI"
   },
   "helix_code_extreme": {
     "phase": "endstate",
@@ -735,6 +736,45 @@
     "smoke": "PASS",
     "smoke_script": "scripts/helix_terra_prime_smoke.ps1",
     "ci_run": "29648775239",
+    "unit": "2/2 PASS",
+    "next": "CI proven"
+  },
+  "helix_climate_prime_full_depth": {
+    "migration": "0050_climate_depth.sql",
+    "routes": [
+      "GET /v1/scenarios",
+      "POST /v1/scenarios",
+      "GET /v1/scenarios/{id}",
+      "PATCH /v1/scenarios/{id}",
+      "POST /v1/scenarios/{id}/activate",
+      "POST /v1/scenarios/{id}/archive",
+      "POST /v1/scenarios/{id}/reopen",
+      "POST /v1/scenarios/{id}/delete",
+      "POST /v1/scenarios/{id}/restore",
+      "GET /v1/scenarios/{id}/risk_scores",
+      "POST /v1/scenarios/{id}/risk_scores",
+      "PATCH /v1/scenarios/{id}/risk_scores/{score_id}",
+      "POST /v1/scenarios/{id}/risk_scores/{score_id}/assess",
+      "POST /v1/scenarios/{id}/risk_scores/{score_id}/dismiss",
+      "POST /v1/scenarios/{id}/risk_scores/{score_id}/delete",
+      "POST /v1/scenarios/{id}/risk_scores/{score_id}/restore",
+      "GET /v1/reports/climate-summary",
+      "GET /v1/domain/status"
+    ],
+    "planes": [
+      "scenarios",
+      "risk_scores",
+      "scenario_lifecycle",
+      "score_lifecycle",
+      "archive_guards",
+      "climate_summary",
+      "audit",
+      "metering",
+      "nats"
+    ],
+    "smoke": "PASS",
+    "smoke_script": "scripts/helix_climate_prime_smoke.ps1",
+    "ci_run": "29650054052",
     "unit": "2/2 PASS",
     "next": "CI proven"
   },

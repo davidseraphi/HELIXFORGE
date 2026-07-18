@@ -50,7 +50,10 @@ a risk-score assess/dismiss lifecycle, and a climate summary report.
 
 ## Status
 
-- **Active**
+- **Closed / CI-proven**
+- CI run: `29650054052`
+- Smoke script: `scripts/helix_climate_prime_smoke.ps1`
+- Unit tests: `2/2 PASS` (plus one ignored Postgres integration test)
 
 ## Out of scope
 

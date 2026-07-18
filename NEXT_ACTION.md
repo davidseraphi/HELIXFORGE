@@ -1,9 +1,10 @@
 # Next action
 
-## Latest: HELIXCLIMATEPRIME-FULL
+## Latest: HELIXCLIMATEPRIME-FULL closed and CI-proven
 
-**Goal:** move HelixClimate Prime from thin durable scaffold to full
-second-wave depth.
+HELIXCLIMATEPRIME-FULL is complete. The implementation passed local
+verification and GitHub Actions run `29650054052` is all green, including the
+new **HelixClimate Prime smoke** job.
 
 - Migration: `crates/helix-db/migrations/0050_climate_depth.sql`
 - Repo: `crates/helix-db/src/climate.rs`
@@ -12,7 +13,7 @@ second-wave depth.
 - CI: `.github/workflows/ci.yml` `climate-prime-smoke` job
 - Docs: `docs/goals/HELIXCLIMATEPRIME_FULL.md`, `DECISION_LOG.md`
 
-### Scope
+### What was delivered
 
 Scenario + risk-score lifecycle depth:
 - scenario update, activate, archive (rejected while draft scores remain),
@@ -25,14 +26,8 @@ Scenario + risk-score lifecycle depth:
 
 ### Active goal
 
-`HELIXCLIMATEPRIME-FULL` — in progress.
+None. HELIXCLIMATEPRIME-FULL is closed.
 
-## Paste-ready continuation prompt
+### Next action
 
-```text
-Continue in C:\Users\divin\PROJECTS\HELIXFORGE. HELIXCLIMATEPRIME-FULL is the
-active goal. Implement migration 0050, extend ClimateRepo with scenario/score
-lifecycle and climate summary; add routes and domain status planes, write
-unit + integration tests, create scripts/helix_climate_prime_smoke.ps1, add
-the climate-prime-smoke CI job, and prove it green on CI.
-```
+Founder selects the next explicit named goal.
