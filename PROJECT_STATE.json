@@ -4,10 +4,10 @@
   "stage": "prototype",
   "updated_at": "2026-07-18",
   "active_slice": "category-defining-product-program",
-  "active_goal": "HELIXWELL-FULL",
-  "active_phase": "helixwell_full_depth",
-  "previous_goal": "HELIXCAPITAL-FULL_CI_PROVEN",
-  "review_gate": "HELIXWELL-FULL",
+  "active_goal": null,
+  "active_phase": null,
+  "previous_goal": "HELIXWELL-FULL_CI_PROVEN",
+  "review_gate": null,
   "category_defining_program": {
     "status": "foundation_integrity_umbrella_011.7_closed",
     "root": "docs/product-program",
@@ -22,18 +22,19 @@
       "helix-anvil-standalone"
     ],
     "implementation_started": true,
-    "next_gate": "HELIXWELL-FULL depth packet"
+    "next_gate": "awaiting_founder_goal_selection"
   },
   "second_wave": {
     "roadmap": "docs/SECOND_WAVE.md",
     "status": "paused_by_category_defining_program",
-    "current": "helix-well",
+    "current": null,
     "completed": [
       "helix-commerce",
       "helix-flow",
       "helix-insights",
       "helix-edu",
-      "helix-capital"
+      "helix-capital",
+      "helix-well"
     ],
     "order": [
       "helix-flow",
@@ -69,7 +70,7 @@
     "current_validity": "unverified_after_later_tree_changes"
   },
   "foundation_integrity_current_gate": "011.7_CLOSED",
-  "full_workspace_current_status": "fmt_clippy_test_helm_verify_helixcore_full_pass_helixcapital_full_ci_proven_run_29621350739",
+  "full_workspace_current_status": "fmt_clippy_test_helm_verify_helixcore_full_pass_helixwell_full_ci_proven_run_29641402713",
   "core_services": [
     "gateway",
     "agent-hub",
@@ -145,11 +146,11 @@
   "ratified_specs": [],
   "last_smoke": {
     "date": "2026-07-18",
-    "service": "helix-capital",
+    "service": "helix-well",
     "postgres": true,
     "minio": true,
     "nats": true,
-    "path": "scripts/helix_capital_smoke.ps1 PASS \u2014 local + CI"
+    "path": "scripts/helix_well_smoke.ps1 PASS \u2014 local + CI"
   },
   "helix_code_extreme": {
     "phase": "endstate",
@@ -442,6 +443,48 @@
     "smoke": "PASS",
     "smoke_script": "scripts/helix_capital_smoke.ps1",
     "ci_run": "29621350739",
+    "unit": "4/4 PASS",
+    "next": "CI proven"
+  },
+  "helix_well_full_depth": {
+    "migration": "0043_well_depth.sql",
+    "routes": [
+      "GET /v1/habits",
+      "POST /v1/habits",
+      "GET /v1/habits/{id}",
+      "PATCH /v1/habits/{id}",
+      "POST /v1/habits/{id}/pause",
+      "POST /v1/habits/{id}/resume",
+      "POST /v1/habits/{id}/end",
+      "POST /v1/habits/{id}/delete",
+      "POST /v1/habits/{id}/restore",
+      "GET /v1/habits/{id}/logs",
+      "POST /v1/habits/{id}/logs",
+      "GET /v1/checkins",
+      "POST /v1/checkins",
+      "GET /v1/checkins/{id}",
+      "PATCH /v1/checkins/{id}",
+      "POST /v1/checkins/{id}/delete",
+      "GET /v1/checkins/{id}/edits",
+      "GET /v1/reports/habit-summary",
+      "GET /v1/domain/status"
+    ],
+    "planes": [
+      "habits",
+      "habit_logs",
+      "checkins",
+      "habit_lifecycle",
+      "optional_checkin_fields",
+      "checkin_edit_history",
+      "soft_delete",
+      "habit_summary",
+      "audit",
+      "metering",
+      "nats"
+    ],
+    "smoke": "PASS",
+    "smoke_script": "scripts/helix_well_smoke.ps1",
+    "ci_run": "29641402713",
     "unit": "4/4 PASS",
     "next": "CI proven"
   },

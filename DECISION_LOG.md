@@ -1,5 +1,44 @@
 # Decision log (append-only)
 
+## 2026-07-18 — HELIXWELL-FULL closed and CI-proven
+
+- Completed the HelixWell second-wave depth packet:
+  - Migration `0043_well_depth.sql` + down migration: `paused_at`/`ended_at`/
+    `deleted_at` lifecycle columns on `well.habits`; nullable `mood`/`energy`
+    on `well.checkins` (a skipped field is missing, never zero) plus
+    `updated_at`, `deleted_at`, `edit_version`; append-only
+    `well.checkin_edits` history table; partial active indexes.
+  - Extended `WellRepo` (`crates/helix-db/src/well.rs`) with `update_habit`,
+    `pause_habit`, `resume_habit`, `end_habit`, `soft_delete_habit`,
+    `restore_habit`, optional-field `create_checkin`, transactional
+    `update_checkin` (pre-edit snapshot + version bump),
+    `soft_delete_checkin`, `list_checkin_edits`, and `get_habit_summary`.
+  - Added routes in `projects/helix-well/backend/src/main.rs`:
+    `PATCH /v1/habits/{id}`, `POST /v1/habits/{id}/pause`,
+    `POST /v1/habits/{id}/resume`, `POST /v1/habits/{id}/end`,
+    `POST /v1/habits/{id}/delete`, `POST /v1/habits/{id}/restore`,
+    `GET /v1/checkins/{id}`, `PATCH /v1/checkins/{id}`,
+    `POST /v1/checkins/{id}/delete`, `GET /v1/checkins/{id}/edits`,
+    `GET /v1/reports/habit-summary`, and `GET /v1/domain/status` with planes.
+  - In-process tests: scale validation, skipped fields, habit status
+    transitions, empty-update detection.
+  - Ignored Postgres integration test for habit lifecycle + check-in edit
+    history + habit summary.
+  - PowerShell smoke `scripts/helix_well_smoke.ps1` and `well-smoke`
+    CI job in `.github/workflows/ci.yml`.
+- Verification:
+  - `cargo fmt --all -- --check` clean.
+  - `cargo clippy --workspace --all-targets -- -D warnings` clean.
+  - `cargo test --workspace --all-features` clean.
+  - Local smoke against Postgres/NATS/MinIO passes.
+  - GitHub Actions run `29641402713` is all green, including the new
+    **HelixWell smoke** job.
+- Commits `90b89cf` (activation) and `2183f7d` (implementation) pushed to
+  `main`.
+- `PROJECT_STATE.json` and `NEXT_ACTION.md` updated to mark HELIXWELL-FULL
+  closed and clear the active goal.
+- Next action: founder selects the next explicit named goal.
+
 ## 2026-07-17 — HELIXEDU-FULL second-wave depth packet
 
 - Activated goal: `HELIXEDU-FULL` (catalog order 6, port 8106).

@@ -52,7 +52,10 @@ zero), check-in edit history, and habit summary reporting.
 
 ## Status
 
-- **Active**
+- **Closed / CI-proven**
+- CI run: `29641402713`
+- Smoke script: `scripts/helix_well_smoke.ps1`
+- Unit tests: `4/4 PASS` (plus one ignored Postgres integration test)
 
 ## Out of scope
 

@@ -1,8 +1,10 @@
 # Next action
 
-## Latest: HELIXWELL-FULL
+## Latest: HELIXWELL-FULL closed and CI-proven
 
-**Goal:** move HelixWell from durable scaffold to full second-wave depth.
+HELIXWELL-FULL is complete. The implementation passed local verification and
+GitHub Actions run `29641402713` is all green, including the new
+**HelixWell smoke** job.
 
 - Migration: `crates/helix-db/migrations/0043_well_depth.sql`
 - Repo: `crates/helix-db/src/well.rs`
@@ -11,11 +13,11 @@
 - CI: `.github/workflows/ci.yml` `well-smoke` job
 - Docs: `docs/goals/HELIXWELL_FULL.md`, `DECISION_LOG.md`
 
-### Scope
+### What was delivered
 
 Habit + check-in lifecycle depth:
 - habit update, pause, resume, end, soft-delete, restore
-- optional check-in fields (missing is not zero) + edit history
+- optional check-in fields (missing is not zero) with append-only edit history
 - habit summary report
 - domain status with `phase: wave2_w8` and capability planes
 - in-process validation tests + ignored Postgres integration test
@@ -23,15 +25,8 @@ Habit + check-in lifecycle depth:
 
 ### Active goal
 
-`HELIXWELL-FULL` — in progress.
+None. HELIXWELL-FULL is closed.
 
-## Paste-ready continuation prompt
+### Next action
 
-```text
-Continue in C:\Users\divin\PROJECTS\HELIXFORGE. HELIXWELL-FULL is the active
-goal. Implement migration 0043, extend WellRepo with habit lifecycle, optional
-check-in fields with edit history, and habit summary; add routes and domain
-status planes, write unit + integration tests, create
-scripts/helix_well_smoke.ps1, add the well-smoke CI job, and prove it green
-on CI.
-```
+Founder selects the next explicit named goal.
