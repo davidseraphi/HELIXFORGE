@@ -34,7 +34,10 @@ repair: prove the money writes cannot tear under race, crash, or restore.
 
 ## Status
 
-- **Active**
+- **Closed / CI-proven**
+- CI run: `29662883748` (**HelixCapital durability gate** job green)
+- Proof script: `scripts/helix_capital_durability.ps1`
+- Gate proven locally (Windows) and in CI (ubuntu)
 
 ## Out of scope
 

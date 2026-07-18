@@ -1,5 +1,41 @@
 # Decision log (append-only)
 
+## 2026-07-18 — HELIXCAPITAL-DURABILITY closed; second product through the gate
+
+- Completed the HelixCapital durability-gate packet (`helix-capital` added
+  to `durability_gate_proven_products`):
+  - Journal writes were already transactional (`post_journal` and
+    `void_journal` commit journal, lines, and balance updates in one
+    transaction under `FOR UPDATE` locks), so this packet proved the gate
+    rather than repairing write paths.
+  - New ignored Postgres integration tests (run in the existing
+    `capital-smoke` CI job): `concurrent_voids_single_winner` (8 racing
+    voids → exactly one success, 7 validation rejections, balances back to
+    zero, exactly two reversal lines) and
+    `concurrent_journals_exact_balances` (8 concurrent balanced journals on
+    the same accounts → all commit, balances exactly ±800, trial balance
+    agrees).
+  - `scripts/helix_capital_durability.ps1` proves: post/void balance
+    consistency; an acknowledged journal surviving an immediate forced
+    kill of the API (journal, lines, and balances fully present after
+    restart); and a `capital` schema `pg_dump` roundtrip into a scratch
+    database with equal account/journal/line counts and equal content
+    hashes.
+  - `capital-durability` CI job in `.github/workflows/ci.yml`.
+- Verification:
+  - `cargo fmt --all -- --check` clean.
+  - `cargo clippy --workspace --all-targets -- -D warnings` clean.
+  - `cargo test --workspace --all-features` clean.
+  - Both race proofs pass against live Postgres; durability script passes
+    locally (Windows) and in CI (ubuntu).
+  - GitHub Actions run `29662883748` is all green, including the new
+    **HelixCapital durability gate** job and all 19 product smoke jobs.
+- Commits `146bcc3` (activation) and `5c8248a` (implementation) pushed to
+  `main`.
+- `PROJECT_STATE.json` and `NEXT_ACTION.md` updated; `helix-capital`
+  recorded in `durability_gate_proven_products`.
+- Next action: founder selects the next explicit named goal.
+
 ## 2026-07-18 — HELIXCOLLAB-DURABILITY closed; first product through the durability gate
 
 - Completed the HelixCollab durability-gate packet (first entry in
