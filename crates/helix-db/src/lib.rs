@@ -31,6 +31,7 @@ pub mod outbox;
 pub mod payments;
 pub mod plans_pg;
 pub mod pool;
+pub mod pulse;
 pub mod quantum;
 pub mod regions;
 pub mod studio;
@@ -111,6 +112,10 @@ pub use plans_pg::PgPlanStore;
 pub use pool::{
     connect_and_migrate, connect_and_migrate_with_config, try_connect_and_migrate,
     try_connect_and_migrate_with_config, DbPool, DbStatus,
+};
+pub use pulse::{
+    next_incident_status, next_monitor_status, Incident, IncidentUpdate, Monitor, MonitorUpdate,
+    PulseRepo, PulseSummaryRow,
 };
 pub use quantum::{
     next_circuit_status, next_job_status, Circuit, CircuitUpdate, JobUpdate, QuantumJob,
