@@ -81,7 +81,10 @@ pub use cura::{
 pub use edu::{Course, EduRepo, Enrollment};
 pub use flow::{FlowRepo, Workflow, WorkflowRun};
 pub use governance::{DeleteDecision, GovernanceRepo, LegalHold, PurposeBinding, RetentionPolicy};
-pub use grid::{GridRepo, GridSite, Reading};
+pub use grid::{
+    next_reading_status, next_site_status, GridRepo, GridSite, GridSummaryRow, Reading,
+    ReadingUpdate, SiteUpdate,
+};
 pub use insights::{AggregateResult, Dataset, InsightsRepo, MetricDef, MetricPoint};
 pub use jobs::{Job, JobCheckpoint, JobRepo, JobStatus};
 pub use lex::{
