@@ -1,5 +1,46 @@
 # Decision log (append-only)
 
+## 2026-07-18 — HELIXVITAPRIME-FULL closed and CI-proven
+
+- Completed the HelixVita Prime second-wave depth packet:
+  - Migration `0053_vita_depth.sql` + down migration: `recruiting_at`/
+    `completed_at`/`terminated_at`/`deleted_at` lifecycle columns on
+    `vita.studies`; `updated_at`, `enrolled_at`, `withdrawn_at`, `deleted_at`
+    on `vita.cohorts`; legacy `open` cohort status backfilled to `draft`;
+    partial active indexes.
+  - Extended `VitaRepo` (`crates/helix-db/src/vita.rs`) with `update_study`,
+    `recruit_study`, `complete_study` (rejected while draft cohorts remain),
+    `terminate_study`, `soft_delete_study`, `restore_study`; parent-verified
+    `update_cohort`, `enroll_cohort`, `withdraw_cohort`,
+    `soft_delete_cohort`, `restore_cohort`; and `get_vita_summary`.
+  - Added routes in `projects/helix-vita-prime/backend/src/main.rs`:
+    `PATCH /v1/studies/{id}`, `POST /v1/studies/{id}/recruit`,
+    `POST /v1/studies/{id}/complete`, `POST /v1/studies/{id}/terminate`,
+    `POST /v1/studies/{id}/delete`, `POST /v1/studies/{id}/restore`,
+    `PATCH /v1/studies/{id}/cohorts/{cohort_id}`,
+    `POST /v1/studies/{id}/cohorts/{cohort_id}/enroll`,
+    `POST /v1/studies/{id}/cohorts/{cohort_id}/withdraw`,
+    `POST /v1/studies/{id}/cohorts/{cohort_id}/delete`,
+    `POST /v1/studies/{id}/cohorts/{cohort_id}/restore`,
+    `GET /v1/reports/vita-summary`, and `GET /v1/domain/status` with planes.
+  - In-process tests: study and cohort status transition guards.
+  - Ignored Postgres integration test for the completion guard, study/cohort
+    lifecycle, and vita summary.
+  - PowerShell smoke `scripts/helix_vita_prime_smoke.ps1` and
+    `vita-prime-smoke` CI job in `.github/workflows/ci.yml`.
+- Verification:
+  - `cargo fmt --all -- --check` clean.
+  - `cargo clippy --workspace --all-targets -- -D warnings` clean.
+  - `cargo test --workspace --all-features` clean.
+  - Local smoke against Postgres/NATS/MinIO passes.
+  - GitHub Actions run `29655268193` is all green, including the new
+    **HelixVita Prime smoke** job.
+- Commits `da9d339` (activation) and `7bad969` (implementation) pushed to
+  `main`.
+- `PROJECT_STATE.json` and `NEXT_ACTION.md` updated to mark
+  HELIXVITAPRIME-FULL closed and clear the active goal.
+- Next action: founder selects the next explicit named goal.
+
 ## 2026-07-18 — HELIXQUANTUMFORGE-FULL closed and CI-proven
 
 - Completed the HelixQuantum Forge second-wave depth packet:

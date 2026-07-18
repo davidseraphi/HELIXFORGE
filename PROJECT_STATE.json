@@ -4,10 +4,10 @@
   "stage": "prototype",
   "updated_at": "2026-07-18",
   "active_slice": "category-defining-product-program",
-  "active_goal": "HELIXVITAPRIME-FULL",
-  "active_phase": "helixvitaprime_full_depth",
-  "previous_goal": "HELIXQUANTUMFORGE-FULL_CI_PROVEN",
-  "review_gate": "HELIXVITAPRIME-FULL",
+  "active_goal": null,
+  "active_phase": null,
+  "previous_goal": "HELIXVITAPRIME-FULL_CI_PROVEN",
+  "review_gate": null,
   "category_defining_program": {
     "status": "foundation_integrity_umbrella_011.7_closed",
     "root": "docs/product-program",
@@ -22,12 +22,12 @@
       "helix-anvil-standalone"
     ],
     "implementation_started": true,
-    "next_gate": "HELIXVITAPRIME-FULL depth packet"
+    "next_gate": "awaiting_founder_goal_selection"
   },
   "second_wave": {
     "roadmap": "docs/SECOND_WAVE.md",
     "status": "paused_by_category_defining_program",
-    "current": "helix-vita-prime",
+    "current": null,
     "completed": [
       "helix-commerce",
       "helix-flow",
@@ -43,7 +43,8 @@
       "helix-terra-prime",
       "helix-climate-prime",
       "helix-orbit-prime",
-      "helix-quantum-forge"
+      "helix-quantum-forge",
+      "helix-vita-prime"
     ],
     "order": [
       "helix-flow",
@@ -79,7 +80,7 @@
     "current_validity": "unverified_after_later_tree_changes"
   },
   "foundation_integrity_current_gate": "011.7_CLOSED",
-  "full_workspace_current_status": "fmt_clippy_test_helm_verify_helixcore_full_pass_helixquantumforge_full_ci_proven_run_29652895313",
+  "full_workspace_current_status": "fmt_clippy_test_helm_verify_helixcore_full_pass_helixvitaprime_full_ci_proven_run_29655268193",
   "core_services": [
     "gateway",
     "agent-hub",
@@ -155,11 +156,11 @@
   "ratified_specs": [],
   "last_smoke": {
     "date": "2026-07-18",
-    "service": "helix-quantum-forge",
+    "service": "helix-vita-prime",
     "postgres": true,
     "minio": true,
     "nats": true,
-    "path": "scripts/helix_quantum_forge_smoke.ps1 PASS \u2014 local + CI"
+    "path": "scripts/helix_vita_prime_smoke.ps1 PASS \u2014 local + CI"
   },
   "helix_code_extreme": {
     "phase": "endstate",
@@ -856,6 +857,45 @@
     "smoke": "PASS",
     "smoke_script": "scripts/helix_quantum_forge_smoke.ps1",
     "ci_run": "29652895313",
+    "unit": "2/2 PASS",
+    "next": "CI proven"
+  },
+  "helix_vita_prime_full_depth": {
+    "migration": "0053_vita_depth.sql",
+    "routes": [
+      "GET /v1/studies",
+      "POST /v1/studies",
+      "GET /v1/studies/{id}",
+      "PATCH /v1/studies/{id}",
+      "POST /v1/studies/{id}/recruit",
+      "POST /v1/studies/{id}/complete",
+      "POST /v1/studies/{id}/terminate",
+      "POST /v1/studies/{id}/delete",
+      "POST /v1/studies/{id}/restore",
+      "GET /v1/studies/{id}/cohorts",
+      "POST /v1/studies/{id}/cohorts",
+      "PATCH /v1/studies/{id}/cohorts/{cohort_id}",
+      "POST /v1/studies/{id}/cohorts/{cohort_id}/enroll",
+      "POST /v1/studies/{id}/cohorts/{cohort_id}/withdraw",
+      "POST /v1/studies/{id}/cohorts/{cohort_id}/delete",
+      "POST /v1/studies/{id}/cohorts/{cohort_id}/restore",
+      "GET /v1/reports/vita-summary",
+      "GET /v1/domain/status"
+    ],
+    "planes": [
+      "studies",
+      "cohorts",
+      "study_lifecycle",
+      "cohort_lifecycle",
+      "complete_guards",
+      "vita_summary",
+      "audit",
+      "metering",
+      "nats"
+    ],
+    "smoke": "PASS",
+    "smoke_script": "scripts/helix_vita_prime_smoke.ps1",
+    "ci_run": "29655268193",
     "unit": "2/2 PASS",
     "next": "CI proven"
   },

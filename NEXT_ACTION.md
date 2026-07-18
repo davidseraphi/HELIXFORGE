@@ -1,9 +1,10 @@
 # Next action
 
-## Latest: HELIXVITAPRIME-FULL
+## Latest: HELIXVITAPRIME-FULL closed and CI-proven
 
-**Goal:** move HelixVita Prime from thin durable scaffold to full second-wave
-depth.
+HELIXVITAPRIME-FULL is complete. The implementation passed local verification
+and GitHub Actions run `29655268193` is all green, including the new
+**HelixVita Prime smoke** job.
 
 - Migration: `crates/helix-db/migrations/0053_vita_depth.sql`
 - Repo: `crates/helix-db/src/vita.rs`
@@ -12,7 +13,7 @@ depth.
 - CI: `.github/workflows/ci.yml` `vita-prime-smoke` job
 - Docs: `docs/goals/HELIXVITAPRIME_FULL.md`, `DECISION_LOG.md`
 
-### Scope
+### What was delivered
 
 Study + cohort lifecycle depth:
 - study update, recruit, complete (rejected while draft cohorts remain),
@@ -25,14 +26,8 @@ Study + cohort lifecycle depth:
 
 ### Active goal
 
-`HELIXVITAPRIME-FULL` — in progress.
+None. HELIXVITAPRIME-FULL is closed.
 
-## Paste-ready continuation prompt
+### Next action
 
-```text
-Continue in C:\Users\divin\PROJECTS\HELIXFORGE. HELIXVITAPRIME-FULL is the
-active goal. Implement migration 0053, extend VitaRepo with study/cohort
-lifecycle and vita summary; add routes and domain status planes, write unit +
-integration tests, create scripts/helix_vita_prime_smoke.ps1, add the
-vita-prime-smoke CI job, and prove it green on CI.
-```
+Founder selects the next explicit named goal.

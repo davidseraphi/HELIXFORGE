@@ -51,7 +51,10 @@ guard, a cohort enroll/withdraw lifecycle, and a vita summary report.
 
 ## Status
 
-- **Active**
+- **Closed / CI-proven**
+- CI run: `29655268193`
+- Smoke script: `scripts/helix_vita_prime_smoke.ps1`
+- Unit tests: `2/2 PASS` (plus one ignored Postgres integration test)
 
 ## Out of scope
 
