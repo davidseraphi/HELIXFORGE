@@ -1,33 +1,38 @@
 # Next action
 
-## Latest: HELIXLEXPRIME-FULL closed and CI-proven
+## Latest: HELIXCURAPRIME-FULL
 
-HELIXLEXPRIME-FULL is complete. The implementation passed local verification
-and GitHub Actions run `29646308966` is all green, including the new
-**HelixLex Prime smoke** job.
+**Goal:** move HelixCura Prime from thin durable scaffold to full second-wave
+depth.
 
-- Migration: `crates/helix-db/migrations/0047_lex_depth.sql`
-- Repo: `crates/helix-db/src/lex.rs`
-- API: `projects/helix-lex-prime/backend/src/main.rs`
-- Smoke: `scripts/helix_lex_prime_smoke.ps1`
-- CI: `.github/workflows/ci.yml` `lex-prime-smoke` job
-- Docs: `docs/goals/HELIXLEXPRIME_FULL.md`, `DECISION_LOG.md`
+- Migration: `crates/helix-db/migrations/0048_cura_depth.sql`
+- Repo: `crates/helix-db/src/cura.rs`
+- API: `projects/helix-cura-prime/backend/src/main.rs`
+- Smoke: `scripts/helix_cura_prime_smoke.ps1`
+- CI: `.github/workflows/ci.yml` `cura-prime-smoke` job
+- Docs: `docs/goals/HELIXCURAPRIME_FULL.md`, `DECISION_LOG.md`
 
-### What was delivered
+### Scope
 
-Matter + filing lifecycle depth:
-- matter update, open, close (rejected while draft filings remain), reopen,
-  soft-delete, restore
-- filing update, file, withdraw, soft-delete, restore
-- lex summary report
-- domain status with `phase: wave2_w12` and capability planes
+Care-case + note lifecycle depth:
+- case update, activate, discharge (rejected while draft notes remain),
+  reopen, soft-delete, restore
+- note update (draft only), sign, void, soft-delete, restore
+- cura summary report
+- domain status with `phase: wave2_w13` and capability planes
 - in-process validation tests + ignored Postgres integration test
 - PowerShell smoke and CI job
 
 ### Active goal
 
-None. HELIXLEXPRIME-FULL is closed.
+`HELIXCURAPRIME-FULL` — in progress.
 
-### Next action
+## Paste-ready continuation prompt
 
-Founder selects the next explicit named goal.
+```text
+Continue in C:\Users\divin\PROJECTS\HELIXFORGE. HELIXCURAPRIME-FULL is the
+active goal. Implement migration 0048, extend CuraRepo with case/note
+lifecycle and cura summary; add routes and domain status planes, write unit +
+integration tests, create scripts/helix_cura_prime_smoke.ps1, add the
+cura-prime-smoke CI job, and prove it green on CI.
+```
