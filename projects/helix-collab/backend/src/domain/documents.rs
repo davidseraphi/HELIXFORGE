@@ -1180,4 +1180,118 @@ mod tests {
         .expect_err("plaintext patch on HC1 doc");
         assert_eq!(err.0.code, ErrorCode::Validation);
     }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres/NATS/MinIO)"]
+    async fn concurrent_patches_single_winner() {
+        let (state, _guard) = locked_state().await;
+        let p = dev_principal("race-alice");
+        let doc = create_test_doc(&state, &p, "race-doc", "v1").await;
+        let repo = state
+            .core
+            .clients
+            .collab
+            .as_ref()
+            .expect("collab repo")
+            .clone();
+
+        // 8 racing patches with the same base_version on one document.
+        let mut handles = Vec::new();
+        for i in 0..8u32 {
+            let repo = repo.clone();
+            let tenant_id = p.tenant_id;
+            let user_id = p.user_id;
+            let doc_id = doc.id;
+            handles.push(tokio::spawn(async move {
+                repo.apply_patch(
+                    tenant_id,
+                    doc_id,
+                    user_id,
+                    DocumentPatch {
+                        base_version: 1,
+                        content: format!("racer {i}"),
+                        title: None,
+                    },
+                )
+                .await
+            }));
+        }
+        let mut winners = 0usize;
+        let mut conflicts = 0usize;
+        for h in handles {
+            match h.await.expect("racer task panicked") {
+                Ok(_) => winners += 1,
+                Err(e) if e.code == ErrorCode::Conflict => conflicts += 1,
+                Err(e) => panic!("unexpected patch error: {e}"),
+            }
+        }
+        assert_eq!(winners, 1, "exactly one racing patch may win");
+        assert_eq!(conflicts, 7, "all losers must get Conflict");
+
+        let final_doc = repo
+            .get_document(p.tenant_id, doc.id)
+            .await
+            .expect("get doc");
+        assert_eq!(final_doc.version, 2);
+        let revisions = repo
+            .list_revisions(p.tenant_id, doc.id, 10)
+            .await
+            .expect("list revisions");
+        let v2: Vec<_> = revisions.iter().filter(|r| r.version == 2).collect();
+        assert_eq!(v2.len(), 1, "exactly one v2 revision row must exist");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres/NATS/MinIO)"]
+    async fn concurrent_creates_never_torn() {
+        let (state, _guard) = locked_state().await;
+        let p = dev_principal("race-bob");
+        let repo = state
+            .core
+            .clients
+            .collab
+            .as_ref()
+            .expect("collab repo")
+            .clone();
+
+        // 8 concurrent creates; every document must pair with exactly one v1 revision.
+        let mut handles = Vec::new();
+        for i in 0..8u32 {
+            let repo = repo.clone();
+            let tenant_id = p.tenant_id;
+            let user_id = p.user_id;
+            handles.push(tokio::spawn(async move {
+                repo.create_document_full_ex(
+                    tenant_id,
+                    user_id,
+                    &format!("torn-check-{i}"),
+                    "v1",
+                    None,
+                    None,
+                    false,
+                    false,
+                )
+                .await
+            }));
+        }
+        let mut ids = Vec::new();
+        for h in handles {
+            ids.push(h.await.expect("create task panicked").expect("create").id);
+        }
+        assert_eq!(ids.len(), 8);
+        for id in ids {
+            let doc = repo.get_document(p.tenant_id, id).await.expect("get doc");
+            assert_eq!(doc.version, 1);
+            let revisions = repo
+                .list_revisions(p.tenant_id, id, 10)
+                .await
+                .expect("list revisions");
+            let v1: Vec<_> = revisions.iter().filter(|r| r.version == 1).collect();
+            assert_eq!(
+                v1.len(),
+                1,
+                "document {id} must have exactly one v1 revision"
+            );
+        }
+    }
 }

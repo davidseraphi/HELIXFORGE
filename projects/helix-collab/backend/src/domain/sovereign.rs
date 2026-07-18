@@ -603,6 +603,7 @@ async fn register_attachment(
             body.client_sealed,
             &body.sha256_hex,
             Some(p.user_id),
+            false,
         )
         .await?;
     audit(
@@ -1082,14 +1083,9 @@ async fn upload_attachment(
             sealed,
             &sha,
             Some(p.user_id),
+            true,
         )
         .await?;
-    if let Some(pool) = state.core.clients.db.as_ref() {
-        let _ = sqlx::query("UPDATE collab.attachments SET body_stored = true WHERE id = $1")
-            .bind(att.id)
-            .execute(pool)
-            .await;
-    }
     audit(
         &state,
         &p,

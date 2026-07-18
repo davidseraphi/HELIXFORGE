@@ -279,6 +279,14 @@ impl CollabRepo {
         let id = Uuid::now_v7();
         let now = Utc::now();
         let encrypted = encrypted || client_e2ee;
+
+        // Document and its initial revision commit together or not at all.
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| HelixError::dependency(format!("collab create tx: {e}")))?;
+
         sqlx::query(
             r#"
             INSERT INTO collab.documents
@@ -297,7 +305,7 @@ impl CollabRepo {
         .bind(client_e2ee)
         .bind(author.as_uuid())
         .bind(now)
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await
         .map_err(|e| HelixError::dependency(format!("collab create: {e}")))?;
 
@@ -312,9 +320,13 @@ impl CollabRepo {
         .bind(content)
         .bind(author.as_uuid())
         .bind(now)
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await
         .map_err(|e| HelixError::dependency(format!("collab revision: {e}")))?;
+
+        tx.commit()
+            .await
+            .map_err(|e| HelixError::dependency(format!("collab create commit: {e}")))?;
 
         self.get_document(tenant_id, id).await
     }

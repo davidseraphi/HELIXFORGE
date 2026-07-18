@@ -614,15 +614,19 @@ impl SovereignCollabRepo {
         client_sealed: bool,
         sha256_hex: &str,
         created_by: Option<UserId>,
+        body_stored: bool,
     ) -> HelixResult<AttachmentMeta> {
         let id = Uuid::now_v7();
         let now = Utc::now();
+        // The upload handler passes body_stored=true because the object bytes
+        // are already in MinIO; the metadata-only register handler passes the
+        // caller-claimed value. Either way the row records it in one INSERT.
         sqlx::query(
             r#"
             INSERT INTO collab.attachments
                 (id, tenant_id, document_id, filename, content_type, size_bytes,
-                 object_key, client_sealed, sha256_hex, created_by, created_at)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+                 object_key, client_sealed, sha256_hex, created_by, created_at, body_stored)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
             "#,
         )
         .bind(id)
@@ -636,6 +640,7 @@ impl SovereignCollabRepo {
         .bind(sha256_hex)
         .bind(created_by.map(|u| u.as_uuid()))
         .bind(now)
+        .bind(body_stored)
         .execute(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("attachment: {e}")))?;
