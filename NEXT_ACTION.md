@@ -1,34 +1,37 @@
 # Next action
 
-## Latest: HELIXCOMMERCE-DURABILITY closed — third product through the gate
+## Latest: HELIXFLOW-DURABILITY
 
-HELIXCOMMERCE-DURABILITY is complete. The implementation passed local
-verification and GitHub Actions run `29664024211` is all green, including
-the new **HelixCommerce durability gate** job.
+**Goal:** prove the Foundation Integrity durability gate on HelixFlow —
+fourth product through the gate (after helix-collab, helix-capital,
+helix-commerce).
 
-- Fix: `crates/helix-db/src/commerce.rs` (`cancel_order` loads items inside
-  its transaction — the race proof caught a pool-exhaustion deadlock)
-- Tests: `projects/helix-commerce/backend/src/main.rs`
-  (`concurrent_cancels_single_winner`; oversell race already covered)
-- Proof: `scripts/helix_commerce_durability.ps1` (forced-kill + restore)
-- CI: `.github/workflows/ci.yml` `commerce-durability` job (durability jobs
-  now also run the ignored integration tests)
-- Docs: `docs/goals/HELIXCOMMERCE_DURABILITY.md`, `DECISION_LOG.md`
+- Repo: `crates/helix-db/src/flow.rs` (`update_run` terminal-state guard)
+- Tests: `projects/helix-flow/backend/src/main.rs`
+  (`finished_runs_are_immutable`)
+- Proof: `scripts/helix_flow_durability.ps1` (forced-kill + restore)
+- CI: `.github/workflows/ci.yml` `flow-durability` job
+- Docs: `docs/goals/HELIXFLOW_DURABILITY.md`, `DECISION_LOG.md`
 
-### What was delivered
+### Scope
 
-- deadlock fix: cancel_order no longer fetches items outside its tx
-- concurrency proof: 8 racing cancels → exactly one winner, inventory
-  restored once
-- crash proof: acknowledged order survives a forced kill of the API
-- restore proof: schema dump roundtrip with equal counts + content hashes
-- `helix-commerce` recorded in `durability_gate_proven_products`
+- fix: terminal runs are immutable (`update_run` guards on
+  `finished_at IS NULL`)
+- concurrency proof: after finish, N concurrent update attempts all rejected
+- crash proof: acknowledged run survives a forced kill of the API
+- restore proof: `flow` schema dump roundtrip with equal counts + hashes
 
 ### Active goal
 
-None. HELIXCOMMERCE-DURABILITY is closed.
+`HELIXFLOW-DURABILITY` — in progress.
 
-### Next action
+## Paste-ready continuation prompt
 
-Founder selects the next explicit named goal. Open: durability gates for
-the remaining 18 products.
+```text
+Continue in C:\Users\divin\PROJECTS\HELIXFORGE. HELIXFLOW-DURABILITY is the
+active goal. Guard FlowRepo::update_run with finished_at IS NULL; add the
+finished_runs_are_immutable integration test; create
+scripts/helix_flow_durability.ps1 (forced-kill + restore proofs) and the
+flow-durability CI job; prove it green on CI; record helix-flow in
+durability_gate_proven_products.
+```
