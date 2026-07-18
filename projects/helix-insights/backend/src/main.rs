@@ -692,4 +692,177 @@ mod tests {
         assert!(!(-f64::INFINITY).is_finite());
         assert!(42.0_f64.is_finite());
     }
+
+    use std::sync::Once;
+
+    use service_kit::{ProductApp, ServiceBuilder};
+    use shared_core::tenancy::{Principal, Scope};
+    use shared_core::{TenantId, UserId};
+    use tokio::sync::{Mutex, MutexGuard};
+
+    static INIT_ENV: Once = Once::new();
+    static TEST_MUTEX: Mutex<()> = Mutex::const_new(());
+
+    pub fn init_test_env() {
+        INIT_ENV.call_once(|| {
+            std::env::set_var("HELIX_ENV", "local");
+            std::env::set_var("HELIX_LOCAL_DEV_UNSAFE", "1");
+            std::env::set_var("HELIX_ALLOW_DEV_HEADERS", "1");
+            std::env::set_var("HELIX_DEV_PLATFORM", "1");
+            std::env::set_var("PORT", "18104");
+            std::env::set_var("LOG_JSON", "false");
+            std::env::set_var("HELIX_DB_POOL_MAX_CONNECTIONS", "4");
+            std::env::remove_var("OTEL_EXPORTER_OTLP_ENDPOINT");
+        });
+    }
+
+    pub async fn locked_state() -> (AppState, MutexGuard<'static, ()>) {
+        init_test_env();
+        let guard = TEST_MUTEX.lock().await;
+        let product =
+            ProductApp::from_slug("helix-insights").expect("helix-insights product known");
+        let builder = ServiceBuilder::new(product.slug, product.default_port)
+            .await
+            .expect("ServiceBuilder requires Postgres + optional NATS/MinIO");
+        let state = builder.into_state();
+
+        // Integration tests run against a freshly-migrated, empty Postgres.
+        // The dev principal's tenant is deterministic but not seeded, so create
+        // it here before any audited operation tries to reference it.
+        let local_dev_tenant = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        if let Some(tenants) = state.clients.tenants.as_ref() {
+            let _ = tenants
+                .create(local_dev_tenant, "local-dev", "local", None)
+                .await;
+        }
+
+        (state, guard)
+    }
+
+    pub fn dev_principal(label: &str) -> Principal {
+        let tenant_id = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        let user_id = UserId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            format!("helixforge-user:{label}").as_bytes(),
+        ));
+        Principal {
+            user_id,
+            tenant_id,
+            org_id: None,
+            scopes: vec![
+                Scope::Read,
+                Scope::Write,
+                Scope::Admin,
+                Scope::AuditRead,
+                Scope::Platform,
+            ],
+            session_id: Some(format!("dev-session:{label}")),
+            residency_region: "local".into(),
+        }
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn points_rejected_on_deleted_metric() {
+        let (state, _guard) = locked_state().await;
+        let p = dev_principal("insights-race");
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = InsightsRepo::new(pool.clone());
+
+        let ds = repo
+            .create_dataset(
+                p.tenant_id,
+                "durability-ds",
+                "",
+                "manual",
+                serde_json::json!({}),
+            )
+            .await
+            .expect("create dataset");
+        let metric = repo
+            .create_metric(p.tenant_id, ds.id, "cpu", "percent", "avg", "")
+            .await
+            .expect("create metric");
+        repo.record_point(p.tenant_id, metric.id, 42.0, serde_json::json!({}))
+            .await
+            .expect("record baseline point");
+
+        // Delete the metric, then race 8 record attempts: all must be rejected.
+        repo.soft_delete_metric(p.tenant_id, metric.id)
+            .await
+            .expect("soft delete metric");
+
+        let mut handles = Vec::new();
+        for _ in 0..8u32 {
+            let repo = repo.clone();
+            let tenant_id = p.tenant_id;
+            handles.push(tokio::spawn(async move {
+                repo.record_point(tenant_id, metric.id, 1.0, serde_json::json!({}))
+                    .await
+            }));
+        }
+        let mut rejected = 0usize;
+        for h in handles {
+            match h.await.expect("record task panicked") {
+                Err(e) if e.code == shared_core::ErrorCode::NotFound => rejected += 1,
+                Ok(_) => panic!("record on a deleted metric must be rejected"),
+                Err(e) => panic!("unexpected record error: {e}"),
+            }
+        }
+        assert_eq!(rejected, 8, "every record on a deleted metric must fail");
+
+        let points = repo
+            .list_points(p.tenant_id, metric.id, 50)
+            .await
+            .expect("list points");
+        assert_eq!(points.len(), 1, "only the baseline point may exist");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn concurrent_records_all_landed() {
+        let (state, _guard) = locked_state().await;
+        let p = dev_principal("insights-sum");
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = InsightsRepo::new(pool.clone());
+
+        let ds = repo
+            .create_dataset(p.tenant_id, "sum-ds", "", "manual", serde_json::json!({}))
+            .await
+            .expect("create dataset");
+        let metric = repo
+            .create_metric(p.tenant_id, ds.id, "requests", "count", "sum", "")
+            .await
+            .expect("create metric");
+
+        // 8 concurrent point records on a live metric: all land, none lost.
+        let mut handles = Vec::new();
+        for i in 0..8u32 {
+            let repo = repo.clone();
+            let tenant_id = p.tenant_id;
+            handles.push(tokio::spawn(async move {
+                repo.record_point(tenant_id, metric.id, f64::from(i), serde_json::json!({}))
+                    .await
+            }));
+        }
+        for h in handles {
+            h.await
+                .expect("record task panicked")
+                .expect("record on a live metric succeeds");
+        }
+
+        let points = repo
+            .list_points(p.tenant_id, metric.id, 50)
+            .await
+            .expect("list points");
+        assert_eq!(points.len(), 8, "every concurrent record must land");
+        let total: f64 = points.iter().map(|pt| pt.value).sum();
+        assert_eq!(total, 28.0, "sum of 0..=7");
+    }
 }

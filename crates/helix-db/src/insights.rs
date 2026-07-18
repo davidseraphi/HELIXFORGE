@@ -309,13 +309,6 @@ impl InsightsRepo {
         aggregation: &str,
         expression: &str,
     ) -> HelixResult<MetricDef> {
-        // Ensure dataset belongs to tenant and is not deleted
-        let ds = self
-            .get_dataset(tenant_id, dataset_id)
-            .await?
-            .ok_or_else(|| HelixError::not_found("dataset not found"))?;
-        let _ = ds;
-
         let id = Uuid::now_v7();
         let created_at = Utc::now();
         let unit = if unit.trim().is_empty() {
@@ -328,11 +321,16 @@ impl InsightsRepo {
         } else {
             aggregation.trim()
         };
-        sqlx::query(
+        // The dataset existence check is part of the INSERT itself: a dataset
+        // deleted between a separate check and insert cannot leak children.
+        let inserted: Option<(Uuid,)> = sqlx::query_as(
             r#"
             INSERT INTO insights.metrics
                 (id, tenant_id, dataset_id, name, unit, aggregation, expression, created_at)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+            SELECT $1, $2, $3, $4, $5, $6, $7, $8
+            FROM insights.datasets d
+            WHERE d.tenant_id = $2 AND d.id = $3 AND d.deleted_at IS NULL
+            RETURNING id
             "#,
         )
         .bind(id)
@@ -343,9 +341,12 @@ impl InsightsRepo {
         .bind(aggregation)
         .bind(expression)
         .bind(created_at)
-        .execute(&self.pool)
+        .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("insights create metric: {e}")))?;
+        if inserted.is_none() {
+            return Err(HelixError::not_found("dataset not found"));
+        }
         Ok(MetricDef {
             id,
             tenant_id,
@@ -447,17 +448,18 @@ impl InsightsRepo {
         value: f64,
         dimensions: serde_json::Value,
     ) -> HelixResult<MetricPoint> {
-        let _metric = self
-            .get_metric(tenant_id, metric_id)
-            .await?
-            .ok_or_else(|| HelixError::not_found("metric not found"))?;
         let id = Uuid::now_v7();
         let recorded_at = Utc::now();
-        sqlx::query(
+        // The metric existence check is part of the INSERT itself: a metric
+        // deleted between a separate check and insert cannot leak points.
+        let inserted: Option<(Uuid,)> = sqlx::query_as(
             r#"
             INSERT INTO insights.metric_points
                 (id, metric_id, tenant_id, value, dimensions, recorded_at)
-            VALUES ($1,$2,$3,$4,$5,$6)
+            SELECT $1, $2, $3, $4, $5, $6
+            FROM insights.metrics m
+            WHERE m.tenant_id = $3 AND m.id = $2 AND m.deleted_at IS NULL
+            RETURNING id
             "#,
         )
         .bind(id)
@@ -466,9 +468,12 @@ impl InsightsRepo {
         .bind(value)
         .bind(&dimensions)
         .bind(recorded_at)
-        .execute(&self.pool)
+        .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("insights record point: {e}")))?;
+        if inserted.is_none() {
+            return Err(HelixError::not_found("metric not found"));
+        }
         Ok(MetricPoint {
             id,
             metric_id,
