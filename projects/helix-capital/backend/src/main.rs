@@ -880,4 +880,195 @@ mod tests {
             .expect("snapshot");
         assert!(snap_count >= 1, "snapshot recorded at least cash");
     }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn concurrent_voids_single_winner() {
+        let (state, _guard) = locked_state().await;
+        let p = dev_principal("capital-race");
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = CapitalRepo::new(pool.clone());
+
+        let cash = repo
+            .create_account(
+                p.tenant_id,
+                "race-cash",
+                "Race Cash",
+                "asset",
+                "USD",
+                serde_json::json!({}),
+            )
+            .await
+            .expect("create cash");
+        let revenue = repo
+            .create_account(
+                p.tenant_id,
+                "race-revenue",
+                "Race Revenue",
+                "revenue",
+                "USD",
+                serde_json::json!({}),
+            )
+            .await
+            .expect("create revenue");
+        let journal = repo
+            .post_journal(
+                p.tenant_id,
+                "race sale",
+                "USD",
+                &[
+                    JournalLineInput {
+                        account_id: cash.id,
+                        side: "debit".into(),
+                        amount_cents: 10_000,
+                        memo: String::new(),
+                    },
+                    JournalLineInput {
+                        account_id: revenue.id,
+                        side: "credit".into(),
+                        amount_cents: 10_000,
+                        memo: String::new(),
+                    },
+                ],
+                serde_json::json!({}),
+            )
+            .await
+            .expect("post journal");
+
+        // 8 racing voids of the same journal.
+        let mut handles = Vec::new();
+        for _ in 0..8u32 {
+            let repo = repo.clone();
+            let tenant_id = p.tenant_id;
+            handles.push(tokio::spawn(async move {
+                repo.void_journal(tenant_id, journal.id, Some("race".into()))
+                    .await
+            }));
+        }
+        let mut winners = 0usize;
+        let mut rejected = 0usize;
+        for h in handles {
+            match h.await.expect("void task panicked") {
+                Ok(_) => winners += 1,
+                Err(e) if e.code == shared_core::ErrorCode::Validation => rejected += 1,
+                Err(e) => panic!("unexpected void error: {e}"),
+            }
+        }
+        assert_eq!(winners, 1, "exactly one racing void may win");
+        assert_eq!(rejected, 7, "all losers must be rejected");
+
+        // The reversal was applied exactly once: balances return to zero,
+        // and there are exactly two reversal lines (one per original line).
+        let cash_after = repo
+            .get_account(p.tenant_id, cash.id)
+            .await
+            .unwrap()
+            .unwrap();
+        let revenue_after = repo
+            .get_account(p.tenant_id, revenue.id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(cash_after.balance_cents, 0, "reversal applied exactly once");
+        assert_eq!(revenue_after.balance_cents, 0);
+
+        let voided = repo
+            .get_journal(p.tenant_id, journal.id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(voided.status, "voided");
+        let reversals = voided.lines.iter().filter(|l| l.is_reversal).count();
+        assert_eq!(reversals, 2, "exactly one reversal line per original line");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn concurrent_journals_exact_balances() {
+        let (state, _guard) = locked_state().await;
+        let p = dev_principal("capital-sum");
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = CapitalRepo::new(pool.clone());
+
+        let cash = repo
+            .create_account(
+                p.tenant_id,
+                "sum-cash",
+                "Sum Cash",
+                "asset",
+                "USD",
+                serde_json::json!({}),
+            )
+            .await
+            .expect("create cash");
+        let revenue = repo
+            .create_account(
+                p.tenant_id,
+                "sum-revenue",
+                "Sum Revenue",
+                "revenue",
+                "USD",
+                serde_json::json!({}),
+            )
+            .await
+            .expect("create revenue");
+
+        // 8 concurrent balanced journals on the same accounts.
+        let mut handles = Vec::new();
+        for i in 0..8u32 {
+            let repo = repo.clone();
+            let tenant_id = p.tenant_id;
+            handles.push(tokio::spawn(async move {
+                repo.post_journal(
+                    tenant_id,
+                    &format!("sale {i}"),
+                    "USD",
+                    &[
+                        JournalLineInput {
+                            account_id: cash.id,
+                            side: "debit".into(),
+                            amount_cents: 100,
+                            memo: String::new(),
+                        },
+                        JournalLineInput {
+                            account_id: revenue.id,
+                            side: "credit".into(),
+                            amount_cents: 100,
+                            memo: String::new(),
+                        },
+                    ],
+                    serde_json::json!({}),
+                )
+                .await
+            }));
+        }
+        for h in handles {
+            h.await
+                .expect("journal task panicked")
+                .expect("balanced journal posts");
+        }
+
+        let cash_after = repo
+            .get_account(p.tenant_id, cash.id)
+            .await
+            .unwrap()
+            .unwrap();
+        let revenue_after = repo
+            .get_account(p.tenant_id, revenue.id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(cash_after.balance_cents, 800, "8 x 100 debit");
+        assert_eq!(revenue_after.balance_cents, -800, "8 x 100 credit");
+
+        // Trial balance must agree.
+        let tb = repo
+            .get_trial_balance(p.tenant_id)
+            .await
+            .expect("trial balance");
+        let cash_tb = tb.iter().find(|r| r.id == cash.id).unwrap();
+        let revenue_tb = tb.iter().find(|r| r.id == revenue.id).unwrap();
+        assert_eq!(cash_tb.balance_cents, 800);
+        assert_eq!(revenue_tb.balance_cents, -800);
+    }
 }
