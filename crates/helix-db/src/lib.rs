@@ -111,7 +111,10 @@ pub use synthbio::{
     SynthbioSummaryRow,
 };
 pub use tenants::{TenantRecord, TenantRepo, TenantStatus};
-pub use terra::{Field, Observation, TerraRepo};
+pub use terra::{
+    next_field_status, next_observation_status, Field, FieldUpdate, Observation, ObservationUpdate,
+    TerraRepo, TerraSummaryRow,
+};
 pub use vault_objects::{VaultObjectRef, VaultObjectStore};
 pub use vault_pg::PgVault;
 // re-export path used by service_kit
