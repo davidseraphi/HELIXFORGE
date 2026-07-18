@@ -1,32 +1,37 @@
 # Next action
 
-## Latest: HELIXWELL-FULL closed and CI-proven
+## Latest: HELIXNETWORK-FULL
 
-HELIXWELL-FULL is complete. The implementation passed local verification and
-GitHub Actions run `29641402713` is all green, including the new
-**HelixWell smoke** job.
+**Goal:** move HelixNetwork from durable scaffold to full second-wave depth.
 
-- Migration: `crates/helix-db/migrations/0043_well_depth.sql`
-- Repo: `crates/helix-db/src/well.rs`
-- API: `projects/helix-well/backend/src/main.rs`
-- Smoke: `scripts/helix_well_smoke.ps1`
-- CI: `.github/workflows/ci.yml` `well-smoke` job
-- Docs: `docs/goals/HELIXWELL_FULL.md`, `DECISION_LOG.md`
+- Migration: `crates/helix-db/migrations/0044_network_depth.sql`
+- Repo: `crates/helix-db/src/network.rs`
+- API: `projects/helix-network/backend/src/main.rs`
+- Smoke: `scripts/helix_network_smoke.ps1`
+- CI: `.github/workflows/ci.yml` `network-smoke` job
+- Docs: `docs/goals/HELIXNETWORK_FULL.md`, `DECISION_LOG.md`
 
-### What was delivered
+### Scope
 
-Habit + check-in lifecycle depth:
-- habit update, pause, resume, end, soft-delete, restore
-- optional check-in fields (missing is not zero) with append-only edit history
-- habit summary report
-- domain status with `phase: wave2_w8` and capability planes
+Profile + connection + opportunity lifecycle depth:
+- profile update, deactivate, reactivate, soft-delete, restore
+- connection decline, remove, block, declined/removed re-request revival
+- opportunity update, close, reopen, soft-delete, restore
+- network summary report
+- domain status with `phase: wave2_w9` and capability planes
 - in-process validation tests + ignored Postgres integration test
 - PowerShell smoke and CI job
 
 ### Active goal
 
-None. HELIXWELL-FULL is closed.
+`HELIXNETWORK-FULL` — in progress.
 
-### Next action
+## Paste-ready continuation prompt
 
-Founder selects the next explicit named goal.
+```text
+Continue in C:\Users\divin\PROJECTS\HELIXFORGE. HELIXNETWORK-FULL is the active
+goal. Implement migration 0044, extend NetworkRepo with profile/connection/
+opportunity lifecycle and network summary; add routes and domain status planes,
+write unit + integration tests, create scripts/helix_network_smoke.ps1, add the
+network-smoke CI job, and prove it green on CI.
+```
