@@ -1,33 +1,40 @@
 # Next action
 
-## Latest: HELIXFLOW-DURABILITY closed — fourth product through the gate
+## Latest: HELIXINSIGHTS-DURABILITY
 
-HELIXFLOW-DURABILITY is complete. The implementation passed local
-verification and GitHub Actions run `29665124925` is all green, including
-the new **HelixFlow durability gate** job.
+**Goal:** prove the Foundation Integrity durability gate on HelixInsights —
+fifth product through the gate (after helix-collab, helix-capital,
+helix-commerce, helix-flow).
 
-- Repo: `crates/helix-db/src/flow.rs` (`update_run` terminal-state guard)
-- Fix: `projects/helix-flow/backend/src/main.rs` (startup routing — the API
-  could not boot on current axum; flow also had no smoke job because of it)
-- Tests: `finished_runs_are_immutable` integration test
-- Proof: `scripts/helix_flow_durability.ps1` (forced-kill + restore)
-- CI: `.github/workflows/ci.yml` `flow-durability` job
-- Docs: `docs/goals/HELIXFLOW_DURABILITY.md`, `DECISION_LOG.md`
+- Repo: `crates/helix-db/src/insights.rs` (atomic INSERT...SELECT for
+  `create_metric` and `record_point`)
+- Tests: `projects/helix-insights/backend/src/main.rs`
+  (`points_rejected_on_deleted_metric`, `concurrent_records_all_landed`)
+- Proof: `scripts/helix_insights_durability.ps1` (forced-kill + restore)
+- CI: `.github/workflows/ci.yml` `insights-durability` job
+- Docs: `docs/goals/HELIXINSIGHTS_DURABILITY.md`, `DECISION_LOG.md`
 
-### What was delivered
+### Scope
 
-- terminal runs are immutable (`finished_at IS NULL` guard)
-- flow API boots again (routing fix)
-- concurrency proof: after finish, 8 concurrent update attempts all rejected
-- crash proof: acknowledged run survives a forced kill of the API
-- restore proof: schema dump roundtrip with equal counts + content hashes
-- `helix-flow` recorded in `durability_gate_proven_products`
+- fix: metric/dataset existence enforced in the INSERT itself (no
+  check-then-insert window)
+- concurrency proof: records on a deleted metric all rejected; concurrent
+  records on a live metric all land
+- crash proof: acknowledged point survives a forced kill of the API
+- restore proof: `insights` schema dump roundtrip with equal counts + hashes
 
 ### Active goal
 
-None. HELIXFLOW-DURABILITY is closed.
+`HELIXINSIGHTS-DURABILITY` — in progress.
 
-### Next action
+## Paste-ready continuation prompt
 
-Founder selects the next explicit named goal. Open: durability gates for
-the remaining 17 products.
+```text
+Continue in C:\Users\divin\PROJECTS\HELIXFORGE. HELIXINSIGHTS-DURABILITY is
+the active goal. Make create_metric and record_point atomic INSERT...SELECT
+statements; add points_rejected_on_deleted_metric and
+concurrent_records_all_landed integration tests; create
+scripts/helix_insights_durability.ps1 (forced-kill + restore proofs) and the
+insights-durability CI job; prove it green on CI; record helix-insights in
+durability_gate_proven_products.
+```
