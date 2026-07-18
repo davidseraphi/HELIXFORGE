@@ -1,9 +1,10 @@
 # Next action
 
-## Latest: HELIXCURAPRIME-FULL
+## Latest: HELIXCURAPRIME-FULL closed and CI-proven
 
-**Goal:** move HelixCura Prime from thin durable scaffold to full second-wave
-depth.
+HELIXCURAPRIME-FULL is complete. The implementation passed local verification
+and GitHub Actions run `29647567869` is all green, including the new
+**HelixCura Prime smoke** job.
 
 - Migration: `crates/helix-db/migrations/0048_cura_depth.sql`
 - Repo: `crates/helix-db/src/cura.rs`
@@ -12,7 +13,7 @@ depth.
 - CI: `.github/workflows/ci.yml` `cura-prime-smoke` job
 - Docs: `docs/goals/HELIXCURAPRIME_FULL.md`, `DECISION_LOG.md`
 
-### Scope
+### What was delivered
 
 Care-case + note lifecycle depth:
 - case update, activate, discharge (rejected while draft notes remain),
@@ -25,14 +26,8 @@ Care-case + note lifecycle depth:
 
 ### Active goal
 
-`HELIXCURAPRIME-FULL` — in progress.
+None. HELIXCURAPRIME-FULL is closed.
 
-## Paste-ready continuation prompt
+### Next action
 
-```text
-Continue in C:\Users\divin\PROJECTS\HELIXFORGE. HELIXCURAPRIME-FULL is the
-active goal. Implement migration 0048, extend CuraRepo with case/note
-lifecycle and cura summary; add routes and domain status planes, write unit +
-integration tests, create scripts/helix_cura_prime_smoke.ps1, add the
-cura-prime-smoke CI job, and prove it green on CI.
-```
+Founder selects the next explicit named goal.

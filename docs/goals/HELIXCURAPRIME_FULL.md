@@ -50,7 +50,10 @@ sign/void lifecycle with signed-note immutability, and a cura summary report.
 
 ## Status
 
-- **Active**
+- **Closed / CI-proven**
+- CI run: `29647567869`
+- Smoke script: `scripts/helix_cura_prime_smoke.ps1`
+- Unit tests: `2/2 PASS` (plus one ignored Postgres integration test)
 
 ## Out of scope
 

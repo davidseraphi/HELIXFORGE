@@ -4,10 +4,10 @@
   "stage": "prototype",
   "updated_at": "2026-07-18",
   "active_slice": "category-defining-product-program",
-  "active_goal": "HELIXCURAPRIME-FULL",
-  "active_phase": "helixcuraprime_full_depth",
-  "previous_goal": "HELIXLEXPRIME-FULL_CI_PROVEN",
-  "review_gate": "HELIXCURAPRIME-FULL",
+  "active_goal": null,
+  "active_phase": null,
+  "previous_goal": "HELIXCURAPRIME-FULL_CI_PROVEN",
+  "review_gate": null,
   "category_defining_program": {
     "status": "foundation_integrity_umbrella_011.7_closed",
     "root": "docs/product-program",
@@ -22,12 +22,12 @@
       "helix-anvil-standalone"
     ],
     "implementation_started": true,
-    "next_gate": "HELIXCURAPRIME-FULL depth packet"
+    "next_gate": "awaiting_founder_goal_selection"
   },
   "second_wave": {
     "roadmap": "docs/SECOND_WAVE.md",
     "status": "paused_by_category_defining_program",
-    "current": "helix-cura-prime",
+    "current": null,
     "completed": [
       "helix-commerce",
       "helix-flow",
@@ -38,7 +38,8 @@
       "helix-network",
       "helix-forge-studio",
       "helix-synthbio",
-      "helix-lex-prime"
+      "helix-lex-prime",
+      "helix-cura-prime"
     ],
     "order": [
       "helix-flow",
@@ -74,7 +75,7 @@
     "current_validity": "unverified_after_later_tree_changes"
   },
   "foundation_integrity_current_gate": "011.7_CLOSED",
-  "full_workspace_current_status": "fmt_clippy_test_helm_verify_helixcore_full_pass_helixlexprime_full_ci_proven_run_29646308966",
+  "full_workspace_current_status": "fmt_clippy_test_helm_verify_helixcore_full_pass_helixcuraprime_full_ci_proven_run_29647567869",
   "core_services": [
     "gateway",
     "agent-hub",
@@ -150,11 +151,11 @@
   "ratified_specs": [],
   "last_smoke": {
     "date": "2026-07-18",
-    "service": "helix-lex-prime",
+    "service": "helix-cura-prime",
     "postgres": true,
     "minio": true,
     "nats": true,
-    "path": "scripts/helix_lex_prime_smoke.ps1 PASS \u2014 local + CI"
+    "path": "scripts/helix_cura_prime_smoke.ps1 PASS \u2014 local + CI"
   },
   "helix_code_extreme": {
     "phase": "endstate",
@@ -654,6 +655,46 @@
     "smoke": "PASS",
     "smoke_script": "scripts/helix_lex_prime_smoke.ps1",
     "ci_run": "29646308966",
+    "unit": "2/2 PASS",
+    "next": "CI proven"
+  },
+  "helix_cura_prime_full_depth": {
+    "migration": "0048_cura_depth.sql",
+    "routes": [
+      "GET /v1/care_cases",
+      "POST /v1/care_cases",
+      "GET /v1/care_cases/{id}",
+      "PATCH /v1/care_cases/{id}",
+      "POST /v1/care_cases/{id}/activate",
+      "POST /v1/care_cases/{id}/discharge",
+      "POST /v1/care_cases/{id}/reopen",
+      "POST /v1/care_cases/{id}/delete",
+      "POST /v1/care_cases/{id}/restore",
+      "GET /v1/care_cases/{id}/notes",
+      "POST /v1/care_cases/{id}/notes",
+      "PATCH /v1/care_cases/{id}/notes/{note_id}",
+      "POST /v1/care_cases/{id}/notes/{note_id}/sign",
+      "POST /v1/care_cases/{id}/notes/{note_id}/void",
+      "POST /v1/care_cases/{id}/notes/{note_id}/delete",
+      "POST /v1/care_cases/{id}/notes/{note_id}/restore",
+      "GET /v1/reports/cura-summary",
+      "GET /v1/domain/status"
+    ],
+    "planes": [
+      "care_cases",
+      "notes",
+      "case_lifecycle",
+      "note_lifecycle",
+      "signed_immutable",
+      "discharge_guards",
+      "cura_summary",
+      "audit",
+      "metering",
+      "nats"
+    ],
+    "smoke": "PASS",
+    "smoke_script": "scripts/helix_cura_prime_smoke.ps1",
+    "ci_run": "29647567869",
     "unit": "2/2 PASS",
     "next": "CI proven"
   },

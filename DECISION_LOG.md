@@ -1,5 +1,45 @@
 # Decision log (append-only)
 
+## 2026-07-18 — HELIXCURAPRIME-FULL closed and CI-proven
+
+- Completed the HelixCura Prime second-wave depth packet:
+  - Migration `0048_cura_depth.sql` + down migration: `activated_at`/
+    `discharged_at`/`deleted_at` lifecycle columns on `cura.care_cases`;
+    `updated_at`, `signed_at`, `voided_at`, `deleted_at` on `cura.notes`;
+    legacy `open` note status backfilled to `draft`; partial active indexes.
+  - Extended `CuraRepo` (`crates/helix-db/src/cura.rs`) with `update_case`,
+    `activate_case`, `discharge_case` (rejected while draft notes remain),
+    `reopen_case`, `soft_delete_case`, `restore_case`; parent-verified
+    `update_note` (rejected once signed or voided), `sign_note`, `void_note`,
+    `soft_delete_note`, `restore_note`; and `get_cura_summary`.
+  - Added routes in `projects/helix-cura-prime/backend/src/main.rs`:
+    `PATCH /v1/care_cases/{id}`, `POST /v1/care_cases/{id}/activate`,
+    `POST /v1/care_cases/{id}/discharge`, `POST /v1/care_cases/{id}/reopen`,
+    `POST /v1/care_cases/{id}/delete`, `POST /v1/care_cases/{id}/restore`,
+    `PATCH /v1/care_cases/{id}/notes/{note_id}`,
+    `POST /v1/care_cases/{id}/notes/{note_id}/sign`,
+    `POST /v1/care_cases/{id}/notes/{note_id}/void`,
+    `POST /v1/care_cases/{id}/notes/{note_id}/delete`,
+    `POST /v1/care_cases/{id}/notes/{note_id}/restore`,
+    `GET /v1/reports/cura-summary`, and `GET /v1/domain/status` with planes.
+  - In-process tests: case and note status transition guards.
+  - Ignored Postgres integration test for the discharge guard, signed-note
+    immutability, case/note lifecycle, and cura summary.
+  - PowerShell smoke `scripts/helix_cura_prime_smoke.ps1` and
+    `cura-prime-smoke` CI job in `.github/workflows/ci.yml`.
+- Verification:
+  - `cargo fmt --all -- --check` clean.
+  - `cargo clippy --workspace --all-targets -- -D warnings` clean.
+  - `cargo test --workspace --all-features` clean.
+  - Local smoke against Postgres/NATS/MinIO passes.
+  - GitHub Actions run `29647567869` is all green, including the new
+    **HelixCura Prime smoke** job.
+- Commits `60ba77f` (activation) and `cd279bb` (implementation) pushed to
+  `main`.
+- `PROJECT_STATE.json` and `NEXT_ACTION.md` updated to mark
+  HELIXCURAPRIME-FULL closed and clear the active goal.
+- Next action: founder selects the next explicit named goal.
+
 ## 2026-07-18 — HELIXLEXPRIME-FULL closed and CI-proven
 
 - Completed the HelixLex Prime second-wave depth packet:
