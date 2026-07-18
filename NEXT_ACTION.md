@@ -1,33 +1,38 @@
 # Next action
 
-## Latest: HELIXFORGESTUDIO-FULL closed and CI-proven
+## Latest: HELIXSYNTHBIO-FULL
 
-HELIXFORGESTUDIO-FULL is complete. The implementation passed local
-verification and GitHub Actions run `29643838956` is all green, including the
-new **HelixForge Studio smoke** job.
+**Goal:** move HelixSynthBio from thin durable scaffold to full second-wave
+depth.
 
-- Migration: `crates/helix-db/migrations/0045_studio_depth.sql`
-- Repo: `crates/helix-db/src/studio.rs`
-- API: `projects/helix-forge-studio/backend/src/main.rs`
-- Smoke: `scripts/helix_forge_studio_smoke.ps1`
-- CI: `.github/workflows/ci.yml` `forge-studio-smoke` job
-- Docs: `docs/goals/HELIXFORGESTUDIO_FULL.md`, `DECISION_LOG.md`
+- Migration: `crates/helix-db/migrations/0046_synthbio_depth.sql`
+- Repo: `crates/helix-db/src/synthbio.rs`
+- API: `projects/helix-synthbio/backend/src/main.rs`
+- Smoke: `scripts/helix_synthbio_smoke.ps1`
+- CI: `.github/workflows/ci.yml` `synthbio-smoke` job
+- Docs: `docs/goals/HELIXSYNTHBIO_FULL.md`, `DECISION_LOG.md`
 
-### What was delivered
+### Scope
 
-App + page lifecycle depth:
-- app update, publish (requires a non-deleted page), unpublish, soft-delete,
-  restore
-- page update, archive, reopen, soft-delete, restore (parent-verified)
-- studio summary report
-- domain status with `phase: wave2_w10` and capability planes
+Design + sim lifecycle depth:
+- design update, submit, approve (requires a completed sim), return,
+  soft-delete, restore
+- sim update, start, complete, fail, soft-delete, restore
+- synthbio summary report
+- domain status with `phase: wave2_w11` and capability planes
 - in-process validation tests + ignored Postgres integration test
 - PowerShell smoke and CI job
 
 ### Active goal
 
-None. HELIXFORGESTUDIO-FULL is closed.
+`HELIXSYNTHBIO-FULL` — in progress.
 
-### Next action
+## Paste-ready continuation prompt
 
-Founder selects the next explicit named goal.
+```text
+Continue in C:\Users\divin\PROJECTS\HELIXFORGE. HELIXSYNTHBIO-FULL is the
+active goal. Implement migration 0046, extend SynthbioRepo with design/sim
+lifecycle and synthbio summary; add routes and domain status planes, write
+unit + integration tests, create scripts/helix_synthbio_smoke.ps1, add the
+synthbio-smoke CI job, and prove it green on CI.
+```
