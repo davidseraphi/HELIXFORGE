@@ -102,7 +102,10 @@ pub use vault_pg::PgVault;
 // re-export path used by service_kit
 pub use atomic::AtomicWork;
 pub use vita::{Cohort, Study, VitaRepo};
-pub use well::{CheckIn, Habit, HabitLog, WellRepo};
+pub use well::{
+    next_habit_status, validate_optional_scale, CheckIn, CheckInEdit, CheckInUpdate, Habit,
+    HabitLog, HabitSummaryRow, HabitUpdate, WellRepo,
+};
 pub use workspace::{WorkspaceRecord, WorkspaceRepo};
 
 /// Pin the Postgres session variable `app.current_tenant` for RLS policies.
