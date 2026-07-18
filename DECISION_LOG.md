@@ -1,5 +1,47 @@
 # Decision log (append-only)
 
+## 2026-07-18 — HELIXNOVALABS-FULL closed and CI-proven
+
+- Completed the HelixNova Labs second-wave depth packet:
+  - Migration `0055_nova_depth.sql` + down migration: `started_at`/
+    `concluded_at`/`deleted_at` lifecycle columns on `nova.experiments`;
+    `updated_at`, `confirmed_at`, `rejected_at`, `deleted_at` on
+    `nova.findings`; legacy `open` finding status backfilled to `draft`;
+    partial active indexes.
+  - Extended `NovaRepo` (`crates/helix-db/src/nova.rs`) with
+    `update_experiment`, `start_experiment`, `conclude_experiment` (rejected
+    while draft findings remain), `reopen_experiment`,
+    `soft_delete_experiment`, `restore_experiment`; parent-verified
+    `update_finding`, `confirm_finding`, `reject_finding`,
+    `soft_delete_finding`, `restore_finding`; and `get_nova_summary`.
+  - Added routes in `projects/helix-nova-labs/backend/src/main.rs`:
+    `PATCH /v1/experiments/{id}`, `POST /v1/experiments/{id}/start`,
+    `POST /v1/experiments/{id}/conclude`, `POST /v1/experiments/{id}/reopen`,
+    `POST /v1/experiments/{id}/delete`, `POST /v1/experiments/{id}/restore`,
+    `PATCH /v1/experiments/{id}/findings/{finding_id}`,
+    `POST /v1/experiments/{id}/findings/{finding_id}/confirm`,
+    `POST /v1/experiments/{id}/findings/{finding_id}/reject`,
+    `POST /v1/experiments/{id}/findings/{finding_id}/delete`,
+    `POST /v1/experiments/{id}/findings/{finding_id}/restore`,
+    `GET /v1/reports/nova-summary`, and `GET /v1/domain/status` with planes.
+  - In-process tests: experiment and finding status transition guards.
+  - Ignored Postgres integration test for the conclusion guard,
+    experiment/finding lifecycle, and nova summary.
+  - PowerShell smoke `scripts/helix_nova_labs_smoke.ps1` and
+    `nova-labs-smoke` CI job in `.github/workflows/ci.yml`.
+- Verification:
+  - `cargo fmt --all -- --check` clean.
+  - `cargo clippy --workspace --all-targets -- -D warnings` clean.
+  - `cargo test --workspace --all-features` clean.
+  - Local smoke against Postgres/NATS/MinIO passes.
+  - GitHub Actions run `29658744542` is all green, including the new
+    **HelixNova Labs smoke** job.
+- Commits `29320db` (activation) and `ec2c04c` (implementation) pushed to
+  `main`.
+- `PROJECT_STATE.json` and `NEXT_ACTION.md` updated to mark
+  HELIXNOVALABS-FULL closed and clear the active goal.
+- Next action: founder selects the next explicit named goal.
+
 ## 2026-07-18 — HELIXGRIDPRIME-FULL closed and CI-proven
 
 - Completed the HelixGrid Prime second-wave depth packet:

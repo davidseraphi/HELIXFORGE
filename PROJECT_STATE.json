@@ -4,10 +4,10 @@
   "stage": "prototype",
   "updated_at": "2026-07-18",
   "active_slice": "category-defining-product-program",
-  "active_goal": "HELIXNOVALABS-FULL",
-  "active_phase": "helixnovalabs_full_depth",
-  "previous_goal": "HELIXGRIDPRIME-FULL_CI_PROVEN",
-  "review_gate": "HELIXNOVALABS-FULL",
+  "active_goal": null,
+  "active_phase": null,
+  "previous_goal": "HELIXNOVALABS-FULL_CI_PROVEN",
+  "review_gate": null,
   "category_defining_program": {
     "status": "foundation_integrity_umbrella_011.7_closed",
     "root": "docs/product-program",
@@ -22,12 +22,12 @@
       "helix-anvil-standalone"
     ],
     "implementation_started": true,
-    "next_gate": "HELIXNOVALABS-FULL depth packet"
+    "next_gate": "awaiting_founder_goal_selection"
   },
   "second_wave": {
     "roadmap": "docs/SECOND_WAVE.md",
     "status": "paused_by_category_defining_program",
-    "current": "helix-nova-labs",
+    "current": null,
     "completed": [
       "helix-commerce",
       "helix-flow",
@@ -45,7 +45,8 @@
       "helix-orbit-prime",
       "helix-quantum-forge",
       "helix-vita-prime",
-      "helix-grid-prime"
+      "helix-grid-prime",
+      "helix-nova-labs"
     ],
     "order": [
       "helix-flow",
@@ -81,7 +82,7 @@
     "current_validity": "unverified_after_later_tree_changes"
   },
   "foundation_integrity_current_gate": "011.7_CLOSED",
-  "full_workspace_current_status": "fmt_clippy_test_helm_verify_helixcore_full_pass_helixgridprime_full_ci_proven_run_29656995350",
+  "full_workspace_current_status": "fmt_clippy_test_helm_verify_helixcore_full_pass_helixnovalabs_full_ci_proven_run_29658744542",
   "core_services": [
     "gateway",
     "agent-hub",
@@ -157,11 +158,11 @@
   "ratified_specs": [],
   "last_smoke": {
     "date": "2026-07-18",
-    "service": "helix-grid-prime",
+    "service": "helix-nova-labs",
     "postgres": true,
     "minio": true,
     "nats": true,
-    "path": "scripts/helix_grid_prime_smoke.ps1 PASS \u2014 local + CI"
+    "path": "scripts/helix_nova_labs_smoke.ps1 PASS \u2014 local + CI"
   },
   "helix_code_extreme": {
     "phase": "endstate",
@@ -936,6 +937,45 @@
     "smoke": "PASS",
     "smoke_script": "scripts/helix_grid_prime_smoke.ps1",
     "ci_run": "29656995350",
+    "unit": "2/2 PASS",
+    "next": "CI proven"
+  },
+  "helix_nova_labs_full_depth": {
+    "migration": "0055_nova_depth.sql",
+    "routes": [
+      "GET /v1/experiments",
+      "POST /v1/experiments",
+      "GET /v1/experiments/{id}",
+      "PATCH /v1/experiments/{id}",
+      "POST /v1/experiments/{id}/start",
+      "POST /v1/experiments/{id}/conclude",
+      "POST /v1/experiments/{id}/reopen",
+      "POST /v1/experiments/{id}/delete",
+      "POST /v1/experiments/{id}/restore",
+      "GET /v1/experiments/{id}/findings",
+      "POST /v1/experiments/{id}/findings",
+      "PATCH /v1/experiments/{id}/findings/{finding_id}",
+      "POST /v1/experiments/{id}/findings/{finding_id}/confirm",
+      "POST /v1/experiments/{id}/findings/{finding_id}/reject",
+      "POST /v1/experiments/{id}/findings/{finding_id}/delete",
+      "POST /v1/experiments/{id}/findings/{finding_id}/restore",
+      "GET /v1/reports/nova-summary",
+      "GET /v1/domain/status"
+    ],
+    "planes": [
+      "experiments",
+      "findings",
+      "experiment_lifecycle",
+      "finding_lifecycle",
+      "conclude_guards",
+      "nova_summary",
+      "audit",
+      "metering",
+      "nats"
+    ],
+    "smoke": "PASS",
+    "smoke_script": "scripts/helix_nova_labs_smoke.ps1",
+    "ci_run": "29658744542",
     "unit": "2/2 PASS",
     "next": "CI proven"
   },

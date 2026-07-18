@@ -1,9 +1,10 @@
 # Next action
 
-## Latest: HELIXNOVALABS-FULL
+## Latest: HELIXNOVALABS-FULL closed and CI-proven
 
-**Goal:** move HelixNova Labs from thin durable scaffold to full second-wave
-depth.
+HELIXNOVALABS-FULL is complete. The implementation passed local verification
+and GitHub Actions run `29658744542` is all green, including the new
+**HelixNova Labs smoke** job.
 
 - Migration: `crates/helix-db/migrations/0055_nova_depth.sql`
 - Repo: `crates/helix-db/src/nova.rs`
@@ -12,7 +13,7 @@ depth.
 - CI: `.github/workflows/ci.yml` `nova-labs-smoke` job
 - Docs: `docs/goals/HELIXNOVALABS_FULL.md`, `DECISION_LOG.md`
 
-### Scope
+### What was delivered
 
 Experiment + finding lifecycle depth:
 - experiment update, start, conclude (rejected while draft findings remain),
@@ -25,14 +26,10 @@ Experiment + finding lifecycle depth:
 
 ### Active goal
 
-`HELIXNOVALABS-FULL` — in progress.
+None. HELIXNOVALABS-FULL is closed.
 
-## Paste-ready continuation prompt
+### Next action
 
-```text
-Continue in C:\Users\divin\PROJECTS\HELIXFORGE. HELIXNOVALABS-FULL is the
-active goal. Implement migration 0055, extend NovaRepo with experiment/finding
-lifecycle and nova summary; add routes and domain status planes, write unit +
-integration tests, create scripts/helix_nova_labs_smoke.ps1, add the
-nova-labs-smoke CI job, and prove it green on CI.
-```
+Founder selects the next explicit named goal. Products 1–20 are now all at
+second-wave depth; HelixPulse (21) remains scaffold-only and deferred until
+the founder activates it.
