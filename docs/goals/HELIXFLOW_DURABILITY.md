@@ -32,7 +32,12 @@ packet makes terminal runs immutable and proves the gate.
 
 ## Status
 
-- **Active**
+- **Closed / CI-proven**
+- CI run: `29665124925` (**HelixFlow durability gate** job green; two
+  pre-existing smoke jobs flaked on an infra port collision and passed on
+  rerun)
+- Proof script: `scripts/helix_flow_durability.ps1`
+- Gate proven locally (Windows) and in CI (ubuntu)
 
 ## Out of scope
 

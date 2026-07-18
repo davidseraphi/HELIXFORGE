@@ -1,5 +1,45 @@
 # Decision log (append-only)
 
+## 2026-07-18 — HELIXFLOW-DURABILITY closed; fourth product through the gate
+
+- Completed the HelixFlow durability-gate packet (`helix-flow` added to
+  `durability_gate_proven_products`):
+  - **Terminal runs are now immutable:** `FlowRepo::update_run` guards on
+    `finished_at IS NULL` — previously a finished run could silently
+    transition back to running. Progress updates and re-finishes after
+    completion are rejected with a validation error
+    (`crates/helix-db/src/flow.rs`).
+  - **Latent startup bug fixed:** the flow backend still used
+    `nest_service("/", ...)`, which panics at startup on current axum
+    ("Nesting at the root is no longer supported") — the API could not
+    boot on `main`, which is also why flow had no smoke job. Switched to
+    the `.merge(domain_routes())` pattern used by every other product
+    (`projects/helix-flow/backend/src/main.rs`).
+  - New ignored Postgres integration test `finished_runs_are_immutable`
+    (after a run finishes, 8 concurrent update attempts are all rejected;
+    status and `finished_at` unchanged).
+  - `scripts/helix_flow_durability.ps1` proves: workflow/run lifecycle; an
+    acknowledged run surviving an immediate forced kill of the API; and a
+    `flow` schema `pg_dump` roundtrip into a scratch database with equal
+    workflow/run/event counts and equal content hashes.
+  - `flow-durability` CI job running the ignored integration tests and the
+    proof script.
+- Verification:
+  - `cargo fmt --all -- --check` clean.
+  - `cargo clippy --workspace --all-targets -- -D warnings` clean.
+  - `cargo test --workspace --all-features` clean.
+  - Immutability proof passes against live Postgres; durability script
+    passes locally (Windows) and in CI (ubuntu).
+  - GitHub Actions run `29665124925` is all green (two pre-existing smoke
+    jobs flaked on a CI infra port collision and passed on rerun),
+    including the new **HelixFlow durability gate** job and all 19 product
+    smoke jobs.
+- Commits `a1b4817` (activation) and `03d8f49` (implementation) pushed to
+  `main`.
+- `PROJECT_STATE.json` and `NEXT_ACTION.md` updated; `helix-flow` recorded
+  in `durability_gate_proven_products`.
+- Next action: founder selects the next explicit named goal.
+
 ## 2026-07-18 — HELIXCOMMERCE-DURABILITY closed; third product through the gate
 
 - Completed the HelixCommerce durability-gate packet (`helix-commerce`
