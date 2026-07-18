@@ -705,3 +705,78 @@ jobs:
       - name: Stop HelixNetwork API
         if: always()
         run: kill $NETWORK_PID || true
+
+  forge-studio-smoke:
+    name: HelixForge Studio smoke
+    runs-on: ubuntu-latest
+    needs: rust-matrix
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile || pnpm install
+
+      - name: Start core infrastructure
+        run: docker compose up -d postgres nats minio minio-init
+
+      - name: Wait for Postgres
+        run: |
+          for i in $(seq 1 30); do
+            docker compose exec -T postgres pg_isready -U helix -d helixforge && exit 0
+            sleep 2
+          done
+          exit 1
+
+      - name: Apply migrations
+        run: cargo run -p helix_db --bin helix-migrate
+        env:
+          DATABASE_URL: postgres://helix:helix@127.0.0.1:55432/helixforge
+
+      - name: Build HelixForge Studio API
+        run: cargo build -p helix_forge_studio_api
+        env:
+          HELIX_ENV: local
+          HELIX_LOCAL_DEV_UNSAFE: 1
+          HELIX_ALLOW_DEV_HEADERS: 1
+          HELIX_DEV_PLATFORM: 1
+          DATABASE_URL: postgres://helix:helix@127.0.0.1:55432/helixforge
+          NATS_URL: nats://127.0.0.1:4222
+          MINIO_ENDPOINT: http://127.0.0.1:9000
+          HELIX_VAULT_MASTER_KEY: smoke-smoke-smoke-master-key
+          HELIX_AUDIT_HMAC_SECRET: smoke-audit-hmac-secret
+          HELIX_WEBHOOK_ALLOW_UNSIGNED: 1
+
+      - name: Start HelixForge Studio API
+        run: |
+          ./target/debug/helix_forge_studio_api > forge-studio-api.log 2>&1 &
+          echo "STUDIO_PID=$!" >> $GITHUB_ENV
+          for i in $(seq 1 60); do
+            curl -fs http://127.0.0.1:8110/healthz && exit 0
+            sleep 2
+          done
+          cat forge-studio-api.log
+          exit 1
+        env:
+          HELIX_ENV: local
+          HELIX_LOCAL_DEV_UNSAFE: 1
+          HELIX_ALLOW_DEV_HEADERS: 1
+          HELIX_DEV_PLATFORM: 1
+          DATABASE_URL: postgres://helix:helix@127.0.0.1:55432/helixforge
+          NATS_URL: nats://127.0.0.1:4222
+          MINIO_ENDPOINT: http://127.0.0.1:9000
+          HELIX_VAULT_MASTER_KEY: smoke-smoke-smoke-master-key
+          HELIX_AUDIT_HMAC_SECRET: smoke-audit-hmac-secret
+          HELIX_WEBHOOK_ALLOW_UNSIGNED: 1
+
+      - name: Run HelixForge Studio smoke
+        shell: pwsh
+        run: pwsh -File scripts/helix_forge_studio_smoke.ps1
+
+      - name: Stop HelixForge Studio API
+        if: always()
+        run: kill $STUDIO_PID || true

@@ -96,7 +96,10 @@ pub use pool::{
 };
 pub use quantum::{Circuit, QuantumJob, QuantumRepo};
 pub use regions::{RegionRecord, RegionRepo};
-pub use studio::{App, Page, StudioRepo};
+pub use studio::{
+    next_app_status, next_page_status, App, AppUpdate, Page, PageUpdate, StudioRepo,
+    StudioSummaryRow,
+};
 pub use synthbio::{Design, SimRun, SynthbioRepo};
 pub use tenants::{TenantRecord, TenantRepo, TenantStatus};
 pub use terra::{Field, Observation, TerraRepo};
