@@ -4,10 +4,10 @@
   "stage": "prototype",
   "updated_at": "2026-07-18",
   "active_slice": "category-defining-product-program",
-  "active_goal": "HELIXSYNTHBIO-FULL",
-  "active_phase": "helixsynthbio_full_depth",
-  "previous_goal": "HELIXFORGESTUDIO-FULL_CI_PROVEN",
-  "review_gate": "HELIXSYNTHBIO-FULL",
+  "active_goal": null,
+  "active_phase": null,
+  "previous_goal": "HELIXSYNTHBIO-FULL_CI_PROVEN",
+  "review_gate": null,
   "category_defining_program": {
     "status": "foundation_integrity_umbrella_011.7_closed",
     "root": "docs/product-program",
@@ -22,12 +22,12 @@
       "helix-anvil-standalone"
     ],
     "implementation_started": true,
-    "next_gate": "HELIXSYNTHBIO-FULL depth packet"
+    "next_gate": "awaiting_founder_goal_selection"
   },
   "second_wave": {
     "roadmap": "docs/SECOND_WAVE.md",
     "status": "paused_by_category_defining_program",
-    "current": "helix-synthbio",
+    "current": null,
     "completed": [
       "helix-commerce",
       "helix-flow",
@@ -36,7 +36,8 @@
       "helix-capital",
       "helix-well",
       "helix-network",
-      "helix-forge-studio"
+      "helix-forge-studio",
+      "helix-synthbio"
     ],
     "order": [
       "helix-flow",
@@ -72,7 +73,7 @@
     "current_validity": "unverified_after_later_tree_changes"
   },
   "foundation_integrity_current_gate": "011.7_CLOSED",
-  "full_workspace_current_status": "fmt_clippy_test_helm_verify_helixcore_full_pass_helixforgestudio_full_ci_proven_run_29643838956",
+  "full_workspace_current_status": "fmt_clippy_test_helm_verify_helixcore_full_pass_helixsynthbio_full_ci_proven_run_29644975351",
   "core_services": [
     "gateway",
     "agent-hub",
@@ -148,11 +149,11 @@
   "ratified_specs": [],
   "last_smoke": {
     "date": "2026-07-18",
-    "service": "helix-forge-studio",
+    "service": "helix-synthbio",
     "postgres": true,
     "minio": true,
     "nats": true,
-    "path": "scripts/helix_forge_studio_smoke.ps1 PASS \u2014 local + CI"
+    "path": "scripts/helix_synthbio_smoke.ps1 PASS \u2014 local + CI"
   },
   "helix_code_extreme": {
     "phase": "endstate",
@@ -573,6 +574,46 @@
     "smoke": "PASS",
     "smoke_script": "scripts/helix_forge_studio_smoke.ps1",
     "ci_run": "29643838956",
+    "unit": "2/2 PASS",
+    "next": "CI proven"
+  },
+  "helix_synthbio_full_depth": {
+    "migration": "0046_synthbio_depth.sql",
+    "routes": [
+      "GET /v1/designs",
+      "POST /v1/designs",
+      "GET /v1/designs/{id}",
+      "PATCH /v1/designs/{id}",
+      "POST /v1/designs/{id}/submit",
+      "POST /v1/designs/{id}/approve",
+      "POST /v1/designs/{id}/return",
+      "POST /v1/designs/{id}/delete",
+      "POST /v1/designs/{id}/restore",
+      "GET /v1/designs/{id}/sims",
+      "POST /v1/designs/{id}/sims",
+      "PATCH /v1/designs/{id}/sims/{sim_id}",
+      "POST /v1/designs/{id}/sims/{sim_id}/start",
+      "POST /v1/designs/{id}/sims/{sim_id}/complete",
+      "POST /v1/designs/{id}/sims/{sim_id}/fail",
+      "POST /v1/designs/{id}/sims/{sim_id}/delete",
+      "POST /v1/designs/{id}/sims/{sim_id}/restore",
+      "GET /v1/reports/synthbio-summary",
+      "GET /v1/domain/status"
+    ],
+    "planes": [
+      "designs",
+      "sims",
+      "design_lifecycle",
+      "sim_lifecycle",
+      "approval_guards",
+      "synthbio_summary",
+      "audit",
+      "metering",
+      "nats"
+    ],
+    "smoke": "PASS",
+    "smoke_script": "scripts/helix_synthbio_smoke.ps1",
+    "ci_run": "29644975351",
     "unit": "2/2 PASS",
     "next": "CI proven"
   },

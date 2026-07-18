@@ -50,7 +50,10 @@ run lifecycle, and a synthbio summary report.
 
 ## Status
 
-- **Active**
+- **Closed / CI-proven**
+- CI run: `29644975351`
+- Smoke script: `scripts/helix_synthbio_smoke.ps1`
+- Unit tests: `2/2 PASS` (plus one ignored Postgres integration test)
 
 ## Out of scope
 

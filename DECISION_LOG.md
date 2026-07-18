@@ -1,5 +1,47 @@
 # Decision log (append-only)
 
+## 2026-07-18 — HELIXSYNTHBIO-FULL closed and CI-proven
+
+- Completed the HelixSynthBio second-wave depth packet:
+  - Migration `0046_synthbio_depth.sql` + down migration: `submitted_at`/
+    `approved_at`/`deleted_at` lifecycle columns on `synthbio.designs`;
+    `updated_at`, `started_at`, `completed_at`, `failed_at`, `deleted_at` on
+    `synthbio.sims`; partial active indexes.
+  - Extended `SynthbioRepo` (`crates/helix-db/src/synthbio.rs`) with
+    `update_design`, `submit_design`, `approve_design` (requires at least one
+    completed sim), `return_design`, `soft_delete_design`, `restore_design`;
+    parent-verified `update_sim`, `start_sim`, `complete_sim`, `fail_sim`,
+    `soft_delete_sim`, `restore_sim`; and `get_synthbio_summary`.
+  - Added routes in `projects/helix-synthbio/backend/src/main.rs`:
+    `PATCH /v1/designs/{id}`, `POST /v1/designs/{id}/submit`,
+    `POST /v1/designs/{id}/approve`, `POST /v1/designs/{id}/return`,
+    `POST /v1/designs/{id}/delete`, `POST /v1/designs/{id}/restore`,
+    `PATCH /v1/designs/{id}/sims/{sim_id}`,
+    `POST /v1/designs/{id}/sims/{sim_id}/start`,
+    `POST /v1/designs/{id}/sims/{sim_id}/complete`,
+    `POST /v1/designs/{id}/sims/{sim_id}/fail`,
+    `POST /v1/designs/{id}/sims/{sim_id}/delete`,
+    `POST /v1/designs/{id}/sims/{sim_id}/restore`,
+    `GET /v1/reports/synthbio-summary`, and `GET /v1/domain/status` with
+    planes.
+  - In-process tests: design and sim status transition guards.
+  - Ignored Postgres integration test for the approval guard, design/sim
+    lifecycle, and synthbio summary.
+  - PowerShell smoke `scripts/helix_synthbio_smoke.ps1` and `synthbio-smoke`
+    CI job in `.github/workflows/ci.yml`.
+- Verification:
+  - `cargo fmt --all -- --check` clean.
+  - `cargo clippy --workspace --all-targets -- -D warnings` clean.
+  - `cargo test --workspace --all-features` clean.
+  - Local smoke against Postgres/NATS/MinIO passes.
+  - GitHub Actions run `29644975351` is all green, including the new
+    **HelixSynthBio smoke** job.
+- Commits `9497ec1` (activation) and `1774e92` (implementation) pushed to
+  `main`.
+- `PROJECT_STATE.json` and `NEXT_ACTION.md` updated to mark
+  HELIXSYNTHBIO-FULL closed and clear the active goal.
+- Next action: founder selects the next explicit named goal.
+
 ## 2026-07-18 — HELIXFORGESTUDIO-FULL closed and CI-proven
 
 - Completed the HelixForge Studio second-wave depth packet:

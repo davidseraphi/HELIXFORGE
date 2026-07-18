@@ -1,9 +1,10 @@
 # Next action
 
-## Latest: HELIXSYNTHBIO-FULL
+## Latest: HELIXSYNTHBIO-FULL closed and CI-proven
 
-**Goal:** move HelixSynthBio from thin durable scaffold to full second-wave
-depth.
+HELIXSYNTHBIO-FULL is complete. The implementation passed local verification
+and GitHub Actions run `29644975351` is all green, including the new
+**HelixSynthBio smoke** job.
 
 - Migration: `crates/helix-db/migrations/0046_synthbio_depth.sql`
 - Repo: `crates/helix-db/src/synthbio.rs`
@@ -12,7 +13,7 @@ depth.
 - CI: `.github/workflows/ci.yml` `synthbio-smoke` job
 - Docs: `docs/goals/HELIXSYNTHBIO_FULL.md`, `DECISION_LOG.md`
 
-### Scope
+### What was delivered
 
 Design + sim lifecycle depth:
 - design update, submit, approve (requires a completed sim), return,
@@ -25,14 +26,8 @@ Design + sim lifecycle depth:
 
 ### Active goal
 
-`HELIXSYNTHBIO-FULL` — in progress.
+None. HELIXSYNTHBIO-FULL is closed.
 
-## Paste-ready continuation prompt
+### Next action
 
-```text
-Continue in C:\Users\divin\PROJECTS\HELIXFORGE. HELIXSYNTHBIO-FULL is the
-active goal. Implement migration 0046, extend SynthbioRepo with design/sim
-lifecycle and synthbio summary; add routes and domain status planes, write
-unit + integration tests, create scripts/helix_synthbio_smoke.ps1, add the
-synthbio-smoke CI job, and prove it green on CI.
-```
+Founder selects the next explicit named goal.
