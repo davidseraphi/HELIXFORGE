@@ -106,7 +106,10 @@ pub use pool::{
     connect_and_migrate, connect_and_migrate_with_config, try_connect_and_migrate,
     try_connect_and_migrate_with_config, DbPool, DbStatus,
 };
-pub use quantum::{Circuit, QuantumJob, QuantumRepo};
+pub use quantum::{
+    next_circuit_status, next_job_status, Circuit, CircuitUpdate, JobUpdate, QuantumJob,
+    QuantumRepo, QuantumSummaryRow,
+};
 pub use regions::{RegionRecord, RegionRepo};
 pub use studio::{
     next_app_status, next_page_status, App, AppUpdate, Page, PageUpdate, StudioRepo,
