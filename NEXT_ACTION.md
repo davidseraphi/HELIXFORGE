@@ -1,33 +1,38 @@
 # Next action
 
-## Latest: HELIXVITAPRIME-FULL closed and CI-proven
+## Latest: HELIXGRIDPRIME-FULL
 
-HELIXVITAPRIME-FULL is complete. The implementation passed local verification
-and GitHub Actions run `29655268193` is all green, including the new
-**HelixVita Prime smoke** job.
+**Goal:** move HelixGrid Prime from thin durable scaffold to full second-wave
+depth.
 
-- Migration: `crates/helix-db/migrations/0053_vita_depth.sql`
-- Repo: `crates/helix-db/src/vita.rs`
-- API: `projects/helix-vita-prime/backend/src/main.rs`
-- Smoke: `scripts/helix_vita_prime_smoke.ps1`
-- CI: `.github/workflows/ci.yml` `vita-prime-smoke` job
-- Docs: `docs/goals/HELIXVITAPRIME_FULL.md`, `DECISION_LOG.md`
+- Migration: `crates/helix-db/migrations/0054_grid_depth.sql`
+- Repo: `crates/helix-db/src/grid.rs`
+- API: `projects/helix-grid-prime/backend/src/main.rs`
+- Smoke: `scripts/helix_grid_prime_smoke.ps1`
+- CI: `.github/workflows/ci.yml` `grid-prime-smoke` job
+- Docs: `docs/goals/HELIXGRIDPRIME_FULL.md`, `DECISION_LOG.md`
 
-### What was delivered
+### Scope
 
-Study + cohort lifecycle depth:
-- study update, recruit, complete (rejected while draft cohorts remain),
-  terminate, soft-delete, restore
-- cohort update, enroll, withdraw, soft-delete, restore
-- vita summary report
-- domain status with `phase: wave2_w18` and capability planes
+Site + reading lifecycle depth:
+- site update, energize, offline (rejected while draft readings remain),
+  online, soft-delete, restore
+- reading update, verify, reject, soft-delete, restore
+- grid summary report
+- domain status with `phase: wave2_w19` and capability planes
 - in-process validation tests + ignored Postgres integration test
 - PowerShell smoke and CI job
 
 ### Active goal
 
-None. HELIXVITAPRIME-FULL is closed.
+`HELIXGRIDPRIME-FULL` — in progress.
 
-### Next action
+## Paste-ready continuation prompt
 
-Founder selects the next explicit named goal.
+```text
+Continue in C:\Users\divin\PROJECTS\HELIXFORGE. HELIXGRIDPRIME-FULL is the
+active goal. Implement migration 0054, extend GridRepo with site/reading
+lifecycle and grid summary; add routes and domain status planes, write unit +
+integration tests, create scripts/helix_grid_prime_smoke.ps1, add the
+grid-prime-smoke CI job, and prove it green on CI.
+```
