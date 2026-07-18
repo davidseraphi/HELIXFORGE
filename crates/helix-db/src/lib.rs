@@ -71,7 +71,10 @@ pub use collab_sovereign::{
     DeviceKey, FederationReceipt, KeyShare, RecoveryCeremony, ResidencyProof, SovereignCollabRepo,
 };
 pub use commerce::{CommerceRepo, Order, OrderItem, OrderLineInput, Product};
-pub use cura::{CareCase, CareNote, CuraRepo};
+pub use cura::{
+    next_case_status, next_note_status, CareCase, CareNote, CaseUpdate, CuraRepo, CuraSummaryRow,
+    NoteUpdate,
+};
 pub use edu::{Course, EduRepo, Enrollment};
 pub use flow::{FlowRepo, Workflow, WorkflowRun};
 pub use governance::{DeleteDecision, GovernanceRepo, LegalHold, PurposeBinding, RetentionPolicy};
