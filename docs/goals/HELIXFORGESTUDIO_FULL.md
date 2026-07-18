@@ -47,7 +47,10 @@ a studio summary report.
 
 ## Status
 
-- **Active**
+- **Closed / CI-proven**
+- CI run: `29643838956`
+- Smoke script: `scripts/helix_forge_studio_smoke.ps1`
+- Unit tests: `2/2 PASS` (plus one ignored Postgres integration test)
 
 ## Out of scope
 

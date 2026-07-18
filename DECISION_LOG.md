@@ -1,5 +1,43 @@
 # Decision log (append-only)
 
+## 2026-07-18 — HELIXFORGESTUDIO-FULL closed and CI-proven
+
+- Completed the HelixForge Studio second-wave depth packet:
+  - Migration `0045_studio_depth.sql` + down migration: `published_at`/
+    `deleted_at` lifecycle columns on `studio.apps`; `updated_at`,
+    `archived_at`, `deleted_at` on `studio.pages`; partial active indexes.
+  - Extended `StudioRepo` (`crates/helix-db/src/studio.rs`) with `update_app`,
+    `publish_app` (requires at least one non-deleted page), `unpublish_app`,
+    `soft_delete_app`, `restore_app`; parent-verified `update_page`,
+    `archive_page`, `reopen_page`, `soft_delete_page`, `restore_page`; and
+    `get_studio_summary`.
+  - Added routes in `projects/helix-forge-studio/backend/src/main.rs`:
+    `PATCH /v1/apps/{id}`, `POST /v1/apps/{id}/publish`,
+    `POST /v1/apps/{id}/unpublish`, `POST /v1/apps/{id}/delete`,
+    `POST /v1/apps/{id}/restore`, `PATCH /v1/apps/{id}/pages/{page_id}`,
+    `POST /v1/apps/{id}/pages/{page_id}/archive`,
+    `POST /v1/apps/{id}/pages/{page_id}/reopen`,
+    `POST /v1/apps/{id}/pages/{page_id}/delete`,
+    `POST /v1/apps/{id}/pages/{page_id}/restore`,
+    `GET /v1/reports/studio-summary`, and `GET /v1/domain/status` with planes.
+  - In-process tests: app and page status transition guards.
+  - Ignored Postgres integration test for the publish guard, app/page
+    lifecycle, and studio summary.
+  - PowerShell smoke `scripts/helix_forge_studio_smoke.ps1` and
+    `forge-studio-smoke` CI job in `.github/workflows/ci.yml`.
+- Verification:
+  - `cargo fmt --all -- --check` clean.
+  - `cargo clippy --workspace --all-targets -- -D warnings` clean.
+  - `cargo test --workspace --all-features` clean.
+  - Local smoke against Postgres/NATS/MinIO passes.
+  - GitHub Actions run `29643838956` is all green, including the new
+    **HelixForge Studio smoke** job.
+- Commits `d1d00ed` (activation) and `d5204ce` (implementation) pushed to
+  `main`.
+- `PROJECT_STATE.json` and `NEXT_ACTION.md` updated to mark
+  HELIXFORGESTUDIO-FULL closed and clear the active goal.
+- Next action: founder selects the next explicit named goal.
+
 ## 2026-07-18 — HELIXNETWORK-FULL closed and CI-proven
 
 - Completed the HelixNetwork second-wave depth packet:

@@ -1,9 +1,10 @@
 # Next action
 
-## Latest: HELIXFORGESTUDIO-FULL
+## Latest: HELIXFORGESTUDIO-FULL closed and CI-proven
 
-**Goal:** move HelixForge Studio from thin durable scaffold to full
-second-wave depth.
+HELIXFORGESTUDIO-FULL is complete. The implementation passed local
+verification and GitHub Actions run `29643838956` is all green, including the
+new **HelixForge Studio smoke** job.
 
 - Migration: `crates/helix-db/migrations/0045_studio_depth.sql`
 - Repo: `crates/helix-db/src/studio.rs`
@@ -12,12 +13,12 @@ second-wave depth.
 - CI: `.github/workflows/ci.yml` `forge-studio-smoke` job
 - Docs: `docs/goals/HELIXFORGESTUDIO_FULL.md`, `DECISION_LOG.md`
 
-### Scope
+### What was delivered
 
 App + page lifecycle depth:
 - app update, publish (requires a non-deleted page), unpublish, soft-delete,
   restore
-- page update, archive, reopen, soft-delete, restore
+- page update, archive, reopen, soft-delete, restore (parent-verified)
 - studio summary report
 - domain status with `phase: wave2_w10` and capability planes
 - in-process validation tests + ignored Postgres integration test
@@ -25,14 +26,8 @@ App + page lifecycle depth:
 
 ### Active goal
 
-`HELIXFORGESTUDIO-FULL` — in progress.
+None. HELIXFORGESTUDIO-FULL is closed.
 
-## Paste-ready continuation prompt
+### Next action
 
-```text
-Continue in C:\Users\divin\PROJECTS\HELIXFORGE. HELIXFORGESTUDIO-FULL is the
-active goal. Implement migration 0045, extend StudioRepo with app/page
-lifecycle and studio summary; add routes and domain status planes, write
-unit + integration tests, create scripts/helix_forge_studio_smoke.ps1, add
-the forge-studio-smoke CI job, and prove it green on CI.
-```
+Founder selects the next explicit named goal.
