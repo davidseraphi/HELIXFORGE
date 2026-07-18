@@ -1,35 +1,40 @@
 # Next action
 
-## Latest: HELIXNOVALABS-FULL closed and CI-proven
+## Latest: HELIXPULSE-FULL
 
-HELIXNOVALABS-FULL is complete. The implementation passed local verification
-and GitHub Actions run `29658744542` is all green, including the new
-**HelixNova Labs smoke** job.
+**Goal:** move HelixPulse from scaffold-only to full second-wave depth.
+Deferral precondition met: products 1–20 are all at second-wave depth and
+CI-proven.
 
-- Migration: `crates/helix-db/migrations/0055_nova_depth.sql`
-- Repo: `crates/helix-db/src/nova.rs`
-- API: `projects/helix-nova-labs/backend/src/main.rs`
-- Smoke: `scripts/helix_nova_labs_smoke.ps1`
-- CI: `.github/workflows/ci.yml` `nova-labs-smoke` job
-- Docs: `docs/goals/HELIXNOVALABS_FULL.md`, `DECISION_LOG.md`
+- Migration: `crates/helix-db/migrations/0056_pulse_depth.sql`
+- Repo: `crates/helix-db/src/pulse.rs` (new)
+- API: `projects/helix-pulse/backend/src/main.rs`
+- Smoke: `scripts/helix_pulse_smoke.ps1`
+- CI: `.github/workflows/ci.yml` `pulse-smoke` job
+- Docs: `docs/goals/HELIXPULSE_FULL.md`, `DECISION_LOG.md`
 
-### What was delivered
+### Scope
 
-Experiment + finding lifecycle depth:
-- experiment update, start, conclude (rejected while draft findings remain),
-  reopen, soft-delete, restore
-- finding update, confirm, reject, soft-delete, restore
-- nova summary report
-- domain status with `phase: wave2_w20` and capability planes
+First durable domain slice (cluster engine stays deferred):
+- monitor create, update, activate, pause (rejected while open incidents
+  remain), resume, soft-delete, restore
+- incident create, update, acknowledge, resolve, soft-delete, restore
+- pulse summary report
+- domain status with `phase: wave2_w21` and capability planes
 - in-process validation tests + ignored Postgres integration test
 - PowerShell smoke and CI job
 
 ### Active goal
 
-None. HELIXNOVALABS-FULL is closed.
+`HELIXPULSE-FULL` — in progress.
 
-### Next action
+## Paste-ready continuation prompt
 
-Founder selects the next explicit named goal. Products 1–20 are now all at
-second-wave depth; HelixPulse (21) remains scaffold-only and deferred until
-the founder activates it.
+```text
+Continue in C:\Users\divin\PROJECTS\HELIXFORGE. HELIXPULSE-FULL is the active
+goal. Implement migration 0056 creating the pulse schema, create PulseRepo
+with monitor/incident lifecycle and pulse summary; add routes and domain
+status planes, write unit + integration tests, create
+scripts/helix_pulse_smoke.ps1, add the pulse-smoke CI job, and prove it
+green on CI.
+```
