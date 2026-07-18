@@ -4,10 +4,10 @@
   "stage": "prototype",
   "updated_at": "2026-07-18",
   "active_slice": "category-defining-product-program",
-  "active_goal": null,
-  "active_phase": null,
+  "active_goal": "HELIXORBITPRIME-FULL",
+  "active_phase": "helixorbitprime_full_depth",
   "previous_goal": "HELIXCLIMATEPRIME-FULL_CI_PROVEN",
-  "review_gate": null,
+  "review_gate": "HELIXORBITPRIME-FULL",
   "category_defining_program": {
     "status": "foundation_integrity_umbrella_011.7_closed",
     "root": "docs/product-program",
@@ -22,12 +22,12 @@
       "helix-anvil-standalone"
     ],
     "implementation_started": true,
-    "next_gate": "awaiting_founder_goal_selection"
+    "next_gate": "HELIXORBITPRIME-FULL depth packet"
   },
   "second_wave": {
     "roadmap": "docs/SECOND_WAVE.md",
     "status": "paused_by_category_defining_program",
-    "current": null,
+    "current": "helix-orbit-prime",
     "completed": [
       "helix-commerce",
       "helix-flow",

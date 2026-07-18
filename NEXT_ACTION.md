@@ -1,33 +1,38 @@
 # Next action
 
-## Latest: HELIXCLIMATEPRIME-FULL closed and CI-proven
+## Latest: HELIXORBITPRIME-FULL
 
-HELIXCLIMATEPRIME-FULL is complete. The implementation passed local
-verification and GitHub Actions run `29650054052` is all green, including the
-new **HelixClimate Prime smoke** job.
+**Goal:** move HelixOrbit Prime from thin durable scaffold to full second-wave
+depth.
 
-- Migration: `crates/helix-db/migrations/0050_climate_depth.sql`
-- Repo: `crates/helix-db/src/climate.rs`
-- API: `projects/helix-climate-prime/backend/src/main.rs`
-- Smoke: `scripts/helix_climate_prime_smoke.ps1`
-- CI: `.github/workflows/ci.yml` `climate-prime-smoke` job
-- Docs: `docs/goals/HELIXCLIMATEPRIME_FULL.md`, `DECISION_LOG.md`
+- Migration: `crates/helix-db/migrations/0051_orbit_depth.sql`
+- Repo: `crates/helix-db/src/orbit.rs`
+- API: `projects/helix-orbit-prime/backend/src/main.rs`
+- Smoke: `scripts/helix_orbit_prime_smoke.ps1`
+- CI: `.github/workflows/ci.yml` `orbit-prime-smoke` job
+- Docs: `docs/goals/HELIXORBITPRIME_FULL.md`, `DECISION_LOG.md`
 
-### What was delivered
+### Scope
 
-Scenario + risk-score lifecycle depth:
-- scenario update, activate, archive (rejected while draft scores remain),
-  reopen, soft-delete, restore
-- score update, assess, dismiss, soft-delete, restore
-- climate summary report
-- domain status with `phase: wave2_w15` and capability planes
+Asset + pass lifecycle depth:
+- asset update, commission, decommission (rejected while draft or planned
+  passes remain), recommission, soft-delete, restore
+- pass update, plan, complete, cancel, soft-delete, restore
+- orbit summary report
+- domain status with `phase: wave2_w16` and capability planes
 - in-process validation tests + ignored Postgres integration test
 - PowerShell smoke and CI job
 
 ### Active goal
 
-None. HELIXCLIMATEPRIME-FULL is closed.
+`HELIXORBITPRIME-FULL` — in progress.
 
-### Next action
+## Paste-ready continuation prompt
 
-Founder selects the next explicit named goal.
+```text
+Continue in C:\Users\divin\PROJECTS\HELIXFORGE. HELIXORBITPRIME-FULL is the
+active goal. Implement migration 0051, extend OrbitRepo with asset/pass
+lifecycle and orbit summary; add routes and domain status planes, write unit +
+integration tests, create scripts/helix_orbit_prime_smoke.ps1, add the
+orbit-prime-smoke CI job, and prove it green on CI.
+```
