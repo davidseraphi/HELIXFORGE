@@ -58,7 +58,10 @@ and a network summary report.
 
 ## Status
 
-- **Active**
+- **Closed / CI-proven**
+- CI run: `29642796843`
+- Smoke script: `scripts/helix_network_smoke.ps1`
+- Unit tests: `3/3 PASS` (plus one ignored Postgres integration test)
 
 ## Out of scope
 

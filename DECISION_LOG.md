@@ -1,5 +1,48 @@
 # Decision log (append-only)
 
+## 2026-07-18 — HELIXNETWORK-FULL closed and CI-proven
+
+- Completed the HelixNetwork second-wave depth packet:
+  - Migration `0044_network_depth.sql` + down migration: `deactivated_at`/
+    `deleted_at` lifecycle columns on `network.profiles`, `responded_at`/
+    `blocked_by` on `network.connections`, `closed_at`/`deleted_at` on
+    `network.opportunities`, partial active indexes, connection pair index.
+  - Extended `NetworkRepo` (`crates/helix-db/src/network.rs`) with owner-scoped
+    `update_profile`, `deactivate_profile`, `reactivate_profile`,
+    `soft_delete_profile`, `restore_profile`; a `request_connection` rework
+    (revives declined/removed pairs, rejects blocked pairs in both directions,
+    requires active profiles); `decline_connection`, `remove_connection`,
+    `block_connection`; owner-scoped `update_opportunity`,
+    `close_opportunity`, `reopen_opportunity`, `soft_delete_opportunity`,
+    `restore_opportunity`; and `get_network_summary`.
+  - Added routes in `projects/helix-network/backend/src/main.rs`:
+    `PATCH /v1/profiles/{id}`, `POST /v1/profiles/{id}/deactivate`,
+    `POST /v1/profiles/{id}/reactivate`, `POST /v1/profiles/{id}/delete`,
+    `POST /v1/profiles/{id}/restore`, `POST /v1/connections/{id}/decline`,
+    `POST /v1/connections/{id}/remove`, `POST /v1/connections/{id}/block`,
+    `PATCH /v1/opportunities/{id}`, `POST /v1/opportunities/{id}/close`,
+    `POST /v1/opportunities/{id}/reopen`, `POST /v1/opportunities/{id}/delete`,
+    `POST /v1/opportunities/{id}/restore`, `GET /v1/reports/network-summary`,
+    and `GET /v1/domain/status` with planes.
+  - In-process tests: profile transitions, opportunity transitions, connection
+    revival eligibility.
+  - Ignored Postgres integration test for the full connection lifecycle,
+    blocking, profile lifecycle, opportunity lifecycle, and network summary.
+  - PowerShell smoke `scripts/helix_network_smoke.ps1` (two dev users) and
+    `network-smoke` CI job in `.github/workflows/ci.yml`.
+- Verification:
+  - `cargo fmt --all -- --check` clean.
+  - `cargo clippy --workspace --all-targets -- -D warnings` clean.
+  - `cargo test --workspace --all-features` clean.
+  - Local smoke against Postgres/NATS/MinIO passes.
+  - GitHub Actions run `29642796843` is all green, including the new
+    **HelixNetwork smoke** job.
+- Commits `5be6550` (activation) and `eae2367` (implementation) pushed to
+  `main`.
+- `PROJECT_STATE.json` and `NEXT_ACTION.md` updated to mark HELIXNETWORK-FULL
+  closed and clear the active goal.
+- Next action: founder selects the next explicit named goal.
+
 ## 2026-07-18 — HELIXWELL-FULL closed and CI-proven
 
 - Completed the HelixWell second-wave depth packet:

@@ -4,10 +4,10 @@
   "stage": "prototype",
   "updated_at": "2026-07-18",
   "active_slice": "category-defining-product-program",
-  "active_goal": "HELIXNETWORK-FULL",
-  "active_phase": "helixnetwork_full_depth",
-  "previous_goal": "HELIXWELL-FULL_CI_PROVEN",
-  "review_gate": "HELIXNETWORK-FULL",
+  "active_goal": null,
+  "active_phase": null,
+  "previous_goal": "HELIXNETWORK-FULL_CI_PROVEN",
+  "review_gate": null,
   "category_defining_program": {
     "status": "foundation_integrity_umbrella_011.7_closed",
     "root": "docs/product-program",
@@ -22,19 +22,20 @@
       "helix-anvil-standalone"
     ],
     "implementation_started": true,
-    "next_gate": "HELIXNETWORK-FULL depth packet"
+    "next_gate": "awaiting_founder_goal_selection"
   },
   "second_wave": {
     "roadmap": "docs/SECOND_WAVE.md",
     "status": "paused_by_category_defining_program",
-    "current": "helix-network",
+    "current": null,
     "completed": [
       "helix-commerce",
       "helix-flow",
       "helix-insights",
       "helix-edu",
       "helix-capital",
-      "helix-well"
+      "helix-well",
+      "helix-network"
     ],
     "order": [
       "helix-flow",
@@ -70,7 +71,7 @@
     "current_validity": "unverified_after_later_tree_changes"
   },
   "foundation_integrity_current_gate": "011.7_CLOSED",
-  "full_workspace_current_status": "fmt_clippy_test_helm_verify_helixcore_full_pass_helixwell_full_ci_proven_run_29641402713",
+  "full_workspace_current_status": "fmt_clippy_test_helm_verify_helixcore_full_pass_helixnetwork_full_ci_proven_run_29642796843",
   "core_services": [
     "gateway",
     "agent-hub",
@@ -146,11 +147,11 @@
   "ratified_specs": [],
   "last_smoke": {
     "date": "2026-07-18",
-    "service": "helix-well",
+    "service": "helix-network",
     "postgres": true,
     "minio": true,
     "nats": true,
-    "path": "scripts/helix_well_smoke.ps1 PASS \u2014 local + CI"
+    "path": "scripts/helix_network_smoke.ps1 PASS \u2014 local + CI"
   },
   "helix_code_extreme": {
     "phase": "endstate",
@@ -486,6 +487,54 @@
     "smoke_script": "scripts/helix_well_smoke.ps1",
     "ci_run": "29641402713",
     "unit": "4/4 PASS",
+    "next": "CI proven"
+  },
+  "helix_network_full_depth": {
+    "migration": "0044_network_depth.sql",
+    "routes": [
+      "GET /v1/profiles",
+      "POST /v1/profiles",
+      "GET /v1/profiles/me",
+      "GET /v1/profiles/{id}",
+      "PATCH /v1/profiles/{id}",
+      "POST /v1/profiles/{id}/deactivate",
+      "POST /v1/profiles/{id}/reactivate",
+      "POST /v1/profiles/{id}/delete",
+      "POST /v1/profiles/{id}/restore",
+      "GET /v1/connections",
+      "POST /v1/connections",
+      "POST /v1/connections/{id}/accept",
+      "POST /v1/connections/{id}/decline",
+      "POST /v1/connections/{id}/remove",
+      "POST /v1/connections/{id}/block",
+      "GET /v1/opportunities",
+      "POST /v1/opportunities",
+      "GET /v1/opportunities/{id}",
+      "PATCH /v1/opportunities/{id}",
+      "POST /v1/opportunities/{id}/close",
+      "POST /v1/opportunities/{id}/reopen",
+      "POST /v1/opportunities/{id}/delete",
+      "POST /v1/opportunities/{id}/restore",
+      "GET /v1/reports/network-summary",
+      "GET /v1/domain/status"
+    ],
+    "planes": [
+      "profiles",
+      "connections",
+      "opportunities",
+      "profile_lifecycle",
+      "connection_lifecycle",
+      "opportunity_lifecycle",
+      "blocking",
+      "network_summary",
+      "audit",
+      "metering",
+      "nats"
+    ],
+    "smoke": "PASS",
+    "smoke_script": "scripts/helix_network_smoke.ps1",
+    "ci_run": "29642796843",
+    "unit": "3/3 PASS",
     "next": "CI proven"
   },
   "helix_collab_client_e2ee_pm": {
