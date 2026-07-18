@@ -52,7 +52,10 @@ guard, a pass plan/complete/cancel lifecycle, and an orbit summary report.
 
 ## Status
 
-- **Active**
+- **Closed / CI-proven**
+- CI run: `29651383990`
+- Smoke script: `scripts/helix_orbit_prime_smoke.ps1`
+- Unit tests: `2/2 PASS` (plus one ignored Postgres integration test)
 
 ## Out of scope
 

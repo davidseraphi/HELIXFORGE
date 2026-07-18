@@ -1,5 +1,48 @@
 # Decision log (append-only)
 
+## 2026-07-18 — HELIXORBITPRIME-FULL closed and CI-proven
+
+- Completed the HelixOrbit Prime second-wave depth packet:
+  - Migration `0051_orbit_depth.sql` + down migration: `commissioned_at`/
+    `decommissioned_at`/`deleted_at` lifecycle columns on `orbit.assets`;
+    `updated_at`, `planned_at`, `completed_at`, `cancelled_at`, `deleted_at`
+    on `orbit.passes`; legacy `open` pass status backfilled to `draft`;
+    partial active indexes.
+  - Extended `OrbitRepo` (`crates/helix-db/src/orbit.rs`) with
+    `update_asset`, `commission_asset`, `decommission_asset` (rejected while
+    draft or planned passes remain), `recommission_asset`,
+    `soft_delete_asset`, `restore_asset`; parent-verified `update_pass`,
+    `plan_pass`, `complete_pass`, `cancel_pass`, `soft_delete_pass`,
+    `restore_pass`; and `get_orbit_summary`.
+  - Added routes in `projects/helix-orbit-prime/backend/src/main.rs`:
+    `PATCH /v1/assets/{id}`, `POST /v1/assets/{id}/commission`,
+    `POST /v1/assets/{id}/decommission`, `POST /v1/assets/{id}/recommission`,
+    `POST /v1/assets/{id}/delete`, `POST /v1/assets/{id}/restore`,
+    `PATCH /v1/assets/{id}/passes/{pass_id}`,
+    `POST /v1/assets/{id}/passes/{pass_id}/plan`,
+    `POST /v1/assets/{id}/passes/{pass_id}/complete`,
+    `POST /v1/assets/{id}/passes/{pass_id}/cancel`,
+    `POST /v1/assets/{id}/passes/{pass_id}/delete`,
+    `POST /v1/assets/{id}/passes/{pass_id}/restore`,
+    `GET /v1/reports/orbit-summary`, and `GET /v1/domain/status` with planes.
+  - In-process tests: asset and pass status transition guards.
+  - Ignored Postgres integration test for the decommission guard, asset/pass
+    lifecycle, and orbit summary.
+  - PowerShell smoke `scripts/helix_orbit_prime_smoke.ps1` and
+    `orbit-prime-smoke` CI job in `.github/workflows/ci.yml`.
+- Verification:
+  - `cargo fmt --all -- --check` clean.
+  - `cargo clippy --workspace --all-targets -- -D warnings` clean.
+  - `cargo test --workspace --all-features` clean.
+  - Local smoke against Postgres/NATS/MinIO passes.
+  - GitHub Actions run `29651383990` is all green, including the new
+    **HelixOrbit Prime smoke** job.
+- Commits `1931c91` (activation) and `7bb8244` (implementation) pushed to
+  `main`.
+- `PROJECT_STATE.json` and `NEXT_ACTION.md` updated to mark
+  HELIXORBITPRIME-FULL closed and clear the active goal.
+- Next action: founder selects the next explicit named goal.
+
 ## 2026-07-18 — HELIXCLIMATEPRIME-FULL closed and CI-proven
 
 - Completed the HelixClimate Prime second-wave depth packet:

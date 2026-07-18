@@ -1,9 +1,10 @@
 # Next action
 
-## Latest: HELIXORBITPRIME-FULL
+## Latest: HELIXORBITPRIME-FULL closed and CI-proven
 
-**Goal:** move HelixOrbit Prime from thin durable scaffold to full second-wave
-depth.
+HELIXORBITPRIME-FULL is complete. The implementation passed local
+verification and GitHub Actions run `29651383990` is all green, including the
+new **HelixOrbit Prime smoke** job.
 
 - Migration: `crates/helix-db/migrations/0051_orbit_depth.sql`
 - Repo: `crates/helix-db/src/orbit.rs`
@@ -12,7 +13,7 @@ depth.
 - CI: `.github/workflows/ci.yml` `orbit-prime-smoke` job
 - Docs: `docs/goals/HELIXORBITPRIME_FULL.md`, `DECISION_LOG.md`
 
-### Scope
+### What was delivered
 
 Asset + pass lifecycle depth:
 - asset update, commission, decommission (rejected while draft or planned
@@ -25,14 +26,8 @@ Asset + pass lifecycle depth:
 
 ### Active goal
 
-`HELIXORBITPRIME-FULL` — in progress.
+None. HELIXORBITPRIME-FULL is closed.
 
-## Paste-ready continuation prompt
+### Next action
 
-```text
-Continue in C:\Users\divin\PROJECTS\HELIXFORGE. HELIXORBITPRIME-FULL is the
-active goal. Implement migration 0051, extend OrbitRepo with asset/pass
-lifecycle and orbit summary; add routes and domain status planes, write unit +
-integration tests, create scripts/helix_orbit_prime_smoke.ps1, add the
-orbit-prime-smoke CI job, and prove it green on CI.
-```
+Founder selects the next explicit named goal.

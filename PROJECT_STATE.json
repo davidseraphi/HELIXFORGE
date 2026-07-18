@@ -4,10 +4,10 @@
   "stage": "prototype",
   "updated_at": "2026-07-18",
   "active_slice": "category-defining-product-program",
-  "active_goal": "HELIXORBITPRIME-FULL",
-  "active_phase": "helixorbitprime_full_depth",
-  "previous_goal": "HELIXCLIMATEPRIME-FULL_CI_PROVEN",
-  "review_gate": "HELIXORBITPRIME-FULL",
+  "active_goal": null,
+  "active_phase": null,
+  "previous_goal": "HELIXORBITPRIME-FULL_CI_PROVEN",
+  "review_gate": null,
   "category_defining_program": {
     "status": "foundation_integrity_umbrella_011.7_closed",
     "root": "docs/product-program",
@@ -22,12 +22,12 @@
       "helix-anvil-standalone"
     ],
     "implementation_started": true,
-    "next_gate": "HELIXORBITPRIME-FULL depth packet"
+    "next_gate": "awaiting_founder_goal_selection"
   },
   "second_wave": {
     "roadmap": "docs/SECOND_WAVE.md",
     "status": "paused_by_category_defining_program",
-    "current": "helix-orbit-prime",
+    "current": null,
     "completed": [
       "helix-commerce",
       "helix-flow",
@@ -41,7 +41,8 @@
       "helix-lex-prime",
       "helix-cura-prime",
       "helix-terra-prime",
-      "helix-climate-prime"
+      "helix-climate-prime",
+      "helix-orbit-prime"
     ],
     "order": [
       "helix-flow",
@@ -77,7 +78,7 @@
     "current_validity": "unverified_after_later_tree_changes"
   },
   "foundation_integrity_current_gate": "011.7_CLOSED",
-  "full_workspace_current_status": "fmt_clippy_test_helm_verify_helixcore_full_pass_helixclimateprime_full_ci_proven_run_29650054052",
+  "full_workspace_current_status": "fmt_clippy_test_helm_verify_helixcore_full_pass_helixorbitprime_full_ci_proven_run_29651383990",
   "core_services": [
     "gateway",
     "agent-hub",
@@ -153,11 +154,11 @@
   "ratified_specs": [],
   "last_smoke": {
     "date": "2026-07-18",
-    "service": "helix-climate-prime",
+    "service": "helix-orbit-prime",
     "postgres": true,
     "minio": true,
     "nats": true,
-    "path": "scripts/helix_climate_prime_smoke.ps1 PASS \u2014 local + CI"
+    "path": "scripts/helix_orbit_prime_smoke.ps1 PASS \u2014 local + CI"
   },
   "helix_code_extreme": {
     "phase": "endstate",
@@ -775,6 +776,46 @@
     "smoke": "PASS",
     "smoke_script": "scripts/helix_climate_prime_smoke.ps1",
     "ci_run": "29650054052",
+    "unit": "2/2 PASS",
+    "next": "CI proven"
+  },
+  "helix_orbit_prime_full_depth": {
+    "migration": "0051_orbit_depth.sql",
+    "routes": [
+      "GET /v1/assets",
+      "POST /v1/assets",
+      "GET /v1/assets/{id}",
+      "PATCH /v1/assets/{id}",
+      "POST /v1/assets/{id}/commission",
+      "POST /v1/assets/{id}/decommission",
+      "POST /v1/assets/{id}/recommission",
+      "POST /v1/assets/{id}/delete",
+      "POST /v1/assets/{id}/restore",
+      "GET /v1/assets/{id}/passes",
+      "POST /v1/assets/{id}/passes",
+      "PATCH /v1/assets/{id}/passes/{pass_id}",
+      "POST /v1/assets/{id}/passes/{pass_id}/plan",
+      "POST /v1/assets/{id}/passes/{pass_id}/complete",
+      "POST /v1/assets/{id}/passes/{pass_id}/cancel",
+      "POST /v1/assets/{id}/passes/{pass_id}/delete",
+      "POST /v1/assets/{id}/passes/{pass_id}/restore",
+      "GET /v1/reports/orbit-summary",
+      "GET /v1/domain/status"
+    ],
+    "planes": [
+      "assets",
+      "passes",
+      "asset_lifecycle",
+      "pass_lifecycle",
+      "decommission_guards",
+      "orbit_summary",
+      "audit",
+      "metering",
+      "nats"
+    ],
+    "smoke": "PASS",
+    "smoke_script": "scripts/helix_orbit_prime_smoke.ps1",
+    "ci_run": "29651383990",
     "unit": "2/2 PASS",
     "next": "CI proven"
   },
