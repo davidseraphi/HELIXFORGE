@@ -81,7 +81,10 @@ pub use jobs::{Job, JobCheckpoint, JobRepo, JobStatus};
 pub use lex::{Filing, LexRepo, Matter};
 pub use membership::MembershipRepo;
 pub use meter_pg::PgMetering;
-pub use network::{Connection, NetworkRepo, Opportunity, Profile};
+pub use network::{
+    can_revive_connection, next_opportunity_status, next_profile_status, Connection, NetworkRepo,
+    NetworkSummaryRow, Opportunity, OpportunityUpdate, Profile, ProfileUpdate,
+};
 pub use nova::{Experiment, Finding, NovaRepo};
 pub use orbit::{OrbitRepo, Pass, SpaceAsset};
 pub use outbox::{OutboxItem, OutboxRepo};
