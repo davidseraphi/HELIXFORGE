@@ -49,7 +49,10 @@ pub use api_keys::{ApiKeyRecord, ApiKeyStore, IssuedApiKey};
 pub use audit_archive::ObjectStoreArchiveSink;
 pub use audit_pg::{PgAuditSink, TransactionalAuditSink};
 pub use capital::{Account, CapitalRepo, Journal, JournalLine, JournalLineInput, TrialBalanceRow};
-pub use climate::{ClimateRepo, RiskScore, Scenario};
+pub use climate::{
+    next_scenario_status, next_score_status, ClimateRepo, ClimateSummaryRow, RiskScore, Scenario,
+    ScenarioUpdate, ScoreUpdate,
+};
 pub use code::{
     CodeAgentJob, CodePipeline, CodePipelineArtifact, CodePipelineRun, CodeRef, CodeRepo,
     CodeRepoStore, CodeWorkspace, CryptoGroup, SealedObjectMeta,
