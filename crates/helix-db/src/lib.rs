@@ -128,7 +128,10 @@ pub use vault_objects::{VaultObjectRef, VaultObjectStore};
 pub use vault_pg::PgVault;
 // re-export path used by service_kit
 pub use atomic::AtomicWork;
-pub use vita::{Cohort, Study, VitaRepo};
+pub use vita::{
+    next_cohort_status, next_study_status, Cohort, CohortUpdate, Study, StudyUpdate, VitaRepo,
+    VitaSummaryRow,
+};
 pub use well::{
     next_habit_status, validate_optional_scale, CheckIn, CheckInEdit, CheckInUpdate, Habit,
     HabitLog, HabitSummaryRow, HabitUpdate, WellRepo,
