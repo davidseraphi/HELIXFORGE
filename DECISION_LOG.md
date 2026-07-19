@@ -1,5 +1,48 @@
 # Decision log (append-only)
 
+## 2026-07-19 — HELIXPULSE-DURABILITY closed; twentieth product through the gate
+
+- Completed the HelixPulse durability-gate packet (`helix-pulse` added to
+  `durability_gate_proven_products`):
+  - **Check-then-insert window closed:** `PulseRepo::create_incident` now
+    enforces the non-deleted parent monitor condition inside the INSERT
+    itself (`INSERT ... SELECT`), so a monitor soft-deleted in between
+    can no longer leak incidents (`crates/helix-db/src/pulse.rs`).
+  - **Guarded transitions:** `pause_monitor` is a single guarded
+    `UPDATE` requiring `status = 'active'`, not deleted, and
+    `NOT EXISTS` a non-deleted open incident; `activate_monitor`,
+    `resume_monitor`, and the incident `transition_incident` carry their
+    expected-from status in the `WHERE` — a concurrent transition now
+    loses with a conflict instead of overwriting.
+  - New ignored Postgres integration tests:
+    `incidents_rejected_on_deleted_monitor` (after soft-deleting a
+    monitor, 8 concurrent incident creates all rejected; no incident
+    leaks in) and `concurrent_pause_single_winner` (8 racing pauses of
+    one active monitor → exactly one success, 7 rejected, monitor ends
+    paused).
+  - `scripts/helix_pulse_durability.ps1` proves:
+    monitor/activate/incident/resolve/pause lifecycle; an acknowledged
+    paused monitor surviving an immediate forced kill of the API
+    (status, paused_at, and resolved incident fully present after
+    restart); and a `pulse` schema `pg_dump` roundtrip into a scratch
+    database with equal monitor/incident counts and equal content
+    hashes.
+  - `pulse-durability` CI job running the ignored integration tests and
+    the proof script.
+- Verification:
+  - `cargo fmt --all -- --check` clean.
+  - `cargo clippy --workspace --all-targets -- -D warnings` clean.
+  - `cargo test --workspace --all-features` clean.
+  - Race proofs pass against live Postgres; durability script passes
+    locally (Windows) and in CI (ubuntu).
+  - GitHub Actions run `29686421129` is all green, including the new
+    **HelixPulse durability gate** job and all 19 product smoke jobs.
+- Commits `11ea056` (activation) and `a781e85` (implementation) pushed to
+  `main`.
+- `PROJECT_STATE.json` and `NEXT_ACTION.md` updated; `helix-pulse`
+  recorded in `durability_gate_proven_products`.
+- Next action: founder selects the next explicit named goal.
+
 ## 2026-07-19 — HELIXNOVALABS-DURABILITY closed; nineteenth product through the gate
 
 - Completed the HelixNova Labs durability-gate packet (`helix-nova-labs`

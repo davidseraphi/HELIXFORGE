@@ -52,7 +52,10 @@ the gate.
 
 ## Status
 
-- **Active**
+- **Closed / CI-proven**
+- CI run: `29686421129` (**HelixPulse durability gate** job green)
+- Proof script: `scripts/helix_pulse_durability.ps1`
+- Gate proven locally (Windows) and in CI (ubuntu)
 
 ## Out of scope
 
