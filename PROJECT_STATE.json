@@ -4,10 +4,10 @@
   "stage": "prototype",
   "updated_at": "2026-07-19",
   "active_slice": "category-defining-product-program",
-  "active_goal": "HELIXCODE-NUMBERING",
-  "active_phase": "helixcode_numbering_atomic_counters",
+  "active_goal": "HELIXCODE-REFS-CAS",
+  "active_phase": "helixcode_refs_cas",
   "previous_goal": "HELIXCODE-DURABILITY_CI_PROVEN",
-  "review_gate": "HELIXCODE-NUMBERING",
+  "review_gate": "HELIXCODE-REFS-CAS",
   "category_defining_program": {
     "status": "foundation_integrity_umbrella_011.7_closed",
     "root": "docs/product-program",
@@ -22,7 +22,7 @@
       "helix-anvil-standalone"
     ],
     "implementation_started": true,
-    "next_gate": "HELIXCODE-NUMBERING packet"
+    "next_gate": "HELIXCODE-REFS-CAS packet"
   },
   "second_wave": {
     "roadmap": "docs/SECOND_WAVE.md",

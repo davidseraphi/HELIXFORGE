@@ -1,45 +1,29 @@
 # Next action
 
-## Latest: HELIXCODE-DURABILITY closed — all 21 products through the gate
+## Active: HELIXCODE-NUMBERING + HELIXCODE-REFS-CAS — code hardening follow-ups
 
-HELIXCODE-DURABILITY is complete. The implementation passed local
-verification and GitHub Actions run `29687099450` is all green, including
-the new **HelixCode durability gate** job. The full product catalog is
-now durability-gate-proven.
+Two thorough follow-up packets on HelixCode, sequenced after
+HELIXCODE-DURABILITY (closed):
 
-- Repo: `crates/helix-db/src/code.rs` (guarded `finish_pipeline_run` /
-  `finish_agent_job` with `finished_at IS NULL`; atomic
-  `create_workspace` / `create_pipeline` INSERT...SELECT)
-- Boot fix: `fallback_service` replaces root `.nest_service` in
-  `projects/helix-code/backend/src/main.rs`
-- Tests: `projects/helix-code/backend/src/main.rs` (new Postgres harness;
-  `concurrent_finish_pipeline_run_single_winner`,
-  `concurrent_finish_agent_job_single_winner`,
-  `children_rejected_on_missing_repo`)
-- Proof: `scripts/helix_code_durability.ps1` (forced-kill + restore)
-- CI: `.github/workflows/ci.yml` `code-durability` job
-- Docs: `docs/goals/HELIXCODE_DURABILITY.md`, `DECISION_LOG.md`
+- `docs/goals/HELIXCODE_NUMBERING.md` — atomic allocation counters:
+  `code.number_counters` (migration `0057`, backfilled) incremented under
+  a row lock in one upsert statement; issue/PR numbers and agent-event
+  seqs allocate with no MAX+1 window and no unique-violation 500s.
+- `docs/goals/HELIXCODE_REFS_CAS.md` — ref compare-and-swap: git push
+  rejections (non-fast-forward) mapped to clean conflicts across
+  commit/branch/merge paths, plus `CodeRepoStore::cas_ref` with
+  must-match / must-not-exist semantics.
 
-### What was delivered
+### Proofs
 
-- terminal finishes are single guarded UPDATEs — a concurrent finish or
-  a finish racing a cancel loses with a conflict
-- workspace/pipeline creates are atomic against the tenant's repo; bad
-  repo ids are clean not-founds, not FK-violation 500s
-- the API boots again under current axum
-- concurrency proof: 8 racing finishes → exactly one winner (both
-  planes)
-- crash proof: acknowledged finished run survives a forced kill of the
-  API
-- restore proof: schema dump roundtrip with equal counts + content
-  hashes
-- `helix-code` recorded in `durability_gate_proven_products`
-
-### Active goal
-
-None. HELIXCODE-DURABILITY is closed; all 21 catalog products hold the
-durability gate.
+- `concurrent_issue_numbers_all_distinct` — 16 racing issues and 16
+  racing event appends all distinct, zero errors.
+- `cas_ref_stale_expected_conflict` — create-on-existing and stale
+  expected sha conflict; current expected sha wins.
+- `concurrent_commit_same_branch_cas_holds` — racing commits: losers
+  are clean conflicts; branch history is exactly seed + winners.
 
 ### Next action
 
-Founder selects the next explicit named goal.
+Commit, push, watch CI (`code-durability` job + full suite) to green,
+then close both packets.
