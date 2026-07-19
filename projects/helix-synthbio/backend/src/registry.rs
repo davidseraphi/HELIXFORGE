@@ -86,6 +86,8 @@ struct ReviewReq {
     conditions: String,
     #[serde(default)]
     expires_at: Option<chrono::DateTime<chrono::Utc>>,
+    #[serde(default)]
+    expected_state: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -250,6 +252,7 @@ async fn review_risk(
         reasons: body.reasons,
         conditions: body.conditions,
         expires_at: body.expires_at,
+        expected_state: body.expected_state,
     };
     let case = repo
         .review_risk(p.tenant_id, id, &decision, &body.reviewer)

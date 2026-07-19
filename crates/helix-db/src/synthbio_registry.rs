@@ -133,6 +133,12 @@ pub struct ReviewDecision {
     pub reasons: Vec<String>,
     pub conditions: String,
     pub expires_at: Option<DateTime<Utc>>,
+    /// CAS guard: the decision only lands if the case is still in this
+    /// state. `None` uses the state read at review start (re-review by
+    /// design); a caller that pins the state it saw gets a strict
+    /// single-winner race.
+    #[serde(default)]
+    pub expected_state: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -885,7 +891,12 @@ impl RegistryRepo {
         .bind(pinned)
         .bind(tenant_id.as_uuid())
         .bind(case.id)
-        .bind(&case.state)
+        .bind(
+            decision
+                .expected_state
+                .clone()
+                .unwrap_or_else(|| case.state.clone()),
+        )
         .fetch_optional(&mut *tx)
         .await
         .map_err(|e| HelixError::dependency(format!("synthbio review update: {e}")))?;

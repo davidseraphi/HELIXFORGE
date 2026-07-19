@@ -1100,6 +1100,7 @@ mod tests {
                     reasons: vec![],
                     conditions: String::new(),
                     expires_at: None,
+                    expected_state: None,
                 },
                 "",
             )
@@ -1107,7 +1108,8 @@ mod tests {
             .expect_err("reviewer required");
         assert_eq!(err.code, shared_core::ErrorCode::Validation);
 
-        // 8 racing decisions on one case: exactly one wins.
+        // 8 racing decisions pinned to the state they saw (unknown):
+        // exactly one lands; the rest conflict instead of overwriting.
         let mut handles = Vec::new();
         for _ in 0..8u32 {
             let repo = repo.clone();
@@ -1122,6 +1124,7 @@ mod tests {
                         reasons: vec!["public backbone".into()],
                         conditions: String::new(),
                         expires_at: None,
+                        expected_state: Some("unknown".into()),
                     },
                     "Dr. Ada Biosafety",
                 )
@@ -1166,6 +1169,7 @@ mod tests {
                     reasons: vec![],
                     conditions: String::new(),
                     expires_at: Some(chrono::Utc::now() - chrono::Duration::hours(1)),
+                    expected_state: None,
                 },
                 "Dr. Ada Biosafety",
             )
