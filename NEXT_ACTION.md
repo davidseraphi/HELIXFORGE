@@ -1,41 +1,42 @@
 # Next action
 
-## Active: HELIXVITAPRIME-DURABILITY — seventeenth product through the gate
+## Latest: HELIXVITAPRIME-DURABILITY closed — seventeenth product through the gate
 
-Prove the Foundation Integrity durability gate on HelixVita Prime:
-fresh crash, concurrency, and restore, verified locally and in CI.
-Seventeenth product (after `helix-collab`, `helix-capital`,
-`helix-commerce`, `helix-flow`, `helix-insights`, `helix-edu`,
-`helix-well`, `helix-network`, `helix-forge-studio`, `helix-synthbio`,
-`helix-lex-prime`, `helix-cura-prime`, `helix-terra-prime`,
-`helix-climate-prime`, `helix-orbit-prime`, `helix-quantum-forge`).
+HELIXVITAPRIME-DURABILITY is complete. The implementation passed local
+verification and GitHub Actions run `29673285395` is all green, including
+the new **HelixVita Prime durability gate** job.
 
-Goal doc: `docs/goals/HELIXVITAPRIME_DURABILITY.md`.
+- Repo: `crates/helix-db/src/vita.rs` (atomic `create_child`
+  INSERT...SELECT; guarded `complete_study` / `recruit_study` /
+  `terminate_study` / `enroll_cohort` / `withdraw_cohort`)
+- Tests: `projects/helix-vita-prime/backend/src/main.rs`
+  (`cohorts_rejected_on_deleted_study`,
+  `concurrent_complete_single_winner`)
+- Proof: `scripts/helix_vita_prime_durability.ps1` (forced-kill +
+  restore)
+- CI: `.github/workflows/ci.yml` `vita-durability` job
+- Docs: `docs/goals/HELIXVITAPRIME_DURABILITY.md`, `DECISION_LOG.md`
 
-### Scope
+### What was delivered
 
-`create_child` checked the parent study in a separate SELECT before the
-cohort INSERT; `complete_study` counted draft cohorts and checked
-recruiting status in separate statements from the UPDATE;
-recruit/terminate and enroll/withdraw carry no expected-from status
-guard. This packet folds the guards into the writes and proves the gate.
+- non-deleted-parent guard enforced inside the cohort INSERT; a study
+  soft-deleted mid-flight can no longer leak cohorts
+- complete is one guarded UPDATE (recruiting + not deleted + NOT EXISTS
+  draft cohort); recruit/terminate and enroll/withdraw carry
+  expected-from status in the WHERE
+- concurrency proof: 8 racing creates on a deleted study all rejected; 8
+  racing completes → exactly one winner
+- crash proof: acknowledged completed study survives a forced kill of
+  the API
+- restore proof: schema dump roundtrip with equal counts + content
+  hashes
+- `helix-vita-prime` recorded in `durability_gate_proven_products`
 
-### Definition of done
+### Active goal
 
-1. `create_child` inserts with `INSERT ... SELECT` against a non-deleted
-   study — one statement.
-2. `complete_study` is a single guarded `UPDATE` (recruiting + not
-   deleted + `NOT EXISTS` draft cohort).
-3. `recruit_study`, `terminate_study`, `enroll_cohort`,
-   `withdraw_cohort` carry expected-from status in the `WHERE`.
-4. Ignored tests `cohorts_rejected_on_deleted_study` and
-   `concurrent_complete_single_winner` pass locally and in CI.
-5. `scripts/helix_vita_prime_durability.ps1` proves lifecycle,
-   forced-kill survival, and schema restore roundtrip.
-6. `vita-durability` CI job in `.github/workflows/ci.yml`.
-7. `cargo test --workspace --all-features` and
-   `cargo clippy --workspace --all-targets -- -D warnings` clean.
+None. HELIXVITAPRIME-DURABILITY is closed.
 
 ### Next action
 
-Push the implementation and watch CI to green.
+Founder selects the next explicit named goal. Open: durability gates for
+the remaining 4 products.

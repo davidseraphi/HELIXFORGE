@@ -1,5 +1,48 @@
 # Decision log (append-only)
 
+## 2026-07-19 — HELIXVITAPRIME-DURABILITY closed; seventeenth product through the gate
+
+- Completed the HelixVita Prime durability-gate packet (`helix-vita-prime`
+  added to `durability_gate_proven_products`):
+  - **Check-then-insert window closed:** `VitaRepo::create_child` now
+    enforces the non-deleted parent study condition inside the INSERT
+    itself (`INSERT ... SELECT`), so a study soft-deleted in between can
+    no longer leak cohorts (`crates/helix-db/src/vita.rs`).
+  - **Guarded transitions:** `complete_study` is a single guarded
+    `UPDATE` requiring `status = 'recruiting'`, not deleted, and
+    `NOT EXISTS` a non-deleted draft cohort; `recruit_study`,
+    `terminate_study`, `enroll_cohort`, and `withdraw_cohort` carry
+    their expected-from status in the `WHERE` — a concurrent transition
+    now loses with a conflict instead of overwriting.
+  - New ignored Postgres integration tests:
+    `cohorts_rejected_on_deleted_study` (after soft-deleting a study, 8
+    concurrent cohort creates all rejected; no cohort leaks in) and
+    `concurrent_complete_single_winner` (8 racing completes of one
+    recruiting study → exactly one success, 7 rejected, study ends
+    completed).
+  - `scripts/helix_vita_prime_durability.ps1` proves:
+    study/recruit/cohort/enroll/complete lifecycle; an acknowledged
+    completed study surviving an immediate forced kill of the API
+    (status, completed_at, and enrolled cohort fully present after
+    restart); and a `vita` schema `pg_dump` roundtrip into a scratch
+    database with equal study/cohort counts and equal content hashes.
+  - `vita-durability` CI job running the ignored integration tests and
+    the proof script.
+- Verification:
+  - `cargo fmt --all -- --check` clean.
+  - `cargo clippy --workspace --all-targets -- -D warnings` clean.
+  - `cargo test --workspace --all-features` clean.
+  - Race proofs pass against live Postgres; durability script passes
+    locally (Windows) and in CI (ubuntu).
+  - GitHub Actions run `29673285395` is all green, including the new
+    **HelixVita Prime durability gate** job and all 19 product smoke
+    jobs.
+- Commits `550d6b7` (activation) and `52e51c6` (implementation) pushed to
+  `main`.
+- `PROJECT_STATE.json` and `NEXT_ACTION.md` updated; `helix-vita-prime`
+  recorded in `durability_gate_proven_products`.
+- Next action: founder selects the next explicit named goal.
+
 ## 2026-07-19 — HELIXQUANTUMFORGE-DURABILITY closed; sixteenth product through the gate
 
 - Completed the HelixQuantum Forge durability-gate packet
