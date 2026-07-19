@@ -1,5 +1,42 @@
 # Decision log (append-only)
 
+## 2026-07-19 — HELIXEDU-DURABILITY closed; sixth product through the gate
+
+- Completed the HelixEdu durability-gate packet (`helix-edu` added to
+  `durability_gate_proven_products`):
+  - **Check-then-insert window closed:** `EduRepo::enroll` now enforces
+    the published, non-deleted course condition inside the INSERT itself
+    (`INSERT ... SELECT`), so a course unpublished in between can no
+    longer leak enrollments. `EduRepo::withdraw_enrollment` is a single
+    guarded `UPDATE` with `status <> 'withdrawn'` and `RETURNING`
+    (`crates/helix-db/src/edu.rs`).
+  - New ignored Postgres integration tests:
+    `concurrent_enroll_same_learner_single_winner` (8 racing enrollments
+    of one learner → exactly one success, 7 conflicts, one enrollment row)
+    and `enroll_rejected_when_unpublished` (8 racing enroll attempts on a
+    draft course all rejected, no enrollment leaks in).
+  - `scripts/helix_edu_durability.ps1` proves: course/publish/enroll/
+    progress lifecycle; an acknowledged enrollment surviving an immediate
+    forced kill of the API (enrollment and progress present after
+    restart); and an `edu` schema `pg_dump` roundtrip into a scratch
+    database with equal course/enrollment/history counts and equal
+    content hashes.
+  - `edu-durability` CI job running the ignored integration tests and the
+    proof script.
+- Verification:
+  - `cargo fmt --all -- --check` clean.
+  - `cargo clippy --workspace --all-targets -- -D warnings` clean.
+  - `cargo test --workspace --all-features` clean.
+  - Race proofs pass against live Postgres; durability script passes
+    locally (Windows) and in CI (ubuntu).
+  - GitHub Actions run `29667121757` is all green, including the new
+    **HelixEdu durability gate** job and all 19 product smoke jobs.
+- Commits `529f605` (activation) and `0200973` (implementation) pushed to
+  `main`.
+- `PROJECT_STATE.json` and `NEXT_ACTION.md` updated; `helix-edu` recorded
+  in `durability_gate_proven_products`.
+- Next action: founder selects the next explicit named goal.
+
 ## 2026-07-18 — HELIXINSIGHTS-DURABILITY closed; fifth product through the gate
 
 - Completed the HelixInsights durability-gate packet (`helix-insights`

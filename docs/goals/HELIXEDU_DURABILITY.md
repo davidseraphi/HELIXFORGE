@@ -38,7 +38,10 @@ update. This packet makes both atomic and proves the gate.
 
 ## Status
 
-- **Active**
+- **Closed / CI-proven**
+- CI run: `29667121757` (**HelixEdu durability gate** job green)
+- Proof script: `scripts/helix_edu_durability.ps1`
+- Gate proven locally (Windows) and in CI (ubuntu)
 
 ## Out of scope
 

@@ -4,10 +4,10 @@
   "stage": "prototype",
   "updated_at": "2026-07-18",
   "active_slice": "category-defining-product-program",
-  "active_goal": "HELIXWELL-DURABILITY",
-  "active_phase": "helixwell_durability_gate",
+  "active_goal": null,
+  "active_phase": null,
   "previous_goal": "HELIXEDU-DURABILITY_CI_PROVEN",
-  "review_gate": "HELIXWELL-DURABILITY",
+  "review_gate": null,
   "category_defining_program": {
     "status": "foundation_integrity_umbrella_011.7_closed",
     "root": "docs/product-program",
@@ -22,7 +22,7 @@
       "helix-anvil-standalone"
     ],
     "implementation_started": true,
-    "next_gate": "HELIXWELL-DURABILITY gate packet"
+    "next_gate": "awaiting_founder_goal_selection"
   },
   "second_wave": {
     "roadmap": "docs/SECOND_WAVE.md",
@@ -83,7 +83,7 @@
     "current_validity": "unverified_after_later_tree_changes"
   },
   "foundation_integrity_current_gate": "011.7_CLOSED",
-  "full_workspace_current_status": "fmt_clippy_test_helm_verify_helixcore_full_pass_helixinsights_durability_ci_proven_run_29666090622",
+  "full_workspace_current_status": "fmt_clippy_test_helm_verify_helixcore_full_pass_helixedu_durability_ci_proven_run_29667121757",
   "core_services": [
     "gateway",
     "agent-hub",
@@ -122,7 +122,8 @@
     "helix-capital",
     "helix-commerce",
     "helix-flow",
-    "helix-insights"
+    "helix-insights",
+    "helix-edu"
   ],
   "durability_gate_definition": "fresh crash, concurrency, restore, and Windows/macOS/Linux proof under Foundation Integrity",
   "deferred_products": {
@@ -166,11 +167,11 @@
   "ratified_specs": [],
   "last_smoke": {
     "date": "2026-07-18",
-    "service": "helix-insights",
+    "service": "helix-edu",
     "postgres": true,
     "minio": true,
     "nats": true,
-    "path": "scripts/helix_insights_durability.ps1 PASS \u2014 local + CI"
+    "path": "scripts/helix_edu_durability.ps1 PASS \u2014 local + CI"
   },
   "helix_code_extreme": {
     "phase": "endstate",
