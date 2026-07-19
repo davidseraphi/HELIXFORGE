@@ -1,5 +1,50 @@
 # Decision log (append-only)
 
+## 2026-07-19 — HELIXORBITPRIME-DURABILITY closed; fifteenth product through the gate
+
+- Completed the HelixOrbit Prime durability-gate packet
+  (`helix-orbit-prime` added to `durability_gate_proven_products`):
+  - **Check-then-insert window closed:** `OrbitRepo::create_child` now
+    enforces the non-deleted parent asset condition inside the INSERT
+    itself (`INSERT ... SELECT`), so an asset soft-deleted in between
+    can no longer leak passes (`crates/helix-db/src/orbit.rs`).
+  - **Guarded transitions:** `decommission_asset` is a single guarded
+    `UPDATE` requiring `status = 'active'`, not deleted, and
+    `NOT EXISTS` a non-deleted draft or planned pass;
+    `commission_asset`, `recommission_asset`, and the pass
+    `transition_pass` carry their expected-from status in the `WHERE` —
+    a concurrent transition now loses with a conflict instead of
+    overwriting.
+  - New ignored Postgres integration tests:
+    `passes_rejected_on_deleted_asset` (after soft-deleting an asset, 8
+    concurrent pass creates all rejected; no pass leaks in) and
+    `concurrent_decommission_single_winner` (8 racing decommissions of
+    one active asset → exactly one success, 7 rejected, asset ends
+    decommissioned).
+  - `scripts/helix_orbit_prime_durability.ps1` proves:
+    asset/commission/pass/plan/complete/decommission lifecycle; an
+    acknowledged decommissioned asset surviving an immediate forced kill
+    of the API (status, decommissioned_at, and completed pass fully
+    present after restart); and an `orbit` schema `pg_dump` roundtrip
+    into a scratch database with equal asset/pass counts and equal
+    content hashes.
+  - `orbit-durability` CI job running the ignored integration tests and
+    the proof script.
+- Verification:
+  - `cargo fmt --all -- --check` clean.
+  - `cargo clippy --workspace --all-targets -- -D warnings` clean.
+  - `cargo test --workspace --all-features` clean.
+  - Race proofs pass against live Postgres; durability script passes
+    locally (Windows) and in CI (ubuntu).
+  - GitHub Actions run `29672257327` is all green, including the new
+    **HelixOrbit Prime durability gate** job and all 19 product smoke
+    jobs.
+- Commits `8f98c86` (activation) and `49da1de` (implementation) pushed to
+  `main`.
+- `PROJECT_STATE.json` and `NEXT_ACTION.md` updated; `helix-orbit-prime`
+  recorded in `durability_gate_proven_products`.
+- Next action: founder selects the next explicit named goal.
+
 ## 2026-07-19 — HELIXCLIMATEPRIME-DURABILITY closed; fourteenth product through the gate
 
 - Completed the HelixClimate Prime durability-gate packet

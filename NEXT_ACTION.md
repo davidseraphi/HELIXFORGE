@@ -1,41 +1,42 @@
 # Next action
 
-## Active: HELIXORBITPRIME-DURABILITY — fifteenth product through the gate
+## Latest: HELIXORBITPRIME-DURABILITY closed — fifteenth product through the gate
 
-Prove the Foundation Integrity durability gate on HelixOrbit Prime:
-fresh crash, concurrency, and restore, verified locally and in CI.
-Fifteenth product (after `helix-collab`, `helix-capital`,
-`helix-commerce`, `helix-flow`, `helix-insights`, `helix-edu`,
-`helix-well`, `helix-network`, `helix-forge-studio`, `helix-synthbio`,
-`helix-lex-prime`, `helix-cura-prime`, `helix-terra-prime`,
-`helix-climate-prime`).
+HELIXORBITPRIME-DURABILITY is complete. The implementation passed local
+verification and GitHub Actions run `29672257327` is all green, including
+the new **HelixOrbit Prime durability gate** job.
 
-Goal doc: `docs/goals/HELIXORBITPRIME_DURABILITY.md`.
+- Repo: `crates/helix-db/src/orbit.rs` (atomic `create_child`
+  INSERT...SELECT; guarded `decommission_asset` / `commission_asset` /
+  `recommission_asset` / `transition_pass`)
+- Tests: `projects/helix-orbit-prime/backend/src/main.rs`
+  (`passes_rejected_on_deleted_asset`,
+  `concurrent_decommission_single_winner`)
+- Proof: `scripts/helix_orbit_prime_durability.ps1` (forced-kill +
+  restore)
+- CI: `.github/workflows/ci.yml` `orbit-durability` job
+- Docs: `docs/goals/HELIXORBITPRIME_DURABILITY.md`, `DECISION_LOG.md`
 
-### Scope
+### What was delivered
 
-`create_child` checked the parent asset in a separate SELECT before the
-pass INSERT; `decommission_asset` counted open passes and checked active
-status in separate statements from the UPDATE; commission/recommission
-and pass plan/complete/cancel carry no expected-from status guard. This
-packet folds the guards into the writes and proves the gate.
+- non-deleted-parent guard enforced inside the pass INSERT; an asset
+  soft-deleted mid-flight can no longer leak passes
+- decommission is one guarded UPDATE (active + not deleted + NOT EXISTS
+  draft or planned pass); commission/recommission and pass transitions
+  carry expected-from status in the WHERE
+- concurrency proof: 8 racing creates on a deleted asset all rejected; 8
+  racing decommissions → exactly one winner
+- crash proof: acknowledged decommissioned asset survives a forced kill
+  of the API
+- restore proof: schema dump roundtrip with equal counts + content
+  hashes
+- `helix-orbit-prime` recorded in `durability_gate_proven_products`
 
-### Definition of done
+### Active goal
 
-1. `create_child` inserts with `INSERT ... SELECT` against a non-deleted
-   asset — one statement.
-2. `decommission_asset` is a single guarded `UPDATE` (active + not
-   deleted + `NOT EXISTS` draft or planned pass).
-3. `commission_asset`, `recommission_asset`, `transition_pass` carry
-   expected-from status in the `WHERE`.
-4. Ignored tests `passes_rejected_on_deleted_asset` and
-   `concurrent_decommission_single_winner` pass locally and in CI.
-5. `scripts/helix_orbit_prime_durability.ps1` proves lifecycle,
-   forced-kill survival, and schema restore roundtrip.
-6. `orbit-durability` CI job in `.github/workflows/ci.yml`.
-7. `cargo test --workspace --all-features` and
-   `cargo clippy --workspace --all-targets -- -D warnings` clean.
+None. HELIXORBITPRIME-DURABILITY is closed.
 
 ### Next action
 
-Push the implementation and watch CI to green.
+Founder selects the next explicit named goal. Open: durability gates for
+the remaining 6 products.
