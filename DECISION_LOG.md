@@ -1,5 +1,49 @@
 # Decision log (append-only)
 
+## 2026-07-19 — HELIXNOVALABS-DURABILITY closed; nineteenth product through the gate
+
+- Completed the HelixNova Labs durability-gate packet (`helix-nova-labs`
+  added to `durability_gate_proven_products`):
+  - **Check-then-insert window closed:** `NovaRepo::create_child` now
+    enforces the non-deleted parent experiment condition inside the
+    INSERT itself (`INSERT ... SELECT`), so an experiment soft-deleted in
+    between can no longer leak findings (`crates/helix-db/src/nova.rs`).
+  - **Guarded transitions:** `conclude_experiment` is a single guarded
+    `UPDATE` requiring `status = 'running'`, not deleted, and
+    `NOT EXISTS` a non-deleted draft finding; `start_experiment`,
+    `reopen_experiment`, `confirm_finding`, and `reject_finding` carry
+    their expected-from status in the `WHERE` — a concurrent transition
+    now loses with a conflict instead of overwriting.
+  - New ignored Postgres integration tests:
+    `findings_rejected_on_deleted_experiment` (after soft-deleting an
+    experiment, 8 concurrent finding creates all rejected; no finding
+    leaks in) and `concurrent_conclude_single_winner` (8 racing
+    concludes of one running experiment → exactly one success, 7
+    rejected, experiment ends concluded).
+  - `scripts/helix_nova_labs_durability.ps1` proves:
+    experiment/start/finding/confirm/conclude lifecycle; an acknowledged
+    concluded experiment surviving an immediate forced kill of the API
+    (status, concluded_at, and confirmed finding fully present after
+    restart); and a `nova` schema `pg_dump` roundtrip into a scratch
+    database with equal experiment/finding counts and equal content
+    hashes.
+  - `nova-durability` CI job running the ignored integration tests and
+    the proof script.
+- Verification:
+  - `cargo fmt --all -- --check` clean.
+  - `cargo clippy --workspace --all-targets -- -D warnings` clean.
+  - `cargo test --workspace --all-features` clean.
+  - Race proofs pass against live Postgres; durability script passes
+    locally (Windows) and in CI (ubuntu).
+  - GitHub Actions run `29685681271` is all green, including the new
+    **HelixNova Labs durability gate** job and all 19 product smoke
+    jobs.
+- Commits `acf5a4e` (activation) and `1e30d17` (implementation) pushed to
+  `main`.
+- `PROJECT_STATE.json` and `NEXT_ACTION.md` updated; `helix-nova-labs`
+  recorded in `durability_gate_proven_products`.
+- Next action: founder selects the next explicit named goal.
+
 ## 2026-07-19 — HELIXGRIDPRIME-DURABILITY closed; eighteenth product through the gate
 
 - Completed the HelixGrid Prime durability-gate packet (`helix-grid-prime`

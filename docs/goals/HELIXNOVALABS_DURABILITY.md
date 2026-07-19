@@ -52,7 +52,10 @@ the gate.
 
 ## Status
 
-- **Active**
+- **Closed / CI-proven**
+- CI run: `29685681271` (**HelixNova Labs durability gate** job green)
+- Proof script: `scripts/helix_nova_labs_durability.ps1`
+- Gate proven locally (Windows) and in CI (ubuntu)
 
 ## Out of scope
 
