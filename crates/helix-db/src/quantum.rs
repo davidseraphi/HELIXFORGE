@@ -312,7 +312,11 @@ impl QuantumRepo {
             .ok_or_else(|| HelixError::not_found("job not found"))
     }
 
-    /// Submit a draft job. Requires at least one non-deleted circuit.
+    /// Submit a draft job. Requires at least one non-deleted circuit. The
+    /// draft-status and circuit-exists guards are part of the UPDATE
+    /// itself, so a concurrent submit or a circuit deleted mid-flight
+    /// cannot slip through a check-then-act window; the earlier reads only
+    /// shape the error returned for the steady-state cases.
     pub async fn submit_job(&self, tenant_id: TenantId, job_id: Uuid) -> HelixResult<QuantumJob> {
         let job = self
             .get_parent(tenant_id, job_id)
@@ -339,7 +343,11 @@ impl QuantumRepo {
             r#"
             UPDATE quantum.jobs
             SET status = $1, submitted_at = $2, updated_at = $2
-            WHERE tenant_id = $3 AND id = $4 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND id = $4 AND status = 'draft' AND deleted_at IS NULL
+              AND EXISTS (
+                  SELECT 1 FROM quantum.circuits c
+                  WHERE c.tenant_id = $3 AND c.parent_id = $4 AND c.deleted_at IS NULL
+              )
             {JOB_RETURNING}
             "#
         ))
@@ -351,8 +359,9 @@ impl QuantumRepo {
         .await
         .map_err(|e| HelixError::dependency(format!("quantum submit job: {e}")))?;
 
-        row.map(JobRow::into_job)
-            .ok_or_else(|| HelixError::not_found("job not found"))
+        row.map(JobRow::into_job).ok_or_else(|| {
+            HelixError::conflict("job changed during submit or lost its last circuit; retry")
+        })
     }
 
     async fn transition_job(
@@ -372,11 +381,13 @@ impl QuantumRepo {
             "failed" => (None, Some(now)),
             _ => (job.completed_at, job.failed_at),
         };
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<JobRow> = sqlx::query_as(&format!(
             r#"
             UPDATE quantum.jobs
             SET status = $1, completed_at = $2, failed_at = $3, updated_at = $4
-            WHERE tenant_id = $5 AND id = $6 AND deleted_at IS NULL
+            WHERE tenant_id = $5 AND id = $6 AND status = $7 AND deleted_at IS NULL
             {JOB_RETURNING}
             "#
         ))
@@ -386,12 +397,13 @@ impl QuantumRepo {
         .bind(now)
         .bind(tenant_id.as_uuid())
         .bind(job_id)
+        .bind(&job.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("quantum {action} job: {e}")))?;
 
         row.map(JobRow::into_job)
-            .ok_or_else(|| HelixError::not_found("job not found"))
+            .ok_or_else(|| HelixError::conflict("job changed during transition; retry"))
     }
 
     pub async fn complete_job(&self, tenant_id: TenantId, job_id: Uuid) -> HelixResult<QuantumJob> {
@@ -499,17 +511,17 @@ impl QuantumRepo {
         body: &str,
         metadata: serde_json::Value,
     ) -> HelixResult<Circuit> {
-        let _parent = self
-            .get_parent(tenant_id, parent_id)
-            .await?
-            .ok_or_else(|| HelixError::not_found("parent not found"))?;
         let id = Uuid::now_v7();
         let created_at = Utc::now();
-        let row: CircuitRow = sqlx::query_as(&format!(
+        // The non-deleted-parent guard is part of the INSERT itself: a job
+        // soft-deleted between a separate check and insert cannot leak circuits.
+        let row: Option<CircuitRow> = sqlx::query_as(&format!(
             r#"
             INSERT INTO quantum.circuits
                 (id, tenant_id, parent_id, title, body, status, metadata, created_at, updated_at)
-            VALUES ($1,$2,$3,$4,$5,'draft',$6,$7,$7)
+            SELECT $1,$2,$3,$4,$5,'draft',$6,$7,$7
+            FROM quantum.jobs j
+            WHERE j.tenant_id = $2 AND j.id = $3 AND j.deleted_at IS NULL
             {CIRCUIT_RETURNING}
             "#
         ))
@@ -520,10 +532,11 @@ impl QuantumRepo {
         .bind(body)
         .bind(&metadata)
         .bind(created_at)
-        .fetch_one(&self.pool)
+        .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("quantum create child: {e}")))?;
-        Ok(row.into_circuit())
+        row.map(CircuitRow::into_circuit)
+            .ok_or_else(|| HelixError::not_found("parent not found"))
     }
 
     pub async fn get_circuit(
@@ -615,11 +628,13 @@ impl QuantumRepo {
             .ok_or_else(|| HelixError::not_found("circuit not found"))?;
         let next = next_circuit_status(&circuit.status, "validate")?;
         let now = Utc::now();
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<CircuitRow> = sqlx::query_as(&format!(
             r#"
             UPDATE quantum.circuits
             SET status = $1, validated_at = $2, updated_at = $2
-            WHERE tenant_id = $3 AND parent_id = $4 AND id = $5 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND parent_id = $4 AND id = $5 AND status = $6 AND deleted_at IS NULL
             {CIRCUIT_RETURNING}
             "#
         ))
@@ -628,12 +643,13 @@ impl QuantumRepo {
         .bind(tenant_id.as_uuid())
         .bind(job_id)
         .bind(circuit_id)
+        .bind(&circuit.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("quantum validate circuit: {e}")))?;
 
         row.map(CircuitRow::into_circuit)
-            .ok_or_else(|| HelixError::not_found("circuit not found"))
+            .ok_or_else(|| HelixError::conflict("circuit changed during validate; retry"))
     }
 
     pub async fn archive_circuit(
@@ -648,11 +664,13 @@ impl QuantumRepo {
             .ok_or_else(|| HelixError::not_found("circuit not found"))?;
         let next = next_circuit_status(&circuit.status, "archive")?;
         let now = Utc::now();
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<CircuitRow> = sqlx::query_as(&format!(
             r#"
             UPDATE quantum.circuits
             SET status = $1, archived_at = $2, updated_at = $2
-            WHERE tenant_id = $3 AND parent_id = $4 AND id = $5 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND parent_id = $4 AND id = $5 AND status = $6 AND deleted_at IS NULL
             {CIRCUIT_RETURNING}
             "#
         ))
@@ -661,12 +679,13 @@ impl QuantumRepo {
         .bind(tenant_id.as_uuid())
         .bind(job_id)
         .bind(circuit_id)
+        .bind(&circuit.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("quantum archive circuit: {e}")))?;
 
         row.map(CircuitRow::into_circuit)
-            .ok_or_else(|| HelixError::not_found("circuit not found"))
+            .ok_or_else(|| HelixError::conflict("circuit changed during archive; retry"))
     }
 
     pub async fn soft_delete_circuit(
