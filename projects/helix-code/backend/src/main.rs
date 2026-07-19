@@ -261,4 +261,111 @@ mod tests {
             .expect_err("pipeline on a missing repo must fail");
         assert_eq!(err.code, shared_core::ErrorCode::NotFound);
     }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn concurrent_issue_numbers_all_distinct() {
+        let (state, _guard) = locked_state().await;
+        let tenant_id = dev_tenant();
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let store = CodeRepoStore::new(pool.clone());
+
+        let suffix = Uuid::now_v7().simple().to_string();
+        let repo = store
+            .create(tenant_id, &format!("dur-num-{suffix}"), "", "private")
+            .await
+            .expect("create repo");
+
+        // 16 racing issue creates on one repo all get distinct numbers.
+        let mut handles = Vec::new();
+        for i in 0..16u32 {
+            let store = store.clone();
+            handles.push(tokio::spawn(async move {
+                store
+                    .create_issue(
+                        tenant_id,
+                        repo.id,
+                        &format!("issue {i}"),
+                        "",
+                        "tester",
+                        serde_json::json!([]),
+                    )
+                    .await
+            }));
+        }
+        let mut numbers = std::collections::HashSet::new();
+        for h in handles {
+            let issue = h.await.expect("issue task panicked").expect("create issue");
+            assert!(
+                numbers.insert(issue.number),
+                "duplicate issue number {}",
+                issue.number
+            );
+        }
+        assert_eq!(numbers.len(), 16);
+
+        // 16 racing agent-event appends on one job get distinct seqs.
+        let job = store
+            .create_agent_job(tenant_id, repo.id, None, "sandbox", "seq race")
+            .await
+            .expect("create agent job");
+        let mut handles = Vec::new();
+        for _ in 0..16u32 {
+            let store = store.clone();
+            handles.push(tokio::spawn(async move {
+                store
+                    .append_agent_event(tenant_id, job.id, "log", serde_json::json!({}))
+                    .await
+            }));
+        }
+        let mut seqs = std::collections::HashSet::new();
+        for h in handles {
+            let ev = h.await.expect("event task panicked").expect("append event");
+            assert!(seqs.insert(ev.seq), "duplicate event seq {}", ev.seq);
+        }
+        assert_eq!(seqs.len(), 16);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn cas_ref_stale_expected_conflict() {
+        let (state, _guard) = locked_state().await;
+        let tenant_id = dev_tenant();
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let store = CodeRepoStore::new(pool.clone());
+
+        let suffix = Uuid::now_v7().simple().to_string();
+        let repo = store
+            .create(tenant_id, &format!("dur-cas-{suffix}"), "", "private")
+            .await
+            .expect("create repo");
+        let seed = "a".repeat(40);
+        let next = "b".repeat(40);
+        let stale = "c".repeat(40);
+        let refname = "refs/heads/main";
+
+        // Create requires the ref to not exist.
+        let created = store
+            .cas_ref(tenant_id, repo.id, refname, None, &seed, false)
+            .await
+            .expect("seed ref via cas create");
+        assert_eq!(created.target_sha, seed);
+        let err = store
+            .cas_ref(tenant_id, repo.id, refname, None, &seed, false)
+            .await
+            .expect_err("create on an existing ref must conflict");
+        assert_eq!(err.code, shared_core::ErrorCode::Conflict);
+
+        // Update requires the expected sha to match.
+        let err = store
+            .cas_ref(tenant_id, repo.id, refname, Some(&stale), &next, false)
+            .await
+            .expect_err("stale expected sha must conflict");
+        assert_eq!(err.code, shared_core::ErrorCode::Conflict);
+        let updated = store
+            .cas_ref(tenant_id, repo.id, refname, Some(&seed), &next, false)
+            .await
+            .expect("cas with the current sha wins");
+        assert_eq!(updated.target_sha, next);
+    }
 }

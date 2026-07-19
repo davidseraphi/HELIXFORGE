@@ -313,7 +313,7 @@ impl GitStore {
         run_git_in(work.path(), &["config", "user.name", "HelixCode Forge"])?;
         run_git_in(work.path(), &["add", "--", path])?;
         run_git_in(work.path(), &["commit", "-m", message])?;
-        run_git_in(work.path(), &["push", "origin", &format!("HEAD:{branch}")])?;
+        run_git_push(work.path(), &["push", "origin", &format!("HEAD:{branch}")])?;
         head_sha(&bare)
     }
 
@@ -367,7 +367,7 @@ impl GitStore {
         )?;
         run_git_in(work.path(), &["config", "user.name", "HelixCode Forge"])?;
         run_git_in(work.path(), &["commit", "-m", message])?;
-        run_git_in(work.path(), &["push", "origin", &format!("HEAD:{branch}")])?;
+        run_git_push(work.path(), &["push", "origin", &format!("HEAD:{branch}")])?;
         head_sha(&bare)
     }
 
@@ -410,7 +410,7 @@ impl GitStore {
         run_git(&["clone", bare_s, work_s])?;
         run_git_in(work.path(), &["checkout", from])?;
         run_git_in(work.path(), &["checkout", "-B", branch])?;
-        run_git_in(work.path(), &["push", "-u", "origin", branch])?;
+        run_git_push(work.path(), &["push", "-u", "origin", branch])?;
         let sha = rev_parse_work(work.path())?;
         Ok(sha)
     }
@@ -449,7 +449,7 @@ impl GitStore {
         {
             run_git_in(work.path(), &["merge", "--no-ff", "-m", message, source])?;
         }
-        run_git_in(work.path(), &["push", "origin", &format!("HEAD:{target}")])?;
+        run_git_push(work.path(), &["push", "origin", &format!("HEAD:{target}")])?;
         rev_parse_work(work.path())
     }
 
@@ -812,6 +812,37 @@ fn run_git_in(dir: &Path, args: &[&str]) -> HelixResult<()> {
     Ok(())
 }
 
+/// Run `git push` and map the fast-forward / stale-ref rejections git
+/// already enforces into a clean conflict: the ref moved between our
+/// clone and our push, which is compare-and-swap at the git layer —
+/// the loser is told to retry instead of seeing a raw 500.
+fn run_git_push(dir: &Path, args: &[&str]) -> HelixResult<()> {
+    let out = Command::new("git")
+        .current_dir(dir)
+        .args(args)
+        .output()
+        .map_err(|e| HelixError::dependency(format!("git spawn: {e}")))?;
+    if !out.status.success() {
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        if stderr.contains("non-fast-forward")
+            || stderr.contains("fetch first")
+            || stderr.contains("stale info")
+            || stderr.contains("failed to push some refs")
+        {
+            return Err(HelixError::conflict(
+                "ref moved concurrently; fetch and retry",
+            ));
+        }
+        return Err(HelixError::dependency(format!(
+            "git {:?} in {} failed: {}",
+            args,
+            dir.display(),
+            stderr
+        )));
+    }
+    Ok(())
+}
+
 fn git_stdout(repo: &Path, args: &[&str]) -> HelixResult<String> {
     let mut cmd = Command::new("git");
     cmd.arg("-C").arg(repo).args(args);
@@ -977,5 +1008,57 @@ mod tests {
             .read_blob(tenant, "demo", "main", "src/a.rs")
             .unwrap()
             .contains("A:"));
+    }
+
+    #[test]
+    fn concurrent_commit_same_branch_cas_holds() {
+        let dir = tempfile::tempdir().unwrap();
+        let tenant = TenantId::from_uuid(Uuid::nil());
+        GitStore {
+            root: dir.path().to_path_buf(),
+        }
+        .init_bare_with_seed(tenant, "race", "cas repo")
+        .expect("init");
+
+        // 8 racing single-file commits on main: every winner advances the
+        // branch by one commit; every loser is a clean conflict from the
+        // git-layer compare-and-swap (non-fast-forward), never a 500.
+        let mut handles = Vec::new();
+        for i in 0..8u32 {
+            let root = dir.path().to_path_buf();
+            handles.push(std::thread::spawn(move || {
+                let store = GitStore { root };
+                store.commit_file(
+                    tenant,
+                    "race",
+                    "main",
+                    &format!("race/{i}.txt"),
+                    &format!("winner {i}\n"),
+                    &format!("race commit {i}"),
+                )
+            }));
+        }
+        let mut winners = 0usize;
+        let mut conflicts = 0usize;
+        for h in handles {
+            match h.join().expect("commit task panicked") {
+                Ok(_) => winners += 1,
+                Err(e) if e.code == shared_core::ErrorCode::Conflict => conflicts += 1,
+                Err(e) => panic!("unexpected commit error: {e}"),
+            }
+        }
+        assert!(winners >= 1, "at least one commit must win");
+        assert_eq!(conflicts, 8 - winners, "every loser must conflict");
+
+        // main holds exactly the seed plus one commit per winner.
+        let store = GitStore {
+            root: dir.path().to_path_buf(),
+        };
+        let log = store.log(tenant, "race", "main", 64).unwrap();
+        assert_eq!(
+            log.len(),
+            1 + winners,
+            "branch history is exactly the winners' commits"
+        );
     }
 }

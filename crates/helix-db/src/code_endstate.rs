@@ -135,17 +135,39 @@ pub struct CodeTenantQuota {
 }
 
 impl CodeRepoStore {
-    // —— Issues ——
-    pub async fn next_issue_number(&self, tenant_id: TenantId, repo_id: Uuid) -> HelixResult<i32> {
-        let n: (i32,) = sqlx::query_as(
-            r#"SELECT COALESCE(MAX(number), 0) + 1 FROM code.issues WHERE tenant_id = $1 AND repo_id = $2"#,
+    /// Allocate the next number for a scope atomically. The counter row is
+    /// created on first use and incremented under a row lock in one
+    /// statement, so concurrent allocators always receive distinct values —
+    /// no MAX+1 read window (including the zero-row case), and no
+    /// unique-violation 500 on the loser.
+    async fn allocate_number(
+        &self,
+        tenant_id: TenantId,
+        scope_kind: &str,
+        scope_id: Uuid,
+    ) -> HelixResult<i32> {
+        let allocated: (i64,) = sqlx::query_as(
+            r#"
+            INSERT INTO code.number_counters (tenant_id, scope_kind, scope_id, next_value)
+            VALUES ($1, $2, $3, 2)
+            ON CONFLICT (tenant_id, scope_kind, scope_id)
+            DO UPDATE SET next_value = code.number_counters.next_value + 1
+            RETURNING next_value - 1
+            "#,
         )
         .bind(tenant_id.as_uuid())
-        .bind(repo_id)
+        .bind(scope_kind)
+        .bind(scope_id)
         .fetch_one(&self.pool)
         .await
-        .map_err(|e| HelixError::dependency(format!("issue number: {e}")))?;
-        Ok(n.0)
+        .map_err(|e| HelixError::dependency(format!("allocate {scope_kind} number: {e}")))?;
+        i32::try_from(allocated.0)
+            .map_err(|e| HelixError::dependency(format!("allocate {scope_kind} overflow: {e}")))
+    }
+
+    // —— Issues ——
+    pub async fn next_issue_number(&self, tenant_id: TenantId, repo_id: Uuid) -> HelixResult<i32> {
+        self.allocate_number(tenant_id, "issue", repo_id).await
     }
 
     pub async fn create_issue(
@@ -273,15 +295,7 @@ impl CodeRepoStore {
 
     // —— PRs ——
     pub async fn next_pr_number(&self, tenant_id: TenantId, repo_id: Uuid) -> HelixResult<i32> {
-        let n: (i32,) = sqlx::query_as(
-            r#"SELECT COALESCE(MAX(number), 0) + 1 FROM code.pull_requests WHERE tenant_id = $1 AND repo_id = $2"#,
-        )
-        .bind(tenant_id.as_uuid())
-        .bind(repo_id)
-        .fetch_one(&self.pool)
-        .await
-        .map_err(|e| HelixError::dependency(format!("pr number: {e}")))?;
-        Ok(n.0)
+        self.allocate_number(tenant_id, "pr", repo_id).await
     }
 
     pub async fn create_pr(
@@ -929,13 +943,9 @@ impl CodeRepoStore {
         kind: &str,
         payload: JsonValue,
     ) -> HelixResult<CodeAgentJobEvent> {
-        let seq: (i32,) = sqlx::query_as(
-            r#"SELECT COALESCE(MAX(seq), 0) + 1 FROM code.agent_job_events WHERE job_id = $1"#,
-        )
-        .bind(job_id)
-        .fetch_one(&self.pool)
-        .await
-        .map_err(|e| HelixError::dependency(format!("event seq: {e}")))?;
+        let seq = self
+            .allocate_number(tenant_id, "agent_event", job_id)
+            .await?;
         let id = Uuid::now_v7();
         let now = Utc::now();
         sqlx::query(
@@ -945,7 +955,7 @@ impl CodeRepoStore {
         .bind(id)
         .bind(job_id)
         .bind(tenant_id.as_uuid())
-        .bind(seq.0)
+        .bind(seq)
         .bind(kind)
         .bind(&payload)
         .bind(now)
@@ -956,7 +966,7 @@ impl CodeRepoStore {
             id,
             job_id,
             tenant_id,
-            seq: seq.0,
+            seq,
             kind: kind.into(),
             payload,
             created_at: now,

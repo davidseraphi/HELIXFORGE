@@ -344,6 +344,74 @@ impl CodeRepoStore {
         })
     }
 
+    /// Compare-and-swap a ref target. `expected` is the sha the caller
+    /// believes the ref currently points at (`None` = the ref must not
+    /// exist yet). A mismatch — a concurrent mover, or a create where the
+    /// ref already exists — loses with a conflict instead of overwriting.
+    pub async fn cas_ref(
+        &self,
+        tenant_id: TenantId,
+        repo_id: Uuid,
+        name: &str,
+        expected: Option<&str>,
+        new_sha: &str,
+        is_symbolic: bool,
+    ) -> HelixResult<CodeRef> {
+        let id = Uuid::now_v7();
+        let now = Utc::now();
+        let row: Option<(Uuid, DateTime<Utc>)> = match expected {
+            Some(old) => sqlx::query_as(
+                r#"
+                UPDATE code.refs
+                SET target_sha = $1, is_symbolic = $2, updated_at = $3
+                WHERE repo_id = $4 AND tenant_id = $5 AND name = $6 AND target_sha = $7
+                RETURNING id, updated_at
+                "#,
+            )
+            .bind(new_sha)
+            .bind(is_symbolic)
+            .bind(now)
+            .bind(repo_id)
+            .bind(tenant_id.as_uuid())
+            .bind(name)
+            .bind(old)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(|e| HelixError::dependency(format!("code cas_ref: {e}")))?,
+            None => sqlx::query_as(
+                r#"
+                INSERT INTO code.refs (id, repo_id, tenant_id, name, target_sha, is_symbolic, updated_at)
+                VALUES ($1,$2,$3,$4,$5,$6,$7)
+                ON CONFLICT (repo_id, name) DO NOTHING
+                RETURNING id, updated_at
+                "#,
+            )
+            .bind(id)
+            .bind(repo_id)
+            .bind(tenant_id.as_uuid())
+            .bind(name)
+            .bind(new_sha)
+            .bind(is_symbolic)
+            .bind(now)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(|e| HelixError::dependency(format!("code cas_ref create: {e}")))?,
+        };
+        let row = row.ok_or_else(|| match expected {
+            Some(_) => HelixError::conflict("ref moved concurrently; retry"),
+            None => HelixError::conflict("ref already exists"),
+        })?;
+        Ok(CodeRef {
+            id: row.0,
+            repo_id,
+            tenant_id,
+            name: name.into(),
+            target_sha: new_sha.into(),
+            is_symbolic,
+            updated_at: row.1,
+        })
+    }
+
     pub async fn list_refs(&self, tenant_id: TenantId, repo_id: Uuid) -> HelixResult<Vec<CodeRef>> {
         #[derive(sqlx::FromRow)]
         struct Row {
