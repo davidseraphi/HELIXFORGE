@@ -45,7 +45,10 @@ the writes and proves the gate.
 
 ## Status
 
-- **Active**
+- **Closed / CI-proven**
+- CI run: `29669148679` (**HelixForge Studio durability gate** job green)
+- Proof script: `scripts/helix_forge_studio_durability.ps1`
+- Gate proven locally (Windows) and in CI (ubuntu)
 
 ## Out of scope
 

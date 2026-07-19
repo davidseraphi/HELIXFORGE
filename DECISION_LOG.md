@@ -1,5 +1,47 @@
 # Decision log (append-only)
 
+## 2026-07-19 — HELIXFORGESTUDIO-DURABILITY closed; ninth product through the gate
+
+- Completed the HelixForge Studio durability-gate packet (`helix-forge-studio`
+  added to `durability_gate_proven_products`):
+  - **Check-then-insert window closed:** `StudioRepo::create_child` now
+    enforces the non-deleted parent app condition inside the INSERT itself
+    (`INSERT ... SELECT`), so an app soft-deleted in between can no longer
+    leak pages (`crates/helix-db/src/studio.rs`).
+  - **Guarded transitions:** `publish_app` is a single guarded `UPDATE`
+    requiring `status = 'draft'`, not deleted, and `EXISTS` at least one
+    non-deleted page; `unpublish_app`, `archive_page`, and `reopen_page`
+    carry their expected-from status in the `WHERE` — a concurrent
+    transition now loses with a conflict instead of overwriting.
+  - New ignored Postgres integration tests:
+    `pages_rejected_on_deleted_app` (after soft-deleting an app, 8
+    concurrent page creates all rejected; no page leaks in) and
+    `concurrent_publish_single_winner` (8 racing publishes of one draft
+    app → exactly one success, 7 rejected, app ends published).
+  - `scripts/helix_forge_studio_durability.ps1` proves:
+    app/page/publish lifecycle; an acknowledged published app surviving an
+    immediate forced kill of the API (app status, published_at, and page
+    fully present after restart); and a `studio` schema `pg_dump`
+    roundtrip into a scratch database with equal app/page counts and
+    equal content hashes.
+  - `forge-studio-durability` CI job running the ignored integration
+    tests and the proof script.
+- Verification:
+  - `cargo fmt --all -- --check` clean.
+  - `cargo clippy --workspace --all-targets -- -D warnings` clean.
+  - `cargo test --workspace --all-features` clean.
+  - Race proofs pass against live Postgres; durability script passes
+    locally (Windows) and in CI (ubuntu).
+  - GitHub Actions run `29669148679` is all green, including the new
+    **HelixForge Studio durability gate** job and all 19 product smoke
+    jobs. (First attempt hit the known `55432` port-bind infra flake in
+    an unrelated smoke job; rerun `--failed` went green.)
+- Commits `1145eeb` (activation) and `c68f23e` (implementation) pushed to
+  `main`.
+- `PROJECT_STATE.json` and `NEXT_ACTION.md` updated; `helix-forge-studio`
+  recorded in `durability_gate_proven_products`.
+- Next action: founder selects the next explicit named goal.
+
 ## 2026-07-19 — HELIXNETWORK-DURABILITY closed; eighth product through the gate
 
 - Completed the HelixNetwork durability-gate packet (`helix-network` added

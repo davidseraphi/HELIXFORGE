@@ -4,10 +4,10 @@
   "stage": "prototype",
   "updated_at": "2026-07-19",
   "active_slice": "category-defining-product-program",
-  "active_goal": "HELIXFORGESTUDIO-DURABILITY",
-  "active_phase": "helixforgestudio_durability_gate",
-  "previous_goal": "HELIXNETWORK-DURABILITY_CI_PROVEN",
-  "review_gate": "HELIXFORGESTUDIO-DURABILITY",
+  "active_goal": null,
+  "active_phase": null,
+  "previous_goal": "HELIXFORGESTUDIO-DURABILITY_CI_PROVEN",
+  "review_gate": null,
   "category_defining_program": {
     "status": "foundation_integrity_umbrella_011.7_closed",
     "root": "docs/product-program",
@@ -83,7 +83,7 @@
     "current_validity": "unverified_after_later_tree_changes"
   },
   "foundation_integrity_current_gate": "011.7_CLOSED",
-  "full_workspace_current_status": "fmt_clippy_test_helm_verify_helixcore_full_pass_helixnetwork_durability_ci_proven_run_29668195166",
+  "full_workspace_current_status": "fmt_clippy_test_helm_verify_helixcore_full_pass_helixforgestudio_durability_ci_proven_run_29669148679",
   "core_services": [
     "gateway",
     "agent-hub",
@@ -125,7 +125,8 @@
     "helix-insights",
     "helix-edu",
     "helix-well",
-    "helix-network"
+    "helix-network",
+    "helix-forge-studio"
   ],
   "durability_gate_definition": "fresh crash, concurrency, restore, and Windows/macOS/Linux proof under Foundation Integrity",
   "deferred_products": {
@@ -169,11 +170,11 @@
   "ratified_specs": [],
   "last_smoke": {
     "date": "2026-07-19",
-    "service": "helix-network",
+    "service": "helix-forge-studio",
     "postgres": true,
     "minio": true,
     "nats": true,
-    "path": "scripts/helix_network_durability.ps1 PASS \u2014 local + CI"
+    "path": "scripts/helix_forge_studio_durability.ps1 PASS \u2014 local + CI"
   },
   "helix_code_extreme": {
     "phase": "endstate",
