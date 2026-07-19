@@ -1,5 +1,55 @@
 # Decision log (append-only)
 
+## 2026-07-19 — HELIXCODE-DURABILITY closed; all 21 products through the gate
+
+- Completed the HelixCode durability-gate packet (`helix-code` added to
+  `durability_gate_proven_products` — the full product catalog is now
+  gate-proven):
+  - **Guarded terminal finishes:** `CodeRepoStore::finish_pipeline_run`
+    and `finish_agent_job` are single guarded UPDATEs with
+    `AND finished_at IS NULL` and `RETURNING` — a concurrent finish (or
+    a finish racing a cancel) loses with a conflict instead of
+    overwriting the acknowledged terminal state
+    (`crates/helix-db/src/code.rs`).
+  - **Atomic repo-child creates:** `create_workspace` and
+    `create_pipeline` insert with an `INSERT ... SELECT` that requires
+    the repo to exist for the tenant — a deleted or foreign repo id now
+    yields a clean not-found instead of an FK-violation 500.
+  - **Boot fix:** the API panicked on startup under the current axum
+    (`.nest_service("/", ...)` — same class the flow packet found);
+    root mounting now uses `fallback_service`
+    (`projects/helix-code/backend/src/main.rs`).
+  - New Postgres test harness + ignored integration tests in
+    `projects/helix-code/backend/src/main.rs`:
+    `concurrent_finish_pipeline_run_single_winner` (8 racing finishes →
+    exactly one success, 7 conflicts, run ends finished),
+    `concurrent_finish_agent_job_single_winner` (same for agent jobs),
+    and `children_rejected_on_missing_repo` (workspace and pipeline
+    creates against a nonexistent repo rejected with not-found).
+  - `scripts/helix_code_durability.ps1` proves:
+    repo/workspace/pipeline/run-to-succeeded lifecycle; an acknowledged
+    finished run surviving an immediate forced kill of the API (status,
+    finished_at, repo, and workspace fully present after restart); and
+    a `code` schema `pg_dump` roundtrip into a scratch database with
+    equal repo/workspace/run counts and equal content hashes.
+  - `code-durability` CI job running the ignored integration tests and
+    the proof script (first CI coverage for helix-code at all).
+- Verification:
+  - `cargo fmt --all -- --check` clean.
+  - `cargo clippy --workspace --all-targets -- -D warnings` clean.
+  - `cargo test --workspace --all-features` clean.
+  - Race proofs pass against live Postgres; durability script passes
+    locally (Windows) and in CI (ubuntu).
+  - GitHub Actions run `29687099450` is all green, including the new
+    **HelixCode durability gate** job and all 19 product smoke jobs.
+    (First attempt hit the known `55432` port-bind infra flake in an
+    unrelated job; rerun `--failed` went green.)
+- Commits `0cd02b7` (activation) and `8da4fec` (implementation) pushed to
+  `main`.
+- `PROJECT_STATE.json` and `NEXT_ACTION.md` updated; `helix-code`
+  recorded in `durability_gate_proven_products`.
+- Next action: founder selects the next explicit named goal.
+
 ## 2026-07-19 — HELIXPULSE-DURABILITY closed; twentieth product through the gate
 
 - Completed the HelixPulse durability-gate packet (`helix-pulse` added to
