@@ -4,10 +4,10 @@
   "stage": "prototype",
   "updated_at": "2026-07-18",
   "active_slice": "category-defining-product-program",
-  "active_goal": "HELIXINSIGHTS-DURABILITY",
-  "active_phase": "helixinsights_durability_gate",
-  "previous_goal": "HELIXFLOW-DURABILITY_CI_PROVEN",
-  "review_gate": "HELIXINSIGHTS-DURABILITY",
+  "active_goal": null,
+  "active_phase": null,
+  "previous_goal": "HELIXINSIGHTS-DURABILITY_CI_PROVEN",
+  "review_gate": null,
   "category_defining_program": {
     "status": "foundation_integrity_umbrella_011.7_closed",
     "root": "docs/product-program",
@@ -22,7 +22,7 @@
       "helix-anvil-standalone"
     ],
     "implementation_started": true,
-    "next_gate": "HELIXINSIGHTS-DURABILITY gate packet"
+    "next_gate": "awaiting_founder_goal_selection"
   },
   "second_wave": {
     "roadmap": "docs/SECOND_WAVE.md",
@@ -83,7 +83,7 @@
     "current_validity": "unverified_after_later_tree_changes"
   },
   "foundation_integrity_current_gate": "011.7_CLOSED",
-  "full_workspace_current_status": "fmt_clippy_test_helm_verify_helixcore_full_pass_helixflow_durability_ci_proven_run_29665124925",
+  "full_workspace_current_status": "fmt_clippy_test_helm_verify_helixcore_full_pass_helixinsights_durability_ci_proven_run_29666090622",
   "core_services": [
     "gateway",
     "agent-hub",
@@ -121,7 +121,8 @@
     "helix-collab",
     "helix-capital",
     "helix-commerce",
-    "helix-flow"
+    "helix-flow",
+    "helix-insights"
   ],
   "durability_gate_definition": "fresh crash, concurrency, restore, and Windows/macOS/Linux proof under Foundation Integrity",
   "deferred_products": {
@@ -165,11 +166,11 @@
   "ratified_specs": [],
   "last_smoke": {
     "date": "2026-07-18",
-    "service": "helix-flow",
+    "service": "helix-insights",
     "postgres": true,
     "minio": true,
     "nats": true,
-    "path": "scripts/helix_flow_durability.ps1 PASS \u2014 local + CI"
+    "path": "scripts/helix_insights_durability.ps1 PASS \u2014 local + CI"
   },
   "helix_code_extreme": {
     "phase": "endstate",

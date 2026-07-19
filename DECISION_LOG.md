@@ -1,5 +1,43 @@
 # Decision log (append-only)
 
+## 2026-07-18 — HELIXINSIGHTS-DURABILITY closed; fifth product through the gate
+
+- Completed the HelixInsights durability-gate packet (`helix-insights`
+  added to `durability_gate_proven_products`):
+  - **Check-then-insert windows closed:** `InsightsRepo::create_metric` and
+    `InsightsRepo::record_point` now enforce the parent's existence and
+    non-deleted state inside the INSERT itself (`INSERT ... SELECT` with
+    `deleted_at IS NULL`) — a dataset/metric deleted between a separate
+    check and insert can no longer leak children
+    (`crates/helix-db/src/insights.rs`).
+  - New ignored Postgres integration tests:
+    `points_rejected_on_deleted_metric` (after soft-delete, 8 concurrent
+    record attempts all rejected with not-found, only the baseline point
+    remains) and `concurrent_records_all_landed` (8 concurrent records on
+    a live metric all persist, exact sum).
+  - `scripts/helix_insights_durability.ps1` proves: dataset/metric/point
+    creation and aggregation; an acknowledged point surviving an immediate
+    forced kill of the API; and an `insights` schema `pg_dump` roundtrip
+    into a scratch database with equal dataset/metric/point counts and
+    equal content hashes.
+  - `insights-durability` CI job running the ignored integration tests and
+    the proof script.
+- Verification:
+  - `cargo fmt --all -- --check` clean.
+  - `cargo clippy --workspace --all-targets -- -D warnings` clean.
+  - `cargo test --workspace --all-features` clean.
+  - Race proofs pass against live Postgres; durability script passes
+    locally (Windows) and in CI (ubuntu).
+  - GitHub Actions run `29666090622` is all green (the capital gate job
+    flaked on a CI infra port collision and passed on rerun), including
+    the new **HelixInsights durability gate** job and all 19 product
+    smoke jobs.
+- Commits `26c3093` (activation) and `b71e621` (implementation) pushed to
+  `main`.
+- `PROJECT_STATE.json` and `NEXT_ACTION.md` updated; `helix-insights`
+  recorded in `durability_gate_proven_products`.
+- Next action: founder selects the next explicit named goal.
+
 ## 2026-07-18 — HELIXFLOW-DURABILITY closed; fourth product through the gate
 
 - Completed the HelixFlow durability-gate packet (`helix-flow` added to

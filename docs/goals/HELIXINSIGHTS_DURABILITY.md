@@ -37,7 +37,11 @@ packet makes existence enforcement atomic and proves the gate.
 
 ## Status
 
-- **Active**
+- **Closed / CI-proven**
+- CI run: `29666090622` (**HelixInsights durability gate** job green; the
+  capital gate job flaked on an infra port collision and passed on rerun)
+- Proof script: `scripts/helix_insights_durability.ps1`
+- Gate proven locally (Windows) and in CI (ubuntu)
 
 ## Out of scope
 

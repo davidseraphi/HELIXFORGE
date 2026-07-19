@@ -1,10 +1,10 @@
 # Next action
 
-## Latest: HELIXINSIGHTS-DURABILITY
+## Latest: HELIXINSIGHTS-DURABILITY closed — fifth product through the gate
 
-**Goal:** prove the Foundation Integrity durability gate on HelixInsights —
-fifth product through the gate (after helix-collab, helix-capital,
-helix-commerce, helix-flow).
+HELIXINSIGHTS-DURABILITY is complete. The implementation passed local
+verification and GitHub Actions run `29666090622` is all green, including
+the new **HelixInsights durability gate** job.
 
 - Repo: `crates/helix-db/src/insights.rs` (atomic INSERT...SELECT for
   `create_metric` and `record_point`)
@@ -14,27 +14,20 @@ helix-commerce, helix-flow).
 - CI: `.github/workflows/ci.yml` `insights-durability` job
 - Docs: `docs/goals/HELIXINSIGHTS_DURABILITY.md`, `DECISION_LOG.md`
 
-### Scope
+### What was delivered
 
-- fix: metric/dataset existence enforced in the INSERT itself (no
-  check-then-insert window)
+- check-then-insert windows closed for metric/point creation
 - concurrency proof: records on a deleted metric all rejected; concurrent
   records on a live metric all land
 - crash proof: acknowledged point survives a forced kill of the API
-- restore proof: `insights` schema dump roundtrip with equal counts + hashes
+- restore proof: schema dump roundtrip with equal counts + content hashes
+- `helix-insights` recorded in `durability_gate_proven_products`
 
 ### Active goal
 
-`HELIXINSIGHTS-DURABILITY` — in progress.
+None. HELIXINSIGHTS-DURABILITY is closed.
 
-## Paste-ready continuation prompt
+### Next action
 
-```text
-Continue in C:\Users\divin\PROJECTS\HELIXFORGE. HELIXINSIGHTS-DURABILITY is
-the active goal. Make create_metric and record_point atomic INSERT...SELECT
-statements; add points_rejected_on_deleted_metric and
-concurrent_records_all_landed integration tests; create
-scripts/helix_insights_durability.ps1 (forced-kill + restore proofs) and the
-insights-durability CI job; prove it green on CI; record helix-insights in
-durability_gate_proven_products.
-```
+Founder selects the next explicit named goal. Open: durability gates for
+the remaining 16 products.
