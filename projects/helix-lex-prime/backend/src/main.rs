@@ -799,4 +799,101 @@ mod tests {
         assert_eq!(restored.status, "open");
         assert!(restored.deleted_at.is_none());
     }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn filings_rejected_on_deleted_matter() {
+        let (state, _guard) = locked_state().await;
+        let tenant_id = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = LexRepo::new(pool.clone());
+
+        let matter = repo
+            .create_parent(tenant_id, "Doomed matter", "", serde_json::json!({}))
+            .await
+            .expect("create matter");
+        repo.soft_delete_matter(tenant_id, matter.id)
+            .await
+            .expect("delete matter");
+
+        // 8 racing filing creates on a soft-deleted matter all fail.
+        let mut handles = Vec::new();
+        for _ in 0..8u32 {
+            let repo = repo.clone();
+            handles.push(tokio::spawn(async move {
+                repo.create_child(tenant_id, matter.id, "leak", "", serde_json::json!({}))
+                    .await
+            }));
+        }
+        let mut rejected = 0usize;
+        for h in handles {
+            match h.await.expect("create task panicked") {
+                Ok(_) => panic!("filing created on a deleted matter"),
+                Err(e) if e.code == shared_core::ErrorCode::NotFound => rejected += 1,
+                Err(e) => panic!("unexpected create error: {e}"),
+            }
+        }
+        assert_eq!(rejected, 8, "all racing creates must be rejected");
+
+        let filings = repo
+            .list_children(tenant_id, matter.id)
+            .await
+            .expect("list filings");
+        assert_eq!(filings.len(), 0, "no filing may leak onto a deleted matter");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn concurrent_close_single_winner() {
+        let (state, _guard) = locked_state().await;
+        let tenant_id = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = LexRepo::new(pool.clone());
+
+        let matter = repo
+            .create_parent(tenant_id, "Race close", "", serde_json::json!({}))
+            .await
+            .expect("create matter");
+        repo.open_matter(tenant_id, matter.id)
+            .await
+            .expect("open matter");
+
+        // 8 racing closes of one open matter with no draft filings.
+        let mut handles = Vec::new();
+        for _ in 0..8u32 {
+            let repo = repo.clone();
+            handles.push(tokio::spawn(async move {
+                repo.close_matter(tenant_id, matter.id).await
+            }));
+        }
+        let mut winners = 0usize;
+        let mut rejected = 0usize;
+        for h in handles {
+            match h.await.expect("close task panicked") {
+                Ok(_) => winners += 1,
+                Err(e)
+                    if e.code == shared_core::ErrorCode::Conflict
+                        || e.code == shared_core::ErrorCode::Validation =>
+                {
+                    rejected += 1
+                }
+                Err(e) => panic!("unexpected close error: {e}"),
+            }
+        }
+        assert_eq!(winners, 1, "exactly one racing close may win");
+        assert_eq!(rejected, 7, "all losers must be rejected");
+
+        let matters = repo.list_parents(tenant_id).await.expect("list matters");
+        let row = matters
+            .iter()
+            .find(|m| m.id == matter.id)
+            .expect("matter listed");
+        assert_eq!(row.status, "closed");
+    }
 }

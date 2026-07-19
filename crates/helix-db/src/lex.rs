@@ -308,11 +308,13 @@ impl LexRepo {
             .ok_or_else(|| HelixError::not_found("matter not found"))?;
         let next = next_matter_status(&matter.status, "open")?;
         let now = Utc::now();
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<MatterRow> = sqlx::query_as(&format!(
             r#"
             UPDATE lex.matters
             SET status = $1, opened_at = $2, updated_at = $2
-            WHERE tenant_id = $3 AND id = $4 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND id = $4 AND status = $5 AND deleted_at IS NULL
             {MATTER_RETURNING}
             "#
         ))
@@ -320,15 +322,20 @@ impl LexRepo {
         .bind(now)
         .bind(tenant_id.as_uuid())
         .bind(matter_id)
+        .bind(&matter.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("lex open matter: {e}")))?;
 
         row.map(MatterRow::into_matter)
-            .ok_or_else(|| HelixError::not_found("matter not found"))
+            .ok_or_else(|| HelixError::conflict("matter changed during open; retry"))
     }
 
-    /// Close an open matter. Rejected while draft filings remain.
+    /// Close an open matter. Rejected while draft filings remain. The
+    /// open-status and no-draft-filings guards are part of the UPDATE
+    /// itself, so a concurrent close or a draft filed mid-flight cannot
+    /// slip through a check-then-act window; the earlier reads only shape
+    /// the error returned for the steady-state cases.
     pub async fn close_matter(&self, tenant_id: TenantId, matter_id: Uuid) -> HelixResult<Matter> {
         let matter = self
             .get_parent(tenant_id, matter_id)
@@ -355,7 +362,12 @@ impl LexRepo {
             r#"
             UPDATE lex.matters
             SET status = $1, closed_at = $2, updated_at = $2
-            WHERE tenant_id = $3 AND id = $4 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND id = $4 AND status = 'open' AND deleted_at IS NULL
+              AND NOT EXISTS (
+                  SELECT 1 FROM lex.filings f
+                  WHERE f.tenant_id = $3 AND f.parent_id = $4
+                    AND f.status = 'draft' AND f.deleted_at IS NULL
+              )
             {MATTER_RETURNING}
             "#
         ))
@@ -367,8 +379,9 @@ impl LexRepo {
         .await
         .map_err(|e| HelixError::dependency(format!("lex close matter: {e}")))?;
 
-        row.map(MatterRow::into_matter)
-            .ok_or_else(|| HelixError::not_found("matter not found"))
+        row.map(MatterRow::into_matter).ok_or_else(|| {
+            HelixError::conflict("matter changed during close or gained a draft filing; retry")
+        })
     }
 
     pub async fn reopen_matter(&self, tenant_id: TenantId, matter_id: Uuid) -> HelixResult<Matter> {
@@ -378,11 +391,13 @@ impl LexRepo {
             .ok_or_else(|| HelixError::not_found("matter not found"))?;
         let next = next_matter_status(&matter.status, "reopen")?;
         let now = Utc::now();
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<MatterRow> = sqlx::query_as(&format!(
             r#"
             UPDATE lex.matters
             SET status = $1, closed_at = NULL, updated_at = $2
-            WHERE tenant_id = $3 AND id = $4 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND id = $4 AND status = $5 AND deleted_at IS NULL
             {MATTER_RETURNING}
             "#
         ))
@@ -390,12 +405,13 @@ impl LexRepo {
         .bind(now)
         .bind(tenant_id.as_uuid())
         .bind(matter_id)
+        .bind(&matter.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("lex reopen matter: {e}")))?;
 
         row.map(MatterRow::into_matter)
-            .ok_or_else(|| HelixError::not_found("matter not found"))
+            .ok_or_else(|| HelixError::conflict("matter changed during reopen; retry"))
     }
 
     pub async fn soft_delete_matter(
@@ -497,17 +513,17 @@ impl LexRepo {
         body: &str,
         metadata: serde_json::Value,
     ) -> HelixResult<Filing> {
-        let _parent = self
-            .get_parent(tenant_id, parent_id)
-            .await?
-            .ok_or_else(|| HelixError::not_found("parent not found"))?;
         let id = Uuid::now_v7();
         let created_at = Utc::now();
-        let row: FilingRow = sqlx::query_as(&format!(
+        // The non-deleted-parent guard is part of the INSERT itself: a matter
+        // soft-deleted between a separate check and insert cannot leak filings.
+        let row: Option<FilingRow> = sqlx::query_as(&format!(
             r#"
             INSERT INTO lex.filings
                 (id, tenant_id, parent_id, title, body, status, metadata, created_at, updated_at)
-            VALUES ($1,$2,$3,$4,$5,'draft',$6,$7,$7)
+            SELECT $1,$2,$3,$4,$5,'draft',$6,$7,$7
+            FROM lex.matters m
+            WHERE m.tenant_id = $2 AND m.id = $3 AND m.deleted_at IS NULL
             {FILING_RETURNING}
             "#
         ))
@@ -518,10 +534,11 @@ impl LexRepo {
         .bind(body)
         .bind(&metadata)
         .bind(created_at)
-        .fetch_one(&self.pool)
+        .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("lex create child: {e}")))?;
-        Ok(row.into_filing())
+        row.map(FilingRow::into_filing)
+            .ok_or_else(|| HelixError::not_found("parent not found"))
     }
 
     pub async fn get_filing(
@@ -613,11 +630,13 @@ impl LexRepo {
             .ok_or_else(|| HelixError::not_found("filing not found"))?;
         let next = next_filing_status(&filing.status, "file")?;
         let now = Utc::now();
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<FilingRow> = sqlx::query_as(&format!(
             r#"
             UPDATE lex.filings
             SET status = $1, filed_at = $2, updated_at = $2
-            WHERE tenant_id = $3 AND parent_id = $4 AND id = $5 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND parent_id = $4 AND id = $5 AND status = $6 AND deleted_at IS NULL
             {FILING_RETURNING}
             "#
         ))
@@ -626,12 +645,13 @@ impl LexRepo {
         .bind(tenant_id.as_uuid())
         .bind(matter_id)
         .bind(filing_id)
+        .bind(&filing.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("lex file filing: {e}")))?;
 
         row.map(FilingRow::into_filing)
-            .ok_or_else(|| HelixError::not_found("filing not found"))
+            .ok_or_else(|| HelixError::conflict("filing changed during file; retry"))
     }
 
     pub async fn withdraw_filing(
@@ -646,11 +666,13 @@ impl LexRepo {
             .ok_or_else(|| HelixError::not_found("filing not found"))?;
         let next = next_filing_status(&filing.status, "withdraw")?;
         let now = Utc::now();
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<FilingRow> = sqlx::query_as(&format!(
             r#"
             UPDATE lex.filings
             SET status = $1, withdrawn_at = $2, updated_at = $2
-            WHERE tenant_id = $3 AND parent_id = $4 AND id = $5 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND parent_id = $4 AND id = $5 AND status = $6 AND deleted_at IS NULL
             {FILING_RETURNING}
             "#
         ))
@@ -659,12 +681,13 @@ impl LexRepo {
         .bind(tenant_id.as_uuid())
         .bind(matter_id)
         .bind(filing_id)
+        .bind(&filing.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("lex withdraw filing: {e}")))?;
 
         row.map(FilingRow::into_filing)
-            .ok_or_else(|| HelixError::not_found("filing not found"))
+            .ok_or_else(|| HelixError::conflict("filing changed during withdraw; retry"))
     }
 
     pub async fn soft_delete_filing(
