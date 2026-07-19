@@ -1,39 +1,39 @@
 # Next action
 
-## Latest: HELIXSYNTHBIO-DURABILITY closed — tenth product through the gate
+## Active: HELIXLEXPRIME-DURABILITY — eleventh product through the gate
 
-HELIXSYNTHBIO-DURABILITY is complete. The implementation passed local
-verification and GitHub Actions run `29669804701` is all green, including
-the new **HelixSynthBio durability gate** job.
+Prove the Foundation Integrity durability gate on HelixLex Prime: fresh
+crash, concurrency, and restore, verified locally and in CI. Eleventh
+product (after `helix-collab`, `helix-capital`, `helix-commerce`,
+`helix-flow`, `helix-insights`, `helix-edu`, `helix-well`,
+`helix-network`, `helix-forge-studio`, `helix-synthbio`).
 
-- Repo: `crates/helix-db/src/synthbio.rs` (atomic `create_child`
-  INSERT...SELECT; guarded `approve_design` / `submit_design` /
-  `return_design` / `transition_sim`)
-- Tests: `projects/helix-synthbio/backend/src/main.rs`
-  (`sims_rejected_on_deleted_design`, `concurrent_approve_single_winner`)
-- Proof: `scripts/helix_synthbio_durability.ps1` (forced-kill + restore)
-- CI: `.github/workflows/ci.yml` `synthbio-durability` job
-- Docs: `docs/goals/HELIXSYNTHBIO_DURABILITY.md`, `DECISION_LOG.md`
+Goal doc: `docs/goals/HELIXLEXPRIME_DURABILITY.md`.
 
-### What was delivered
+### Scope
 
-- non-deleted-parent guard enforced inside the sim INSERT; a design
-  soft-deleted mid-flight can no longer leak sims
-- approve is one guarded UPDATE (review + not deleted + EXISTS completed
-  sim); submit/return and sim transitions carry expected-from status in
-  the WHERE
-- concurrency proof: 8 racing creates on a deleted design all rejected;
-  8 racing approves → exactly one winner
-- crash proof: acknowledged approved design survives a forced kill of the
-  API
-- restore proof: schema dump roundtrip with equal counts + content hashes
-- `helix-synthbio` recorded in `durability_gate_proven_products`
+`create_child` checked the parent matter in a separate SELECT before the
+filing INSERT; `close_matter` counted draft filings and checked open
+status in separate statements from the UPDATE; open/reopen and
+file/withdraw carry no expected-from status guard. This packet folds the
+guards into the writes and proves the gate.
 
-### Active goal
+### Definition of done
 
-None. HELIXSYNTHBIO-DURABILITY is closed.
+1. `create_child` inserts with `INSERT ... SELECT` against a non-deleted
+   matter — one statement.
+2. `close_matter` is a single guarded `UPDATE` (open + not deleted +
+   `NOT EXISTS` draft filing).
+3. `open_matter`, `reopen_matter`, `file_filing`, `withdraw_filing`
+   carry expected-from status in the `WHERE`.
+4. Ignored tests `filings_rejected_on_deleted_matter` and
+   `concurrent_close_single_winner` pass locally and in CI.
+5. `scripts/helix_lex_prime_durability.ps1` proves lifecycle, forced-kill
+   survival, and schema restore roundtrip.
+6. `lex-durability` CI job in `.github/workflows/ci.yml`.
+7. `cargo test --workspace --all-features` and
+   `cargo clippy --workspace --all-targets -- -D warnings` clean.
 
 ### Next action
 
-Founder selects the next explicit named goal. Open: durability gates for
-the remaining 11 products.
+Push the implementation and watch CI to green.
