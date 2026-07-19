@@ -324,11 +324,13 @@ impl NovaRepo {
             .ok_or_else(|| HelixError::not_found("experiment not found"))?;
         let next = next_experiment_status(&experiment.status, "start")?;
         let now = Utc::now();
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<ExperimentRow> = sqlx::query_as(&format!(
             r#"
             UPDATE nova.experiments
             SET status = $1, started_at = $2, updated_at = $2
-            WHERE tenant_id = $3 AND id = $4 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND id = $4 AND status = $5 AND deleted_at IS NULL
             {EXPERIMENT_RETURNING}
             "#
         ))
@@ -336,15 +338,20 @@ impl NovaRepo {
         .bind(now)
         .bind(tenant_id.as_uuid())
         .bind(experiment_id)
+        .bind(&experiment.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("nova start experiment: {e}")))?;
 
         row.map(ExperimentRow::into_experiment)
-            .ok_or_else(|| HelixError::not_found("experiment not found"))
+            .ok_or_else(|| HelixError::conflict("experiment changed during start; retry"))
     }
 
     /// Conclude a running experiment. Rejected while draft findings remain.
+    /// The running-status and no-draft-findings guards are part of the
+    /// UPDATE itself, so a concurrent conclude/reopen or a finding created
+    /// mid-flight cannot slip through a check-then-act window; the earlier
+    /// reads only shape the error returned for the steady-state cases.
     pub async fn conclude_experiment(
         &self,
         tenant_id: TenantId,
@@ -375,7 +382,12 @@ impl NovaRepo {
             r#"
             UPDATE nova.experiments
             SET status = $1, concluded_at = $2, updated_at = $2
-            WHERE tenant_id = $3 AND id = $4 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND id = $4 AND status = 'running' AND deleted_at IS NULL
+              AND NOT EXISTS (
+                  SELECT 1 FROM nova.findings f
+                  WHERE f.tenant_id = $3 AND f.parent_id = $4
+                    AND f.status = 'draft' AND f.deleted_at IS NULL
+              )
             {EXPERIMENT_RETURNING}
             "#
         ))
@@ -387,8 +399,11 @@ impl NovaRepo {
         .await
         .map_err(|e| HelixError::dependency(format!("nova conclude experiment: {e}")))?;
 
-        row.map(ExperimentRow::into_experiment)
-            .ok_or_else(|| HelixError::not_found("experiment not found"))
+        row.map(ExperimentRow::into_experiment).ok_or_else(|| {
+            HelixError::conflict(
+                "experiment changed during conclude or gained a draft finding; retry",
+            )
+        })
     }
 
     pub async fn reopen_experiment(
@@ -402,11 +417,13 @@ impl NovaRepo {
             .ok_or_else(|| HelixError::not_found("experiment not found"))?;
         let next = next_experiment_status(&experiment.status, "reopen")?;
         let now = Utc::now();
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<ExperimentRow> = sqlx::query_as(&format!(
             r#"
             UPDATE nova.experiments
             SET status = $1, concluded_at = NULL, updated_at = $2
-            WHERE tenant_id = $3 AND id = $4 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND id = $4 AND status = $5 AND deleted_at IS NULL
             {EXPERIMENT_RETURNING}
             "#
         ))
@@ -414,12 +431,13 @@ impl NovaRepo {
         .bind(now)
         .bind(tenant_id.as_uuid())
         .bind(experiment_id)
+        .bind(&experiment.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("nova reopen experiment: {e}")))?;
 
         row.map(ExperimentRow::into_experiment)
-            .ok_or_else(|| HelixError::not_found("experiment not found"))
+            .ok_or_else(|| HelixError::conflict("experiment changed during reopen; retry"))
     }
 
     pub async fn soft_delete_experiment(
@@ -521,17 +539,18 @@ impl NovaRepo {
         body: &str,
         metadata: serde_json::Value,
     ) -> HelixResult<Finding> {
-        let _parent = self
-            .get_parent(tenant_id, parent_id)
-            .await?
-            .ok_or_else(|| HelixError::not_found("parent not found"))?;
         let id = Uuid::now_v7();
         let created_at = Utc::now();
-        let row: FindingRow = sqlx::query_as(&format!(
+        // The non-deleted-parent guard is part of the INSERT itself: an
+        // experiment soft-deleted between a separate check and insert
+        // cannot leak findings.
+        let row: Option<FindingRow> = sqlx::query_as(&format!(
             r#"
             INSERT INTO nova.findings
                 (id, tenant_id, parent_id, title, body, status, metadata, created_at, updated_at)
-            VALUES ($1,$2,$3,$4,$5,'draft',$6,$7,$7)
+            SELECT $1,$2,$3,$4,$5,'draft',$6,$7,$7
+            FROM nova.experiments e
+            WHERE e.tenant_id = $2 AND e.id = $3 AND e.deleted_at IS NULL
             {FINDING_RETURNING}
             "#
         ))
@@ -542,10 +561,11 @@ impl NovaRepo {
         .bind(body)
         .bind(&metadata)
         .bind(created_at)
-        .fetch_one(&self.pool)
+        .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("nova create child: {e}")))?;
-        Ok(row.into_finding())
+        row.map(FindingRow::into_finding)
+            .ok_or_else(|| HelixError::not_found("parent not found"))
     }
 
     pub async fn get_finding(
@@ -637,11 +657,13 @@ impl NovaRepo {
             .ok_or_else(|| HelixError::not_found("finding not found"))?;
         let next = next_finding_status(&finding.status, "confirm")?;
         let now = Utc::now();
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<FindingRow> = sqlx::query_as(&format!(
             r#"
             UPDATE nova.findings
             SET status = $1, confirmed_at = $2, updated_at = $2
-            WHERE tenant_id = $3 AND parent_id = $4 AND id = $5 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND parent_id = $4 AND id = $5 AND status = $6 AND deleted_at IS NULL
             {FINDING_RETURNING}
             "#
         ))
@@ -650,12 +672,13 @@ impl NovaRepo {
         .bind(tenant_id.as_uuid())
         .bind(experiment_id)
         .bind(finding_id)
+        .bind(&finding.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("nova confirm finding: {e}")))?;
 
         row.map(FindingRow::into_finding)
-            .ok_or_else(|| HelixError::not_found("finding not found"))
+            .ok_or_else(|| HelixError::conflict("finding changed during confirm; retry"))
     }
 
     pub async fn reject_finding(
@@ -670,11 +693,13 @@ impl NovaRepo {
             .ok_or_else(|| HelixError::not_found("finding not found"))?;
         let next = next_finding_status(&finding.status, "reject")?;
         let now = Utc::now();
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<FindingRow> = sqlx::query_as(&format!(
             r#"
             UPDATE nova.findings
             SET status = $1, rejected_at = $2, updated_at = $2
-            WHERE tenant_id = $3 AND parent_id = $4 AND id = $5 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND parent_id = $4 AND id = $5 AND status = $6 AND deleted_at IS NULL
             {FINDING_RETURNING}
             "#
         ))
@@ -683,12 +708,13 @@ impl NovaRepo {
         .bind(tenant_id.as_uuid())
         .bind(experiment_id)
         .bind(finding_id)
+        .bind(&finding.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("nova reject finding: {e}")))?;
 
         row.map(FindingRow::into_finding)
-            .ok_or_else(|| HelixError::not_found("finding not found"))
+            .ok_or_else(|| HelixError::conflict("finding changed during reject; retry"))
     }
 
     pub async fn soft_delete_finding(

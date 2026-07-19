@@ -814,4 +814,108 @@ mod tests {
         assert_eq!(restored.status, "running");
         assert!(restored.deleted_at.is_none());
     }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn findings_rejected_on_deleted_experiment() {
+        let (state, _guard) = locked_state().await;
+        let tenant_id = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = NovaRepo::new(pool.clone());
+
+        let experiment = repo
+            .create_parent(tenant_id, "Doomed experiment", "", serde_json::json!({}))
+            .await
+            .expect("create experiment");
+        repo.soft_delete_experiment(tenant_id, experiment.id)
+            .await
+            .expect("delete experiment");
+
+        // 8 racing finding creates on a soft-deleted experiment all fail.
+        let mut handles = Vec::new();
+        for _ in 0..8u32 {
+            let repo = repo.clone();
+            handles.push(tokio::spawn(async move {
+                repo.create_child(tenant_id, experiment.id, "leak", "", serde_json::json!({}))
+                    .await
+            }));
+        }
+        let mut rejected = 0usize;
+        for h in handles {
+            match h.await.expect("create task panicked") {
+                Ok(_) => panic!("finding created on a deleted experiment"),
+                Err(e) if e.code == shared_core::ErrorCode::NotFound => rejected += 1,
+                Err(e) => panic!("unexpected create error: {e}"),
+            }
+        }
+        assert_eq!(rejected, 8, "all racing creates must be rejected");
+
+        let findings = repo
+            .list_children(tenant_id, experiment.id)
+            .await
+            .expect("list findings");
+        assert_eq!(
+            findings.len(),
+            0,
+            "no finding may leak onto a deleted experiment"
+        );
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn concurrent_conclude_single_winner() {
+        let (state, _guard) = locked_state().await;
+        let tenant_id = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = NovaRepo::new(pool.clone());
+
+        let experiment = repo
+            .create_parent(tenant_id, "Race conclude", "", serde_json::json!({}))
+            .await
+            .expect("create experiment");
+        repo.start_experiment(tenant_id, experiment.id)
+            .await
+            .expect("start experiment");
+
+        // 8 racing concludes of one running experiment with no draft findings.
+        let mut handles = Vec::new();
+        for _ in 0..8u32 {
+            let repo = repo.clone();
+            handles.push(tokio::spawn(async move {
+                repo.conclude_experiment(tenant_id, experiment.id).await
+            }));
+        }
+        let mut winners = 0usize;
+        let mut rejected = 0usize;
+        for h in handles {
+            match h.await.expect("conclude task panicked") {
+                Ok(_) => winners += 1,
+                Err(e)
+                    if e.code == shared_core::ErrorCode::Conflict
+                        || e.code == shared_core::ErrorCode::Validation =>
+                {
+                    rejected += 1
+                }
+                Err(e) => panic!("unexpected conclude error: {e}"),
+            }
+        }
+        assert_eq!(winners, 1, "exactly one racing conclude may win");
+        assert_eq!(rejected, 7, "all losers must be rejected");
+
+        let experiments = repo
+            .list_parents(tenant_id)
+            .await
+            .expect("list experiments");
+        let row = experiments
+            .iter()
+            .find(|e| e.id == experiment.id)
+            .expect("experiment listed");
+        assert_eq!(row.status, "concluded");
+    }
 }
