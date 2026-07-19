@@ -34,6 +34,13 @@ pub fn routes() -> Router<AppState> {
         .route("/v1/inventory/samples/{id}", get(get_sample))
         .route("/v1/inventory/samples/{id}/custody", post(custody_event))
         .route("/v1/inventory/samples/{id}/aliquot", post(aliquot))
+        .route("/v1/measurements", post(record_measurement))
+        .route(
+            "/v1/inventory/samples/{id}/measurements",
+            get(list_measurements),
+        )
+        .route("/v1/measurements/{id}/accept", post(accept_measurement))
+        .route("/v1/measurements/{id}/reject", post(reject_measurement))
 }
 
 // ——— payloads ———
@@ -476,4 +483,126 @@ async fn aliquot(
     )
     .await?;
     Ok(Json(ApiResponse::ok(serde_json::json!(child))))
+}
+
+// ——— measurements ———
+
+#[derive(Deserialize)]
+struct MeasurementReq {
+    sample_id: Uuid,
+    #[serde(default)]
+    design_version_id: Option<Uuid>,
+    #[serde(default = "default_measurement_kind")]
+    kind: String,
+    #[serde(default)]
+    method: String,
+    #[serde(default)]
+    value: Option<f64>,
+    #[serde(default)]
+    unit: String,
+    #[serde(default)]
+    uncertainty: Option<f64>,
+    #[serde(default)]
+    raw: serde_json::Value,
+}
+
+#[derive(Deserialize)]
+struct VerdictReq {
+    #[serde(default)]
+    analyst: String,
+}
+
+fn default_measurement_kind() -> String {
+    "other".into()
+}
+
+async fn record_measurement(
+    State(state): State<AppState>,
+    RequireAuth(p): RequireAuth,
+    Json(body): Json<MeasurementReq>,
+) -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
+    p.require_scope(shared_core::tenancy::Scope::Write)?;
+    let pool = require_pool(&state)?;
+    let repo = RegistryRepo::new(pool);
+    let input = helix_db::MeasurementInput {
+        sample_id: body.sample_id,
+        design_version_id: body.design_version_id,
+        kind: body.kind,
+        method: body.method,
+        value: body.value,
+        unit: body.unit,
+        uncertainty: body.uncertainty,
+        raw: body.raw,
+    };
+    let actor = actor(&p);
+    let m = repo.record_measurement(p.tenant_id, &input, &actor).await?;
+    audit(
+        &state,
+        &p,
+        "synthbio.measurement.record",
+        "synthbio.measurement",
+        m.id,
+        serde_json::json!({"accession": m.accession, "kind": m.kind, "sample": m.sample_id}),
+    )
+    .await?;
+    Ok(Json(ApiResponse::ok(serde_json::json!(m))))
+}
+
+async fn list_measurements(
+    State(state): State<AppState>,
+    RequireAuth(p): RequireAuth,
+    Path(id): Path<Uuid>,
+) -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
+    p.require_scope(shared_core::tenancy::Scope::Read)?;
+    let pool = require_pool(&state)?;
+    let repo = RegistryRepo::new(pool);
+    let items = repo.list_measurements(p.tenant_id, id).await?;
+    Ok(Json(ApiResponse::ok(serde_json::json!({
+        "durable": true,
+        "items": items
+    }))))
+}
+
+async fn accept_measurement(
+    State(state): State<AppState>,
+    RequireAuth(p): RequireAuth,
+    Path(id): Path<Uuid>,
+    Json(body): Json<VerdictReq>,
+) -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
+    verdict_measurement(state, p, id, "accept", body.analyst).await
+}
+
+async fn reject_measurement(
+    State(state): State<AppState>,
+    RequireAuth(p): RequireAuth,
+    Path(id): Path<Uuid>,
+    Json(body): Json<VerdictReq>,
+) -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
+    verdict_measurement(state, p, id, "reject", body.analyst).await
+}
+
+async fn verdict_measurement(
+    state: AppState,
+    p: shared_core::tenancy::Principal,
+    id: Uuid,
+    action: &str,
+    analyst: String,
+) -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
+    p.require_scope(shared_core::tenancy::Scope::Write)?;
+    let pool = require_pool(&state)?;
+    let repo = RegistryRepo::new(pool);
+    let who = if analyst.is_empty() { actor(&p) } else { analyst };
+    let m = repo
+        .transition_measurement(p.tenant_id, id, action, &who)
+        .await?;
+    audit(
+        &state,
+        &p,
+        &format!("synthbio.measurement.{action}"),
+        "synthbio.measurement",
+        id,
+        serde_json::json!({"accession": m.accession}),
+    )
+    .await?;
+    Ok(Json(ApiResponse::ok(serde_json::json!(m))))
 }

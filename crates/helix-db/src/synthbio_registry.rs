@@ -1171,6 +1171,222 @@ const CUSTODY_EVENTS: [&str; 8] = [
     "reconcile",
 ];
 
+// ——— measurements (S3): instrument observations with units + uncertainty ———
+
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct Measurement {
+    pub id: Uuid,
+    pub tenant_id: Uuid,
+    pub accession: String,
+    pub sample_id: Uuid,
+    pub design_version_id: Option<Uuid>,
+    pub kind: String,
+    pub method: String,
+    pub value: Option<f64>,
+    pub unit: String,
+    pub uncertainty: Option<f64>,
+    pub raw: JsonValue,
+    pub status: String,
+    pub analyst: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub deleted_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MeasurementInput {
+    pub sample_id: Uuid,
+    pub design_version_id: Option<Uuid>,
+    pub kind: String,
+    pub method: String,
+    pub value: Option<f64>,
+    pub unit: String,
+    pub uncertainty: Option<f64>,
+    pub raw: JsonValue,
+}
+
+const MEASUREMENT_KINDS: [&str; 6] = [
+    "absorbance",
+    "fluorescence",
+    "qpcr",
+    "gel",
+    "ngs_qc",
+    "other",
+];
+
+impl RegistryRepo {
+    /// Record a measurement. The parent-sample guard is part of the INSERT
+    /// itself: a sample deleted between check and write cannot leak data.
+    pub async fn record_measurement(
+        &self,
+        tenant_id: TenantId,
+        input: &MeasurementInput,
+        analyst: &str,
+    ) -> HelixResult<Measurement> {
+        if !MEASUREMENT_KINDS.contains(&input.kind.as_str()) {
+            return Err(HelixError::validation(format!(
+                "kind must be one of {MEASUREMENT_KINDS:?}, got `{}`",
+                input.kind
+            )));
+        }
+        if input.value.is_none() && input.raw == serde_json::json!({}) {
+            return Err(HelixError::validation(
+                "a measurement needs a value or raw content",
+            ));
+        }
+        if let Some(dv) = input.design_version_id {
+            let exists: Option<(Uuid,)> = sqlx::query_as(
+                "SELECT id FROM synthbio.design_versions WHERE tenant_id = $1 AND id = $2",
+            )
+            .bind(tenant_id.as_uuid())
+            .bind(dv)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(|e| HelixError::dependency(format!("synthbio measure version check: {e}")))?;
+            if exists.is_none() {
+                return Err(HelixError::not_found("design version not found"));
+            }
+        }
+
+        let accession = self.next_accession(tenant_id, "measurement", "MSR").await?;
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| HelixError::dependency(format!("synthbio measure tx: {e}")))?;
+
+        let id = Uuid::now_v7();
+        let now = Utc::now();
+        let row: Option<Measurement> = sqlx::query_as(
+            r#"
+            INSERT INTO synthbio.measurements
+                (id, tenant_id, accession, sample_id, design_version_id, kind, method,
+                 value, unit, uncertainty, raw, status, analyst, created_at, updated_at)
+            SELECT $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'draft',$12,$13,$13
+            FROM synthbio.samples s
+            WHERE s.tenant_id = $2 AND s.id = $4 AND s.deleted_at IS NULL
+            RETURNING id, tenant_id, accession, sample_id, design_version_id, kind, method,
+                      value, unit, uncertainty, raw, status, analyst, created_at, updated_at,
+                      NULL AS deleted_at
+            "#,
+        )
+        .bind(id)
+        .bind(tenant_id.as_uuid())
+        .bind(&accession)
+        .bind(input.sample_id)
+        .bind(input.design_version_id)
+        .bind(&input.kind)
+        .bind(&input.method)
+        .bind(input.value)
+        .bind(&input.unit)
+        .bind(input.uncertainty)
+        .bind(&input.raw)
+        .bind(analyst)
+        .bind(now)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(|e| HelixError::dependency(format!("synthbio record measurement: {e}")))?;
+        let m = row.ok_or_else(|| HelixError::not_found("sample not found"))?;
+
+        self.add_edge(&mut tx, tenant_id, "sample", input.sample_id, "measurement", id, "measured")
+            .await?;
+        if let Some(dv) = input.design_version_id {
+            self.add_edge(&mut tx, tenant_id, "design_version", dv, "measurement", id, "characterizes")
+                .await?;
+        }
+        self.record_event(
+            &mut tx,
+            tenant_id,
+            "sample",
+            input.sample_id,
+            "measured",
+            analyst,
+            serde_json::json!({"accession": accession, "kind": input.kind}),
+        )
+        .await?;
+        tx.commit()
+            .await
+            .map_err(|e| HelixError::dependency(format!("synthbio measure commit: {e}")))?;
+        Ok(m)
+    }
+
+    pub async fn list_measurements(
+        &self,
+        tenant_id: TenantId,
+        sample_id: Uuid,
+    ) -> HelixResult<Vec<Measurement>> {
+        let rows: Vec<Measurement> = sqlx::query_as(
+            "SELECT id, tenant_id, accession, sample_id, design_version_id, kind, method, value, unit, uncertainty, raw, status, analyst, created_at, updated_at, deleted_at FROM synthbio.measurements WHERE tenant_id = $1 AND sample_id = $2 AND deleted_at IS NULL ORDER BY created_at DESC",
+        )
+        .bind(tenant_id.as_uuid())
+        .bind(sample_id)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| HelixError::dependency(format!("synthbio list measurements: {e}")))?;
+        Ok(rows)
+    }
+
+    /// Accept or reject a draft measurement — single guarded UPDATE with
+    /// the expected-from status, so a concurrent verdict loses.
+    pub async fn transition_measurement(
+        &self,
+        tenant_id: TenantId,
+        measurement_id: Uuid,
+        action: &str,
+        analyst: &str,
+    ) -> HelixResult<Measurement> {
+        let next = match action {
+            "accept" => "accepted",
+            "reject" => "rejected",
+            other => {
+                return Err(HelixError::validation(format!(
+                    "cannot {other} a measurement"
+                )))
+            }
+        };
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| HelixError::dependency(format!("synthbio measure transition tx: {e}")))?;
+        let row: Option<Measurement> = sqlx::query_as(
+            r#"
+            UPDATE synthbio.measurements
+            SET status = $1, analyst = $2, updated_at = $3
+            WHERE tenant_id = $4 AND id = $5 AND status = 'draft' AND deleted_at IS NULL
+            RETURNING id, tenant_id, accession, sample_id, design_version_id, kind, method,
+                      value, unit, uncertainty, raw, status, analyst, created_at, updated_at,
+                      deleted_at
+            "#,
+        )
+        .bind(next)
+        .bind(analyst)
+        .bind(Utc::now())
+        .bind(tenant_id.as_uuid())
+        .bind(measurement_id)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(|e| HelixError::dependency(format!("synthbio measure transition: {e}")))?;
+        let m = row.ok_or_else(|| {
+            HelixError::conflict("measurement already decided or not found")
+        })?;
+        self.record_event(
+            &mut tx,
+            tenant_id,
+            "sample",
+            m.sample_id,
+            &format!("measurement_{next}"),
+            analyst,
+            serde_json::json!({"accession": m.accession}),
+        )
+        .await?;
+        tx.commit()
+            .await
+            .map_err(|e| HelixError::dependency(format!("synthbio measure transition commit: {e}")))?;
+        Ok(m)
+    }
+}
+
 impl RegistryRepo {
     /// Register an accessioned sample, optionally linked to a design — one tx.
     pub async fn register_sample(

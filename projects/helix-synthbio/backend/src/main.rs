@@ -1413,4 +1413,134 @@ ORIGIN
             "sample location must equal the last committed custody target"
         );
     }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn measurement_guards_and_verdict() {
+        let (state, _guard) = locked_state().await;
+        let tenant_id = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = helix_db::RegistryRepo::new(pool.clone());
+
+        let suffix = Uuid::now_v7().simple().to_string();
+        let sample = repo
+            .register_sample(
+                tenant_id,
+                &format!("meas-{suffix}"),
+                "strain",
+                None,
+                "incubator-37",
+                "tester",
+            )
+            .await
+            .expect("register sample");
+
+        // Value-less and raw-less is refused.
+        let err = repo
+            .record_measurement(
+                tenant_id,
+                &helix_db::MeasurementInput {
+                    sample_id: sample.id,
+                    design_version_id: None,
+                    kind: "absorbance".into(),
+                    method: "plate reader".into(),
+                    value: None,
+                    unit: "AU".into(),
+                    uncertainty: None,
+                    raw: serde_json::json!({}),
+                },
+                "tester",
+            )
+            .await
+            .expect_err("empty measurement refused");
+        assert_eq!(err.code, shared_core::ErrorCode::Validation);
+
+        let m = repo
+            .record_measurement(
+                tenant_id,
+                &helix_db::MeasurementInput {
+                    sample_id: sample.id,
+                    design_version_id: None,
+                    kind: "absorbance".into(),
+                    method: "plate reader".into(),
+                    value: Some(0.42),
+                    unit: "AU".into(),
+                    uncertainty: Some(0.01),
+                    raw: serde_json::json!({"plate": "A1"}),
+                },
+                "tester",
+            )
+            .await
+            .expect("record measurement");
+        assert!(m.accession.starts_with("MSR-"));
+        assert_eq!(m.status, "draft");
+        assert_eq!(m.value, Some(0.42));
+        assert_eq!(m.uncertainty, Some(0.01));
+
+        let detail = repo
+            .sample_detail(tenant_id, sample.id)
+            .await
+            .expect("detail")
+            .expect("sample exists");
+        assert!(detail.edges.iter().any(|e| e.relation == "measured"));
+
+        // Deleted samples leak nothing.
+        let doomed = repo
+            .register_sample(tenant_id, &format!("doomed-{suffix}"), "oligo", None, "", "tester")
+            .await
+            .expect("register doomed");
+        sqlx::query("UPDATE synthbio.samples SET deleted_at = now() WHERE id = $1")
+            .bind(doomed.id)
+            .execute(pool)
+            .await
+            .expect("soft delete");
+        let err = repo
+            .record_measurement(
+                tenant_id,
+                &helix_db::MeasurementInput {
+                    sample_id: doomed.id,
+                    design_version_id: None,
+                    kind: "gel".into(),
+                    method: String::new(),
+                    value: Some(1.0),
+                    unit: "kb".into(),
+                    uncertainty: None,
+                    raw: serde_json::json!({}),
+                },
+                "tester",
+            )
+            .await
+            .expect_err("deleted sample rejects measurement");
+        assert_eq!(err.code, shared_core::ErrorCode::NotFound);
+
+        // 8 racing verdicts: exactly one wins.
+        let mut handles = Vec::new();
+        for _ in 0..8u32 {
+            let repo = repo.clone();
+            handles.push(tokio::spawn(async move {
+                repo.transition_measurement(tenant_id, m.id, "accept", "analyst")
+                    .await
+            }));
+        }
+        let mut winners = 0usize;
+        let mut rejected = 0usize;
+        for h in handles {
+            match h.await.expect("verdict task panicked") {
+                Ok(_) => winners += 1,
+                Err(e) if e.code == shared_core::ErrorCode::Conflict => rejected += 1,
+                Err(e) => panic!("unexpected verdict error: {e}"),
+            }
+        }
+        assert_eq!(winners, 1, "exactly one racing verdict may win");
+        assert_eq!(rejected, 7, "all losers must conflict");
+
+        let err = repo
+            .transition_measurement(tenant_id, m.id, "reject", "analyst")
+            .await
+            .expect_err("accepted measurement is terminal");
+        assert_eq!(err.code, shared_core::ErrorCode::Conflict);
+    }
 }
