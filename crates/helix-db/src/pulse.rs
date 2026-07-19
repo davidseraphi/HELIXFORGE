@@ -321,11 +321,13 @@ impl PulseRepo {
             .ok_or_else(|| HelixError::not_found("monitor not found"))?;
         let next = next_monitor_status(&monitor.status, "activate")?;
         let now = Utc::now();
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<MonitorRow> = sqlx::query_as(&format!(
             r#"
             UPDATE pulse.monitors
             SET status = $1, activated_at = $2, updated_at = $2
-            WHERE tenant_id = $3 AND id = $4 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND id = $4 AND status = $5 AND deleted_at IS NULL
             {MONITOR_RETURNING}
             "#
         ))
@@ -333,12 +335,13 @@ impl PulseRepo {
         .bind(now)
         .bind(tenant_id.as_uuid())
         .bind(monitor_id)
+        .bind(&monitor.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("pulse activate monitor: {e}")))?;
 
         row.map(MonitorRow::into_monitor)
-            .ok_or_else(|| HelixError::not_found("monitor not found"))
+            .ok_or_else(|| HelixError::conflict("monitor changed during activate; retry"))
     }
 
     /// Pause an active monitor. Rejected while open incidents remain.
@@ -368,11 +371,19 @@ impl PulseRepo {
         }
 
         let now = Utc::now();
+        // The active-status and no-open-incidents guards are part of the
+        // UPDATE itself: a concurrent pause or an incident opened
+        // mid-flight cannot slip through a check-then-act window.
         let row: Option<MonitorRow> = sqlx::query_as(&format!(
             r#"
             UPDATE pulse.monitors
             SET status = $1, paused_at = $2, updated_at = $2
-            WHERE tenant_id = $3 AND id = $4 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND id = $4 AND status = 'active' AND deleted_at IS NULL
+              AND NOT EXISTS (
+                  SELECT 1 FROM pulse.incidents i
+                  WHERE i.tenant_id = $3 AND i.parent_id = $4
+                    AND i.status = 'open' AND i.deleted_at IS NULL
+              )
             {MONITOR_RETURNING}
             "#
         ))
@@ -384,8 +395,9 @@ impl PulseRepo {
         .await
         .map_err(|e| HelixError::dependency(format!("pulse pause monitor: {e}")))?;
 
-        row.map(MonitorRow::into_monitor)
-            .ok_or_else(|| HelixError::not_found("monitor not found"))
+        row.map(MonitorRow::into_monitor).ok_or_else(|| {
+            HelixError::conflict("monitor changed during pause or gained an open incident; retry")
+        })
     }
 
     pub async fn resume_monitor(
@@ -399,11 +411,13 @@ impl PulseRepo {
             .ok_or_else(|| HelixError::not_found("monitor not found"))?;
         let next = next_monitor_status(&monitor.status, "resume")?;
         let now = Utc::now();
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<MonitorRow> = sqlx::query_as(&format!(
             r#"
             UPDATE pulse.monitors
             SET status = $1, paused_at = NULL, updated_at = $2
-            WHERE tenant_id = $3 AND id = $4 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND id = $4 AND status = $5 AND deleted_at IS NULL
             {MONITOR_RETURNING}
             "#
         ))
@@ -411,12 +425,13 @@ impl PulseRepo {
         .bind(now)
         .bind(tenant_id.as_uuid())
         .bind(monitor_id)
+        .bind(&monitor.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("pulse resume monitor: {e}")))?;
 
         row.map(MonitorRow::into_monitor)
-            .ok_or_else(|| HelixError::not_found("monitor not found"))
+            .ok_or_else(|| HelixError::conflict("monitor changed during resume; retry"))
     }
 
     pub async fn soft_delete_monitor(
@@ -518,17 +533,18 @@ impl PulseRepo {
         body: &str,
         metadata: serde_json::Value,
     ) -> HelixResult<Incident> {
-        let _parent = self
-            .get_monitor(tenant_id, monitor_id)
-            .await?
-            .ok_or_else(|| HelixError::not_found("monitor not found"))?;
         let id = Uuid::now_v7();
         let created_at = Utc::now();
-        let row: IncidentRow = sqlx::query_as(&format!(
+        // The non-deleted-parent guard is part of the INSERT itself: a
+        // monitor soft-deleted between a separate check and insert cannot
+        // leak incidents.
+        let row: Option<IncidentRow> = sqlx::query_as(&format!(
             r#"
             INSERT INTO pulse.incidents
                 (id, tenant_id, parent_id, title, body, status, metadata, created_at, updated_at)
-            VALUES ($1,$2,$3,$4,$5,'open',$6,$7,$7)
+            SELECT $1,$2,$3,$4,$5,'open',$6,$7,$7
+            FROM pulse.monitors m
+            WHERE m.tenant_id = $2 AND m.id = $3 AND m.deleted_at IS NULL
             {INCIDENT_RETURNING}
             "#
         ))
@@ -539,10 +555,11 @@ impl PulseRepo {
         .bind(body)
         .bind(&metadata)
         .bind(created_at)
-        .fetch_one(&self.pool)
+        .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("pulse create incident: {e}")))?;
-        Ok(row.into_incident())
+        row.map(IncidentRow::into_incident)
+            .ok_or_else(|| HelixError::not_found("monitor not found"))
     }
 
     pub async fn get_incident(
@@ -640,11 +657,13 @@ impl PulseRepo {
             "resolved" => (incident.acknowledged_at, Some(now)),
             _ => (incident.acknowledged_at, incident.resolved_at),
         };
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<IncidentRow> = sqlx::query_as(&format!(
             r#"
             UPDATE pulse.incidents
             SET status = $1, acknowledged_at = $2, resolved_at = $3, updated_at = $4
-            WHERE tenant_id = $5 AND parent_id = $6 AND id = $7 AND deleted_at IS NULL
+            WHERE tenant_id = $5 AND parent_id = $6 AND id = $7 AND status = $8 AND deleted_at IS NULL
             {INCIDENT_RETURNING}
             "#
         ))
@@ -655,12 +674,13 @@ impl PulseRepo {
         .bind(tenant_id.as_uuid())
         .bind(monitor_id)
         .bind(incident_id)
+        .bind(&incident.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("pulse {action} incident: {e}")))?;
 
         row.map(IncidentRow::into_incident)
-            .ok_or_else(|| HelixError::not_found("incident not found"))
+            .ok_or_else(|| HelixError::conflict("incident changed during transition; retry"))
     }
 
     pub async fn acknowledge_incident(

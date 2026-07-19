@@ -865,4 +865,105 @@ mod tests {
         assert_eq!(restored.status, "active");
         assert!(restored.deleted_at.is_none());
     }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn incidents_rejected_on_deleted_monitor() {
+        let (state, _guard) = locked_state().await;
+        let tenant_id = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = PulseRepo::new(pool.clone());
+
+        let monitor = repo
+            .create_monitor(tenant_id, "Doomed monitor", "", serde_json::json!({}))
+            .await
+            .expect("create monitor");
+        repo.soft_delete_monitor(tenant_id, monitor.id)
+            .await
+            .expect("delete monitor");
+
+        // 8 racing incident creates on a soft-deleted monitor all fail.
+        let mut handles = Vec::new();
+        for _ in 0..8u32 {
+            let repo = repo.clone();
+            handles.push(tokio::spawn(async move {
+                repo.create_incident(tenant_id, monitor.id, "leak", "", serde_json::json!({}))
+                    .await
+            }));
+        }
+        let mut rejected = 0usize;
+        for h in handles {
+            match h.await.expect("create task panicked") {
+                Ok(_) => panic!("incident created on a deleted monitor"),
+                Err(e) if e.code == shared_core::ErrorCode::NotFound => rejected += 1,
+                Err(e) => panic!("unexpected create error: {e}"),
+            }
+        }
+        assert_eq!(rejected, 8, "all racing creates must be rejected");
+
+        let incidents = repo
+            .list_incidents(tenant_id, monitor.id)
+            .await
+            .expect("list incidents");
+        assert_eq!(
+            incidents.len(),
+            0,
+            "no incident may leak onto a deleted monitor"
+        );
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn concurrent_pause_single_winner() {
+        let (state, _guard) = locked_state().await;
+        let tenant_id = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = PulseRepo::new(pool.clone());
+
+        let monitor = repo
+            .create_monitor(tenant_id, "Race pause", "", serde_json::json!({}))
+            .await
+            .expect("create monitor");
+        repo.activate_monitor(tenant_id, monitor.id)
+            .await
+            .expect("activate monitor");
+
+        // 8 racing pauses of one active monitor with no open incidents.
+        let mut handles = Vec::new();
+        for _ in 0..8u32 {
+            let repo = repo.clone();
+            handles.push(tokio::spawn(async move {
+                repo.pause_monitor(tenant_id, monitor.id).await
+            }));
+        }
+        let mut winners = 0usize;
+        let mut rejected = 0usize;
+        for h in handles {
+            match h.await.expect("pause task panicked") {
+                Ok(_) => winners += 1,
+                Err(e)
+                    if e.code == shared_core::ErrorCode::Conflict
+                        || e.code == shared_core::ErrorCode::Validation =>
+                {
+                    rejected += 1
+                }
+                Err(e) => panic!("unexpected pause error: {e}"),
+            }
+        }
+        assert_eq!(winners, 1, "exactly one racing pause may win");
+        assert_eq!(rejected, 7, "all losers must be rejected");
+
+        let monitors = repo.list_monitors(tenant_id).await.expect("list monitors");
+        let row = monitors
+            .iter()
+            .find(|m| m.id == monitor.id)
+            .expect("monitor listed");
+        assert_eq!(row.status, "paused");
+    }
 }
