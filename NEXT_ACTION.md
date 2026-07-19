@@ -1,41 +1,40 @@
 # Next action
 
-## Latest: HELIXTERRAPRIME-DURABILITY closed — thirteenth product through the gate
+## Active: HELIXCLIMATEPRIME-DURABILITY — fourteenth product through the gate
 
-HELIXTERRAPRIME-DURABILITY is complete. The implementation passed local
-verification and GitHub Actions run `29671334631` is all green, including
-the new **HelixTerra Prime durability gate** job.
+Prove the Foundation Integrity durability gate on HelixClimate Prime:
+fresh crash, concurrency, and restore, verified locally and in CI.
+Fourteenth product (after `helix-collab`, `helix-capital`,
+`helix-commerce`, `helix-flow`, `helix-insights`, `helix-edu`,
+`helix-well`, `helix-network`, `helix-forge-studio`, `helix-synthbio`,
+`helix-lex-prime`, `helix-cura-prime`, `helix-terra-prime`).
 
-- Repo: `crates/helix-db/src/terra.rs` (atomic `create_child`
-  INSERT...SELECT; guarded `retire_field` / `activate_field` /
-  `reopen_field` / `confirm_observation` / `dismiss_observation`)
-- Tests: `projects/helix-terra-prime/backend/src/main.rs`
-  (`observations_rejected_on_deleted_field`,
-  `concurrent_retire_single_winner`)
-- Proof: `scripts/helix_terra_prime_durability.ps1` (forced-kill +
-  restore)
-- CI: `.github/workflows/ci.yml` `terra-durability` job
-- Docs: `docs/goals/HELIXTERRAPRIME_DURABILITY.md`, `DECISION_LOG.md`
+Goal doc: `docs/goals/HELIXCLIMATEPRIME_DURABILITY.md`.
 
-### What was delivered
+### Scope
 
-- non-deleted-parent guard enforced inside the observation INSERT; a
-  field soft-deleted mid-flight can no longer leak observations
-- retire is one guarded UPDATE (active + not deleted + NOT EXISTS draft
-  observation); activate/reopen/confirm/dismiss carry expected-from
-  status in the WHERE
-- concurrency proof: 8 racing creates on a deleted field all rejected; 8
-  racing retires → exactly one winner
-- crash proof: acknowledged retired field survives a forced kill of the
-  API
-- restore proof: schema dump roundtrip with equal counts + content hashes
-- `helix-terra-prime` recorded in `durability_gate_proven_products`
+`create_child` checked the parent scenario in a separate SELECT before
+the score INSERT; `archive_scenario` counted draft scores and checked
+active status in separate statements from the UPDATE; activate/reopen
+and assess/dismiss carry no expected-from status guard. This packet
+folds the guards into the writes and proves the gate.
 
-### Active goal
+### Definition of done
 
-None. HELIXTERRAPRIME-DURABILITY is closed.
+1. `create_child` inserts with `INSERT ... SELECT` against a non-deleted
+   scenario — one statement.
+2. `archive_scenario` is a single guarded `UPDATE` (active + not deleted
+   + `NOT EXISTS` draft score).
+3. `activate_scenario`, `reopen_scenario`, `assess_score`,
+   `dismiss_score` carry expected-from status in the `WHERE`.
+4. Ignored tests `scores_rejected_on_deleted_scenario` and
+   `concurrent_archive_single_winner` pass locally and in CI.
+5. `scripts/helix_climate_prime_durability.ps1` proves lifecycle,
+   forced-kill survival, and schema restore roundtrip.
+6. `climate-durability` CI job in `.github/workflows/ci.yml`.
+7. `cargo test --workspace --all-features` and
+   `cargo clippy --workspace --all-targets -- -D warnings` clean.
 
 ### Next action
 
-Founder selects the next explicit named goal. Open: durability gates for
-the remaining 8 products.
+Push the implementation and watch CI to green.
