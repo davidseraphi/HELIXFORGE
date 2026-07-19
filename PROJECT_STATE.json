@@ -4,10 +4,10 @@
   "stage": "prototype",
   "updated_at": "2026-07-19",
   "active_slice": "category-defining-product-program",
-  "active_goal": null,
-  "active_phase": null,
+  "active_goal": "HELIXSYNTHBIO-DURABILITY",
+  "active_phase": "helixsynthbio_durability_gate",
   "previous_goal": "HELIXFORGESTUDIO-DURABILITY_CI_PROVEN",
-  "review_gate": null,
+  "review_gate": "HELIXSYNTHBIO-DURABILITY",
   "category_defining_program": {
     "status": "foundation_integrity_umbrella_011.7_closed",
     "root": "docs/product-program",
@@ -22,7 +22,7 @@
       "helix-anvil-standalone"
     ],
     "implementation_started": true,
-    "next_gate": "HELIXFORGESTUDIO-DURABILITY gate packet"
+    "next_gate": "HELIXSYNTHBIO-DURABILITY gate packet"
   },
   "second_wave": {
     "roadmap": "docs/SECOND_WAVE.md",

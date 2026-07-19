@@ -1,39 +1,39 @@
 # Next action
 
-## Latest: HELIXFORGESTUDIO-DURABILITY closed — ninth product through the gate
+## Active: HELIXSYNTHBIO-DURABILITY — tenth product through the gate
 
-HELIXFORGESTUDIO-DURABILITY is complete. The implementation passed local
-verification and GitHub Actions run `29669148679` is all green, including
-the new **HelixForge Studio durability gate** job.
+Prove the Foundation Integrity durability gate on HelixSynthBio: fresh
+crash, concurrency, and restore, verified locally and in CI. Tenth
+product (after `helix-collab`, `helix-capital`, `helix-commerce`,
+`helix-flow`, `helix-insights`, `helix-edu`, `helix-well`,
+`helix-network`, `helix-forge-studio`).
 
-- Repo: `crates/helix-db/src/studio.rs` (atomic `create_child`
-  INSERT...SELECT; guarded `publish_app` / `unpublish_app` /
-  `archive_page` / `reopen_page`)
-- Tests: `projects/helix-forge-studio/backend/src/main.rs`
-  (`pages_rejected_on_deleted_app`, `concurrent_publish_single_winner`)
-- Proof: `scripts/helix_forge_studio_durability.ps1` (forced-kill +
-  restore)
-- CI: `.github/workflows/ci.yml` `forge-studio-durability` job
-- Docs: `docs/goals/HELIXFORGESTUDIO_DURABILITY.md`, `DECISION_LOG.md`
+Goal doc: `docs/goals/HELIXSYNTHBIO_DURABILITY.md`.
 
-### What was delivered
+### Scope
 
-- non-deleted-parent guard enforced inside the page INSERT; an app
-  soft-deleted mid-flight can no longer leak pages
-- publish is one guarded UPDATE (draft + not deleted + EXISTS page);
-  unpublish/archive/reopen carry expected-from status in the WHERE
-- concurrency proof: 8 racing creates on a deleted app all rejected; 8
-  racing publishes → exactly one winner
-- crash proof: acknowledged published app survives a forced kill of the
-  API
-- restore proof: schema dump roundtrip with equal counts + content hashes
-- `helix-forge-studio` recorded in `durability_gate_proven_products`
+`create_child` checked the parent design in a separate SELECT before the
+sim INSERT; `approve_design` counted completed sims and checked review
+status in separate statements from the UPDATE; submit/return and the sim
+transitions carry no expected-from status guard. This packet folds the
+guards into the writes and proves the gate.
 
-### Active goal
+### Definition of done
 
-None. HELIXFORGESTUDIO-DURABILITY is closed.
+1. `create_child` inserts with `INSERT ... SELECT` against a non-deleted
+   design — one statement.
+2. `approve_design` is a single guarded `UPDATE` (review + not deleted +
+   `EXISTS` completed sim).
+3. `submit_design`, `return_design`, `transition_sim` carry expected-from
+   status in the `WHERE`.
+4. Ignored tests `sims_rejected_on_deleted_design` and
+   `concurrent_approve_single_winner` pass locally and in CI.
+5. `scripts/helix_synthbio_durability.ps1` proves lifecycle, forced-kill
+   survival, and schema restore roundtrip.
+6. `synthbio-durability` CI job in `.github/workflows/ci.yml`.
+7. `cargo test --workspace --all-features` and
+   `cargo clippy --workspace --all-targets -- -D warnings` clean.
 
 ### Next action
 
-Founder selects the next explicit named goal. Open: durability gates for
-the remaining 12 products.
+Push the implementation and watch CI to green.
