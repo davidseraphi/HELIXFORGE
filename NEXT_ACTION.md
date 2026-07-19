@@ -1,33 +1,35 @@
 # Next action
 
-## Latest: HELIXWELL-DURABILITY closed — seventh product through the gate
+## Active: HELIXNETWORK-DURABILITY — eighth product through the gate
 
-HELIXWELL-DURABILITY is complete. The implementation passed local
-verification and GitHub Actions run `29667399976` is all green, including
-the new **HelixWell durability gate** job.
+Prove the Foundation Integrity durability gate on HelixNetwork: fresh
+crash, concurrency, and restore, verified locally and in CI. Eighth
+product (after `helix-collab`, `helix-capital`, `helix-commerce`,
+`helix-flow`, `helix-insights`, `helix-edu`, `helix-well`).
 
-- Repo: `crates/helix-db/src/well.rs` (atomic log INSERT...SELECT)
-- Tests: `projects/helix-well/backend/src/main.rs`
-  (`logs_rejected_on_paused_habit`, `concurrent_logs_all_landed`)
-- Proof: `scripts/helix_well_durability.ps1` (forced-kill + restore)
-- CI: `.github/workflows/ci.yml` `well-durability` job
-- Docs: `docs/goals/HELIXWELL_DURABILITY.md`, `DECISION_LOG.md`
+Goal doc: `docs/goals/HELIXNETWORK_DURABILITY.md`.
 
-### What was delivered
+### Scope
 
-- active-habit guard enforced inside the log INSERT; a habit paused
-  mid-flight can no longer silently accept a log
-- concurrency proof: 8 racing logs on a paused habit all rejected; 8
-  racing logs on an active habit all persist with the exact total
-- crash proof: acknowledged check-in survives a forced kill of the API
-- restore proof: schema dump roundtrip with equal counts + content hashes
-- `helix-well` recorded in `durability_gate_proven_products`
+`request_connection` ran its checks (profiles active, pair not blocked, no
+existing row) in separate statements from the insert/revive write — a
+profile deactivated or a pair blocked in between would silently accept the
+request. This packet makes the whole check-then-act sequence one
+transaction with the profile rows locked, and proves the gate.
 
-### Active goal
+### Definition of done
 
-None. HELIXWELL-DURABILITY is closed.
+1. `NetworkRepo::request_connection` runs profile checks (locked
+   `FOR UPDATE`), the blocked-pair check, the existing-row check, and the
+   insert or revive update in one transaction.
+2. Ignored Postgres integration tests `concurrent_accepts_single_winner`
+   and `concurrent_requests_same_pair` pass locally and in CI.
+3. `scripts/helix_network_durability.ps1` proves lifecycle, forced-kill
+   survival, and schema restore roundtrip.
+4. `network-durability` CI job in `.github/workflows/ci.yml`.
+5. `cargo test --workspace --all-features` and
+   `cargo clippy --workspace --all-targets -- -D warnings` clean.
 
 ### Next action
 
-Founder selects the next explicit named goal. Open: durability gates for
-the remaining 14 products.
+Implement the packet, verify locally, push, and watch CI to green.
