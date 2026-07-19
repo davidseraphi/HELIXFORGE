@@ -41,7 +41,8 @@ Two layers:
 
 ## Status
 
-- **Active**
+- **Closed / CI-proven**
+- CI run: `29688633026` (**HelixCode durability gate** job green)
 
 ## Out of scope
 

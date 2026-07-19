@@ -38,7 +38,9 @@ zero-row case.
 
 ## Status
 
-- **Active**
+- **Closed / CI-proven**
+- CI run: `29688633026` (**HelixCode durability gate** job green)
+- Migration: `0057_code_counters.sql` (backfilled)
 
 ## Out of scope
 

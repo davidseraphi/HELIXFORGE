@@ -1,5 +1,48 @@
 # Decision log (append-only)
 
+## 2026-07-19 — HELIXCODE-NUMBERING + HELIXCODE-REFS-CAS closed; code hardening complete
+
+- Completed both HelixCode follow-up packets in one implementation
+  commit (`caff226`), CI-proven by run `29688633026` (**HelixCode
+  durability gate** green):
+  - **Atomic allocation counters (NUMBERING):** new
+    `code.number_counters` table (migration `0057_code_counters.sql`,
+    backfilled from live issues/PRs/agent events so no repo re-allocates
+    an in-use number). `CodeRepoStore::allocate_number` performs one
+    `INSERT ... ON CONFLICT DO UPDATE ... RETURNING` — the counter row
+    is created on first use and incremented under a row lock, so
+    allocation is fully serialized with no MAX+1 window (including the
+    zero-row case) and no unique-violation 500 on the loser.
+    `next_issue_number`, `next_pr_number`, and `append_agent_event`
+    rewired through it (`crates/helix-db/src/code_endstate.rs`).
+  - **Ref compare-and-swap (REFS-CAS), two layers:** git push
+    rejections (non-fast-forward / stale ref) are now mapped to clean
+    `conflict` errors across `commit_file`, `commit_files`,
+    `create_branch`, and `merge_branch` (`git_store.rs` `run_git_push`)
+    — the git layer's existing CAS enforcement surfaces as a retryable
+    409 instead of a raw 500. New `CodeRepoStore::cas_ref` primitive:
+    `Some(expected)` performs a must-match guarded UPDATE, `None` a
+    must-not-exist INSERT with `ON CONFLICT DO NOTHING`; mismatches
+    conflict instead of overwriting (`crates/helix-db/src/code.rs`).
+  - Proofs: `concurrent_issue_numbers_all_distinct` (16 racing issues
+    and 16 racing event appends all distinct, zero errors),
+    `cas_ref_stale_expected_conflict` (create-on-existing and stale
+    expected sha conflict; current expected sha wins),
+    `concurrent_commit_same_branch_cas_holds` (racing commits: losers
+    conflict cleanly; branch history is exactly seed + winners).
+- Verification:
+  - `cargo fmt --all -- --check` clean.
+  - `cargo clippy --workspace --all-targets -- -D warnings` clean.
+  - `cargo test --workspace --all-features` clean.
+  - Race proofs pass against live Postgres and real git; GitHub Actions
+    run `29688633026` is all green.
+- Commits `6b80dd9` (NUMBERING activation), `dd1d049` (REFS-CAS
+  activation), and `caff226` (joint implementation) pushed to `main`.
+- `PROJECT_STATE.json` and `NEXT_ACTION.md` updated; goal docs
+  `docs/goals/HELIXCODE_NUMBERING.md` and
+  `docs/goals/HELIXCODE_REFS_CAS.md` closed.
+- Next action: founder selects the next explicit named goal.
+
 ## 2026-07-19 — HELIXCODE-DURABILITY closed; all 21 products through the gate
 
 - Completed the HelixCode durability-gate packet (`helix-code` added to

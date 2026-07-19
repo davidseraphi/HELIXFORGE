@@ -1,29 +1,38 @@
 # Next action
 
-## Active: HELIXCODE-NUMBERING + HELIXCODE-REFS-CAS — code hardening follow-ups
+## Latest: HELIXCODE-NUMBERING + HELIXCODE-REFS-CAS closed — code hardening complete
 
-Two thorough follow-up packets on HelixCode, sequenced after
-HELIXCODE-DURABILITY (closed):
+Both HelixCode follow-up packets are complete. The joint implementation
+passed local verification and GitHub Actions run `29688633026` is all
+green, including the **HelixCode durability gate** job.
 
-- `docs/goals/HELIXCODE_NUMBERING.md` — atomic allocation counters:
-  `code.number_counters` (migration `0057`, backfilled) incremented under
-  a row lock in one upsert statement; issue/PR numbers and agent-event
-  seqs allocate with no MAX+1 window and no unique-violation 500s.
-- `docs/goals/HELIXCODE_REFS_CAS.md` — ref compare-and-swap: git push
-  rejections (non-fast-forward) mapped to clean conflicts across
-  commit/branch/merge paths, plus `CodeRepoStore::cas_ref` with
-  must-match / must-not-exist semantics.
+- Counters: `crates/helix-db/migrations/0057_code_counters.sql`
+  (backfilled), `crates/helix-db/src/code_endstate.rs`
+  (`allocate_number` — one row-locked upsert per allocation)
+- CAS: `crates/helix-db/src/code.rs` (`cas_ref` must-match /
+  must-not-exist), `projects/helix-code/backend/src/domain/git_store.rs`
+  (`run_git_push` — push rejections as clean conflicts)
+- Tests: `projects/helix-code/backend/src/main.rs`
+  (`concurrent_issue_numbers_all_distinct`,
+  `cas_ref_stale_expected_conflict`) and `git_store.rs`
+  (`concurrent_commit_same_branch_cas_holds`)
+- Docs: `docs/goals/HELIXCODE_NUMBERING.md`,
+  `docs/goals/HELIXCODE_REFS_CAS.md`, `DECISION_LOG.md`
 
-### Proofs
+### What was delivered
 
-- `concurrent_issue_numbers_all_distinct` — 16 racing issues and 16
-  racing event appends all distinct, zero errors.
-- `cas_ref_stale_expected_conflict` — create-on-existing and stale
-  expected sha conflict; current expected sha wins.
-- `concurrent_commit_same_branch_cas_holds` — racing commits: losers
-  are clean conflicts; branch history is exactly seed + winners.
+- issue/PR numbers and agent-event seqs allocate atomically — no MAX+1
+  window, no unique-violation 500s, live data backfilled
+- concurrent branch writers now lose with a retryable 409 instead of a
+  raw 500, at both the git layer and the Postgres mirror
+- 16-way allocation races all-distinct; commit races leave exactly
+  seed + winners in history
+
+### Active goal
+
+None. All 21 products hold the durability gate; HelixCode follow-ups
+closed.
 
 ### Next action
 
-Commit, push, watch CI (`code-durability` job + full suite) to green,
-then close both packets.
+Founder selects the next explicit named goal.

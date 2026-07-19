@@ -4,10 +4,10 @@
   "stage": "prototype",
   "updated_at": "2026-07-19",
   "active_slice": "category-defining-product-program",
-  "active_goal": "HELIXCODE-REFS-CAS",
-  "active_phase": "helixcode_refs_cas",
-  "previous_goal": "HELIXCODE-DURABILITY_CI_PROVEN",
-  "review_gate": "HELIXCODE-REFS-CAS",
+  "active_goal": null,
+  "active_phase": null,
+  "previous_goal": "HELIXCODE-REFS-CAS_CI_PROVEN",
+  "review_gate": null,
   "category_defining_program": {
     "status": "foundation_integrity_umbrella_011.7_closed",
     "root": "docs/product-program",
@@ -22,7 +22,7 @@
       "helix-anvil-standalone"
     ],
     "implementation_started": true,
-    "next_gate": "HELIXCODE-REFS-CAS packet"
+    "next_gate": "awaiting_founder_goal_selection"
   },
   "second_wave": {
     "roadmap": "docs/SECOND_WAVE.md",
@@ -83,7 +83,7 @@
     "current_validity": "unverified_after_later_tree_changes"
   },
   "foundation_integrity_current_gate": "011.7_CLOSED",
-  "full_workspace_current_status": "fmt_clippy_test_helm_verify_helixcore_full_pass_helixcode_durability_ci_proven_run_29687099450_all_21_products_gate_proven",
+  "full_workspace_current_status": "fmt_clippy_test_helm_verify_helixcore_full_pass_helixcode_numbering_refs_cas_ci_proven_run_29688633026",
   "core_services": [
     "gateway",
     "agent-hub",
