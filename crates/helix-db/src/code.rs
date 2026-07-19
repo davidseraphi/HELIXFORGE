@@ -391,11 +391,18 @@ impl CodeRepoStore {
     ) -> HelixResult<CodeWorkspace> {
         let id = Uuid::now_v7();
         let now = Utc::now();
-        sqlx::query(
+        // The repo-exists guard is part of the INSERT itself: a repo
+        // deleted (or foreign) slips no workspace past the write, and the
+        // caller gets a clean not_found instead of an FK-violation 500.
+        let inserted: Option<(Uuid,)> = sqlx::query_as(
             r#"
             INSERT INTO code.workspaces (
                 id, tenant_id, repo_id, name, branch, root_path, created_by, created_at, updated_at
-            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8)
+            )
+            SELECT $1,$2,$3,$4,$5,$6,$7,$8,$8
+            FROM code.repos r
+            WHERE r.tenant_id = $2 AND r.id = $3
+            RETURNING id
             "#,
         )
         .bind(id)
@@ -406,9 +413,12 @@ impl CodeRepoStore {
         .bind(root_path)
         .bind(created_by)
         .bind(now)
-        .execute(&self.pool)
+        .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("code create_workspace: {e}")))?;
+        if inserted.is_none() {
+            return Err(HelixError::not_found("repo not found"));
+        }
         Ok(CodeWorkspace {
             id,
             tenant_id,
@@ -489,10 +499,16 @@ impl CodeRepoStore {
     ) -> HelixResult<CodePipeline> {
         let id = Uuid::now_v7();
         let now = Utc::now();
-        sqlx::query(
+        // The repo-exists guard is part of the INSERT itself: a repo
+        // deleted (or foreign) slips no pipeline past the write, and the
+        // caller gets a clean not_found instead of an FK-violation 500.
+        let inserted: Option<(Uuid,)> = sqlx::query_as(
             r#"
             INSERT INTO code.pipelines (id, tenant_id, repo_id, name, definition, enabled, created_at)
-            VALUES ($1,$2,$3,$4,$5,true,$6)
+            SELECT $1,$2,$3,$4,$5,true,$6
+            FROM code.repos r
+            WHERE r.tenant_id = $2 AND r.id = $3
+            RETURNING id
             "#,
         )
         .bind(id)
@@ -501,9 +517,12 @@ impl CodeRepoStore {
         .bind(name)
         .bind(&definition)
         .bind(now)
-        .execute(&self.pool)
+        .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("code create_pipeline: {e}")))?;
+        if inserted.is_none() {
+            return Err(HelixError::not_found("repo not found"));
+        }
         Ok(CodePipeline {
             id,
             tenant_id,
@@ -648,7 +667,10 @@ impl CodeRepoStore {
         exit_code: Option<i32>,
         isolation: &str,
     ) -> HelixResult<()> {
-        sqlx::query(
+        // The terminal guard is part of the UPDATE: a concurrent finish (or
+        // a finish racing a cancel) loses instead of overwriting the
+        // acknowledged terminal state.
+        let done: Option<(Uuid,)> = sqlx::query_as(
             r#"
             UPDATE code.pipeline_runs
             SET status = $3,
@@ -658,7 +680,8 @@ impl CodeRepoStore {
                 exit_code = $7,
                 isolation = $8,
                 finished_at = now()
-            WHERE tenant_id = $1 AND id = $2
+            WHERE tenant_id = $1 AND id = $2 AND finished_at IS NULL
+            RETURNING id
             "#,
         )
         .bind(tenant_id.as_uuid())
@@ -669,9 +692,12 @@ impl CodeRepoStore {
         .bind(&artifacts)
         .bind(exit_code)
         .bind(isolation)
-        .execute(&self.pool)
+        .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("code finish_run: {e}")))?;
+        if done.is_none() {
+            return Err(HelixError::conflict("pipeline run already finished"));
+        }
         Ok(())
     }
 
@@ -889,7 +915,10 @@ impl CodeRepoStore {
         mesh_steps: JsonValue,
         isolation: &str,
     ) -> HelixResult<()> {
-        sqlx::query(
+        // The terminal guard is part of the UPDATE: a concurrent finish (or
+        // a finish racing a cancel) loses instead of overwriting the
+        // acknowledged terminal state.
+        let done: Option<(Uuid,)> = sqlx::query_as(
             r#"
             UPDATE code.agent_jobs
             SET status = $3,
@@ -902,7 +931,8 @@ impl CodeRepoStore {
                 mesh_steps = $10,
                 isolation = $11,
                 finished_at = now()
-            WHERE tenant_id = $1 AND id = $2
+            WHERE tenant_id = $1 AND id = $2 AND finished_at IS NULL
+            RETURNING id
             "#,
         )
         .bind(tenant_id.as_uuid())
@@ -916,9 +946,12 @@ impl CodeRepoStore {
         .bind(&agent_run_ids)
         .bind(&mesh_steps)
         .bind(isolation)
-        .execute(&self.pool)
+        .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("code finish_agent_job: {e}")))?;
+        if done.is_none() {
+            return Err(HelixError::conflict("agent job already finished"));
+        }
         Ok(())
     }
 
