@@ -816,4 +816,111 @@ mod tests {
         assert_eq!(restored.status, "approved");
         assert!(restored.deleted_at.is_none());
     }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn sims_rejected_on_deleted_design() {
+        let (state, _guard) = locked_state().await;
+        let tenant_id = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = SynthbioRepo::new(pool.clone());
+
+        let design = repo
+            .create_parent(tenant_id, "Doomed design", "", serde_json::json!({}))
+            .await
+            .expect("create design");
+        repo.soft_delete_design(tenant_id, design.id)
+            .await
+            .expect("delete design");
+
+        // 8 racing sim creates on a soft-deleted design all fail.
+        let mut handles = Vec::new();
+        for _ in 0..8u32 {
+            let repo = repo.clone();
+            handles.push(tokio::spawn(async move {
+                repo.create_child(tenant_id, design.id, "leak", "", serde_json::json!({}))
+                    .await
+            }));
+        }
+        let mut rejected = 0usize;
+        for h in handles {
+            match h.await.expect("create task panicked") {
+                Ok(_) => panic!("sim created on a deleted design"),
+                Err(e) if e.code == shared_core::ErrorCode::NotFound => rejected += 1,
+                Err(e) => panic!("unexpected create error: {e}"),
+            }
+        }
+        assert_eq!(rejected, 8, "all racing creates must be rejected");
+
+        let sims = repo
+            .list_children(tenant_id, design.id)
+            .await
+            .expect("list sims");
+        assert_eq!(sims.len(), 0, "no sim may leak onto a deleted design");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn concurrent_approve_single_winner() {
+        let (state, _guard) = locked_state().await;
+        let tenant_id = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = SynthbioRepo::new(pool.clone());
+
+        let design = repo
+            .create_parent(tenant_id, "Race approve", "", serde_json::json!({}))
+            .await
+            .expect("create design");
+        repo.submit_design(tenant_id, design.id)
+            .await
+            .expect("submit");
+        let sim = repo
+            .create_child(tenant_id, design.id, "sim", "", serde_json::json!({}))
+            .await
+            .expect("create sim");
+        repo.start_sim(tenant_id, design.id, sim.id)
+            .await
+            .expect("start sim");
+        repo.complete_sim(tenant_id, design.id, sim.id)
+            .await
+            .expect("complete sim");
+
+        // 8 racing approves of one in-review design.
+        let mut handles = Vec::new();
+        for _ in 0..8u32 {
+            let repo = repo.clone();
+            handles.push(tokio::spawn(async move {
+                repo.approve_design(tenant_id, design.id).await
+            }));
+        }
+        let mut winners = 0usize;
+        let mut rejected = 0usize;
+        for h in handles {
+            match h.await.expect("approve task panicked") {
+                Ok(_) => winners += 1,
+                Err(e)
+                    if e.code == shared_core::ErrorCode::Conflict
+                        || e.code == shared_core::ErrorCode::Validation =>
+                {
+                    rejected += 1
+                }
+                Err(e) => panic!("unexpected approve error: {e}"),
+            }
+        }
+        assert_eq!(winners, 1, "exactly one racing approve may win");
+        assert_eq!(rejected, 7, "all losers must be rejected");
+
+        let designs = repo.list_parents(tenant_id).await.expect("list designs");
+        let row = designs
+            .iter()
+            .find(|d| d.id == design.id)
+            .expect("design listed");
+        assert_eq!(row.status, "approved");
+    }
 }

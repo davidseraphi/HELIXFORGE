@@ -315,11 +315,13 @@ impl SynthbioRepo {
             .ok_or_else(|| HelixError::not_found("design not found"))?;
         let next = next_design_status(&design.status, "submit")?;
         let now = Utc::now();
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<DesignRow> = sqlx::query_as(&format!(
             r#"
             UPDATE synthbio.designs
             SET status = $1, submitted_at = $2, updated_at = $2
-            WHERE tenant_id = $3 AND id = $4 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND id = $4 AND status = $5 AND deleted_at IS NULL
             {DESIGN_RETURNING}
             "#
         ))
@@ -327,15 +329,20 @@ impl SynthbioRepo {
         .bind(now)
         .bind(tenant_id.as_uuid())
         .bind(design_id)
+        .bind(&design.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("synthbio submit design: {e}")))?;
 
         row.map(DesignRow::into_design)
-            .ok_or_else(|| HelixError::not_found("design not found"))
+            .ok_or_else(|| HelixError::conflict("design changed during submit; retry"))
     }
 
     /// Approve a design under review. Requires at least one completed sim.
+    /// The review-status and completed-sim guards are part of the UPDATE
+    /// itself, so a concurrent approve/return or a sim deleted mid-flight
+    /// cannot slip through a check-then-act window; the earlier reads only
+    /// shape the error returned for the steady-state cases.
     pub async fn approve_design(
         &self,
         tenant_id: TenantId,
@@ -366,7 +373,12 @@ impl SynthbioRepo {
             r#"
             UPDATE synthbio.designs
             SET status = $1, approved_at = $2, updated_at = $2
-            WHERE tenant_id = $3 AND id = $4 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND id = $4 AND status = 'review' AND deleted_at IS NULL
+              AND EXISTS (
+                  SELECT 1 FROM synthbio.sims s
+                  WHERE s.tenant_id = $3 AND s.parent_id = $4
+                    AND s.status = 'completed' AND s.deleted_at IS NULL
+              )
             {DESIGN_RETURNING}
             "#
         ))
@@ -378,8 +390,11 @@ impl SynthbioRepo {
         .await
         .map_err(|e| HelixError::dependency(format!("synthbio approve design: {e}")))?;
 
-        row.map(DesignRow::into_design)
-            .ok_or_else(|| HelixError::not_found("design not found"))
+        row.map(DesignRow::into_design).ok_or_else(|| {
+            HelixError::conflict(
+                "design changed during approve or lost its last completed sim; retry",
+            )
+        })
     }
 
     /// Return a design under review back to draft.
@@ -390,11 +405,13 @@ impl SynthbioRepo {
             .ok_or_else(|| HelixError::not_found("design not found"))?;
         let next = next_design_status(&design.status, "return")?;
         let now = Utc::now();
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<DesignRow> = sqlx::query_as(&format!(
             r#"
             UPDATE synthbio.designs
             SET status = $1, updated_at = $2
-            WHERE tenant_id = $3 AND id = $4 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND id = $4 AND status = $5 AND deleted_at IS NULL
             {DESIGN_RETURNING}
             "#
         ))
@@ -402,12 +419,13 @@ impl SynthbioRepo {
         .bind(now)
         .bind(tenant_id.as_uuid())
         .bind(design_id)
+        .bind(&design.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("synthbio return design: {e}")))?;
 
         row.map(DesignRow::into_design)
-            .ok_or_else(|| HelixError::not_found("design not found"))
+            .ok_or_else(|| HelixError::conflict("design changed during return; retry"))
     }
 
     pub async fn soft_delete_design(
@@ -509,17 +527,17 @@ impl SynthbioRepo {
         body: &str,
         metadata: serde_json::Value,
     ) -> HelixResult<SimRun> {
-        let _parent = self
-            .get_parent(tenant_id, parent_id)
-            .await?
-            .ok_or_else(|| HelixError::not_found("parent not found"))?;
         let id = Uuid::now_v7();
         let created_at = Utc::now();
-        let row: SimRow = sqlx::query_as(&format!(
+        // The non-deleted-parent guard is part of the INSERT itself: a design
+        // soft-deleted between a separate check and insert cannot leak sims.
+        let row: Option<SimRow> = sqlx::query_as(&format!(
             r#"
             INSERT INTO synthbio.sims
                 (id, tenant_id, parent_id, title, body, status, metadata, created_at, updated_at)
-            VALUES ($1,$2,$3,$4,$5,'open',$6,$7,$7)
+            SELECT $1,$2,$3,$4,$5,'open',$6,$7,$7
+            FROM synthbio.designs d
+            WHERE d.tenant_id = $2 AND d.id = $3 AND d.deleted_at IS NULL
             {SIM_RETURNING}
             "#
         ))
@@ -530,10 +548,11 @@ impl SynthbioRepo {
         .bind(body)
         .bind(&metadata)
         .bind(created_at)
-        .fetch_one(&self.pool)
+        .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("synthbio create child: {e}")))?;
-        Ok(row.into_sim())
+        row.map(SimRow::into_sim)
+            .ok_or_else(|| HelixError::not_found("parent not found"))
     }
 
     pub async fn get_sim(
@@ -632,11 +651,13 @@ impl SynthbioRepo {
             "failed" => (sim.started_at, None, Some(now)),
             _ => (sim.started_at, sim.completed_at, sim.failed_at),
         };
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<SimRow> = sqlx::query_as(&format!(
             r#"
             UPDATE synthbio.sims
             SET status = $1, started_at = $2, completed_at = $3, failed_at = $4, updated_at = $5
-            WHERE tenant_id = $6 AND parent_id = $7 AND id = $8 AND deleted_at IS NULL
+            WHERE tenant_id = $6 AND parent_id = $7 AND id = $8 AND status = $9 AND deleted_at IS NULL
             {SIM_RETURNING}
             "#
         ))
@@ -648,12 +669,13 @@ impl SynthbioRepo {
         .bind(tenant_id.as_uuid())
         .bind(design_id)
         .bind(sim_id)
+        .bind(&sim.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("synthbio {action} sim: {e}")))?;
 
         row.map(SimRow::into_sim)
-            .ok_or_else(|| HelixError::not_found("sim not found"))
+            .ok_or_else(|| HelixError::conflict("sim changed during transition; retry"))
     }
 
     pub async fn start_sim(
