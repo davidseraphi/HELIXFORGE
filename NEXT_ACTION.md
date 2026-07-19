@@ -1,33 +1,40 @@
 # Next action
 
-## Latest: HELIXINSIGHTS-DURABILITY closed — fifth product through the gate
+## Latest: HELIXEDU-DURABILITY
 
-HELIXINSIGHTS-DURABILITY is complete. The implementation passed local
-verification and GitHub Actions run `29666090622` is all green, including
-the new **HelixInsights durability gate** job.
+**Goal:** prove the Foundation Integrity durability gate on HelixEdu —
+sixth product through the gate (after helix-collab, helix-capital,
+helix-commerce, helix-flow, helix-insights).
 
-- Repo: `crates/helix-db/src/insights.rs` (atomic INSERT...SELECT for
-  `create_metric` and `record_point`)
-- Tests: `projects/helix-insights/backend/src/main.rs`
-  (`points_rejected_on_deleted_metric`, `concurrent_records_all_landed`)
-- Proof: `scripts/helix_insights_durability.ps1` (forced-kill + restore)
-- CI: `.github/workflows/ci.yml` `insights-durability` job
-- Docs: `docs/goals/HELIXINSIGHTS_DURABILITY.md`, `DECISION_LOG.md`
+- Repo: `crates/helix-db/src/edu.rs` (atomic enroll INSERT...SELECT,
+  guarded withdraw)
+- Tests: `projects/helix-edu/backend/src/main.rs`
+  (`concurrent_enroll_same_learner_single_winner`,
+  `enroll_rejected_when_unpublished`)
+- Proof: `scripts/helix_edu_durability.ps1` (forced-kill + restore)
+- CI: `.github/workflows/ci.yml` `edu-durability` job
+- Docs: `docs/goals/HELIXEDU_DURABILITY.md`, `DECISION_LOG.md`
 
-### What was delivered
+### Scope
 
-- check-then-insert windows closed for metric/point creation
-- concurrency proof: records on a deleted metric all rejected; concurrent
-  records on a live metric all land
-- crash proof: acknowledged point survives a forced kill of the API
-- restore proof: schema dump roundtrip with equal counts + content hashes
-- `helix-insights` recorded in `durability_gate_proven_products`
+- fix: published-course guard enforced inside the enroll INSERT; withdraw
+  is a single guarded UPDATE
+- concurrency proof: N concurrent enrollments of one learner → exactly one
+  wins; enroll on a draft course always rejected
+- crash proof: acknowledged enrollment survives a forced kill of the API
+- restore proof: `edu` schema dump roundtrip with equal counts + hashes
 
 ### Active goal
 
-None. HELIXINSIGHTS-DURABILITY is closed.
+`HELIXEDU-DURABILITY` — in progress.
 
-### Next action
+## Paste-ready continuation prompt
 
-Founder selects the next explicit named goal. Open: durability gates for
-the remaining 16 products.
+```text
+Continue in C:\Users\divin\PROJECTS\HELIXFORGE. HELIXEDU-DURABILITY is the
+active goal. Make enroll an atomic INSERT...SELECT and withdraw a guarded
+UPDATE; add the enroll race proofs; create
+scripts/helix_edu_durability.ps1 (forced-kill + restore proofs) and the
+edu-durability CI job; prove it green on CI; record helix-edu in
+durability_gate_proven_products.
+```
