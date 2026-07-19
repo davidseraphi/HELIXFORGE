@@ -52,7 +52,10 @@ the writes and proves the gate.
 
 ## Status
 
-- **Active**
+- **Closed / CI-proven**
+- CI run: `29670866072` (**HelixCura Prime durability gate** job green)
+- Proof script: `scripts/helix_cura_prime_durability.ps1`
+- Gate proven locally (Windows) and in CI (ubuntu)
 
 ## Out of scope
 

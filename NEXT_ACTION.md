@@ -1,43 +1,43 @@
 # Next action
 
-## Active: HELIXCURAPRIME-DURABILITY — twelfth product through the gate
+## Latest: HELIXCURAPRIME-DURABILITY closed — twelfth product through the gate
 
-Prove the Foundation Integrity durability gate on HelixCura Prime: fresh
-crash, concurrency, and restore, verified locally and in CI. Twelfth
-product (after `helix-collab`, `helix-capital`, `helix-commerce`,
-`helix-flow`, `helix-insights`, `helix-edu`, `helix-well`,
-`helix-network`, `helix-forge-studio`, `helix-synthbio`,
-`helix-lex-prime`).
+HELIXCURAPRIME-DURABILITY is complete. The implementation passed local
+verification and GitHub Actions run `29670866072` is all green, including
+the new **HelixCura Prime durability gate** job.
 
-Goal doc: `docs/goals/HELIXCURAPRIME_DURABILITY.md`.
+- Repo: `crates/helix-db/src/cura.rs` (atomic `create_child`
+  INSERT...SELECT; guarded `discharge_case` / `activate_case` /
+  `reopen_case` / `sign_note` / `void_note`; draft guard on
+  `update_note` — signed notes stay immutable under race)
+- Tests: `projects/helix-cura-prime/backend/src/main.rs`
+  (`notes_rejected_on_deleted_case`, `concurrent_discharge_single_winner`)
+- Proof: `scripts/helix_cura_prime_durability.ps1` (forced-kill +
+  restore)
+- CI: `.github/workflows/ci.yml` `cura-durability` job
+- Docs: `docs/goals/HELIXCURAPRIME_DURABILITY.md`, `DECISION_LOG.md`
 
-### Scope
+### What was delivered
 
-`create_child` checked the parent case in a separate SELECT before the
-note INSERT; `discharge_case` counted draft notes and checked active
-status in separate statements from the UPDATE; `update_note` carried no
-draft guard, so a racing sign let an edit overwrite a signed note; the
-activate/reopen and sign/void updates carry no expected-from status
-guard. This packet folds the guards into the writes and proves the gate.
+- non-deleted-parent guard enforced inside the note INSERT; a case
+  soft-deleted mid-flight can no longer leak notes
+- discharge is one guarded UPDATE (active + not deleted + NOT EXISTS
+  draft note); activate/reopen/sign/void carry expected-from status in
+  the WHERE
+- signed-immutable holds under race: note edits require `status = 'draft'`
+  in the UPDATE itself
+- concurrency proof: 8 racing creates on a deleted case all rejected; 8
+  racing discharges → exactly one winner
+- crash proof: acknowledged discharged case survives a forced kill of the
+  API
+- restore proof: schema dump roundtrip with equal counts + content hashes
+- `helix-cura-prime` recorded in `durability_gate_proven_products`
 
-### Definition of done
+### Active goal
 
-1. `create_child` inserts with `INSERT ... SELECT` against a non-deleted
-   case — one statement.
-2. `discharge_case` is a single guarded `UPDATE` (active + not deleted +
-   `NOT EXISTS` draft note).
-3. `update_note` carries `status = 'draft'` in the `WHERE` — signed
-   notes stay immutable under race.
-4. `activate_case`, `reopen_case`, `sign_note`, `void_note` carry
-   expected-from status in the `WHERE`.
-5. Ignored tests `notes_rejected_on_deleted_case` and
-   `concurrent_discharge_single_winner` pass locally and in CI.
-6. `scripts/helix_cura_prime_durability.ps1` proves lifecycle,
-   forced-kill survival, and schema restore roundtrip.
-7. `cura-durability` CI job in `.github/workflows/ci.yml`.
-8. `cargo test --workspace --all-features` and
-   `cargo clippy --workspace --all-targets -- -D warnings` clean.
+None. HELIXCURAPRIME-DURABILITY is closed.
 
 ### Next action
 
-Push the implementation and watch CI to green.
+Founder selects the next explicit named goal. Open: durability gates for
+the remaining 9 products.

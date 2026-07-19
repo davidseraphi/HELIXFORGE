@@ -1,5 +1,50 @@
 # Decision log (append-only)
 
+## 2026-07-19 — HELIXCURAPRIME-DURABILITY closed; twelfth product through the gate
+
+- Completed the HelixCura Prime durability-gate packet (`helix-cura-prime`
+  added to `durability_gate_proven_products`):
+  - **Check-then-insert window closed:** `CuraRepo::create_child` now
+    enforces the non-deleted parent case condition inside the INSERT
+    itself (`INSERT ... SELECT`), so a case soft-deleted in between can
+    no longer leak notes (`crates/helix-db/src/cura.rs`).
+  - **Guarded transitions:** `discharge_case` is a single guarded
+    `UPDATE` requiring `status = 'active'`, not deleted, and `NOT EXISTS`
+    a non-deleted draft note; `activate_case`, `reopen_case`,
+    `sign_note`, and `void_note` carry their expected-from status in the
+    `WHERE`.
+  - **Signed-immutable under race:** `update_note` now carries
+    `status = 'draft'` in the UPDATE `WHERE` — a sign landing between
+    the read and the write can no longer let an edit overwrite a signed
+    note.
+  - New ignored Postgres integration tests:
+    `notes_rejected_on_deleted_case` (after soft-deleting a case, 8
+    concurrent note creates all rejected; no note leaks in) and
+    `concurrent_discharge_single_winner` (8 racing discharges of one
+    active case → exactly one success, 7 rejected, case ends discharged).
+  - `scripts/helix_cura_prime_durability.ps1` proves:
+    case/activate/note/sign/discharge lifecycle; an acknowledged
+    discharged case surviving an immediate forced kill of the API
+    (status, discharged_at, and signed note fully present after restart);
+    and a `cura` schema `pg_dump` roundtrip into a scratch database with
+    equal case/note counts and equal content hashes.
+  - `cura-durability` CI job running the ignored integration tests and
+    the proof script.
+- Verification:
+  - `cargo fmt --all -- --check` clean.
+  - `cargo clippy --workspace --all-targets -- -D warnings` clean.
+  - `cargo test --workspace --all-features` clean.
+  - Race proofs pass against live Postgres; durability script passes
+    locally (Windows) and in CI (ubuntu).
+  - GitHub Actions run `29670866072` is all green, including the new
+    **HelixCura Prime durability gate** job and all 19 product smoke
+    jobs.
+- Commits `8a7d13b` (activation) and `eab2b1c` (implementation) pushed to
+  `main`.
+- `PROJECT_STATE.json` and `NEXT_ACTION.md` updated; `helix-cura-prime`
+  recorded in `durability_gate_proven_products`.
+- Next action: founder selects the next explicit named goal.
+
 ## 2026-07-19 — HELIXLEXPRIME-DURABILITY closed; eleventh product through the gate
 
 - Completed the HelixLex Prime durability-gate packet (`helix-lex-prime`
