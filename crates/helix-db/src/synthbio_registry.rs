@@ -73,6 +73,7 @@ pub struct RiskCase {
     pub reviewer: Option<String>,
     pub decided_at: Option<DateTime<Utc>>,
     pub expires_at: Option<DateTime<Utc>>,
+    pub locked_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -737,7 +738,7 @@ impl RegistryRepo {
             ON CONFLICT DO NOTHING
             RETURNING id, tenant_id, design_id, design_version_id, state, intended_use,
                       policy_version, reasons, conditions, reviewer, decided_at, expires_at,
-                      created_at, updated_at
+                      locked_at, created_at, updated_at
             "#,
         )
         .bind(id)
@@ -762,7 +763,7 @@ impl RegistryRepo {
         design_id: Uuid,
     ) -> HelixResult<Option<RiskCase>> {
         let row: Option<RiskCase> = sqlx::query_as(
-            "SELECT id, tenant_id, design_id, design_version_id, state, intended_use, policy_version, reasons, conditions, reviewer, decided_at, expires_at, created_at, updated_at FROM synthbio.risk_cases WHERE tenant_id = $1 AND design_id = $2 ORDER BY created_at DESC LIMIT 1",
+            "SELECT id, tenant_id, design_id, design_version_id, state, intended_use, policy_version, reasons, conditions, reviewer, decided_at, expires_at, locked_at, created_at, updated_at FROM synthbio.risk_cases WHERE tenant_id = $1 AND design_id = $2 ORDER BY created_at DESC LIMIT 1",
         )
         .bind(tenant_id.as_uuid())
         .bind(design_id)
@@ -787,6 +788,7 @@ impl RegistryRepo {
             reviewer: Option<String>,
             decided_at: Option<DateTime<Utc>>,
             expires_at: Option<DateTime<Utc>>,
+            locked_at: Option<DateTime<Utc>>,
             created_at: DateTime<Utc>,
             updated_at: DateTime<Utc>,
             accession: String,
@@ -795,7 +797,7 @@ impl RegistryRepo {
             r#"
             SELECT c.id, c.tenant_id, c.design_id, c.design_version_id, c.state, c.intended_use,
                    c.policy_version, c.reasons, c.conditions, c.reviewer, c.decided_at,
-                   c.expires_at, c.created_at, c.updated_at, d.accession
+                   c.expires_at, c.locked_at, c.created_at, c.updated_at, d.accession
             FROM synthbio.risk_cases c
             JOIN synthbio.registry_designs d ON d.id = c.design_id AND d.tenant_id = c.tenant_id
             WHERE c.tenant_id = $1 AND c.state = 'unknown' AND d.deleted_at IS NULL
@@ -823,6 +825,7 @@ impl RegistryRepo {
                         reviewer: r.reviewer,
                         decided_at: r.decided_at,
                         expires_at: r.expires_at,
+                        locked_at: r.locked_at,
                         created_at: r.created_at,
                         updated_at: r.updated_at,
                     },
@@ -854,6 +857,11 @@ impl RegistryRepo {
             ));
         }
         let case = self.ensure_risk_case(tenant_id, design_id).await?;
+        if case.locked_at.is_some() {
+            return Err(HelixError::validation(
+                "risk decision is signed and locked; no further review is possible",
+            ));
+        }
 
         let mut tx = self
             .pool
@@ -876,7 +884,7 @@ impl RegistryRepo {
             SET state = $1, intended_use = $2, policy_version = $3, reasons = $4,
                 conditions = $5, reviewer = $6, decided_at = $7, expires_at = $8,
                 design_version_id = $9, updated_at = $7
-            WHERE tenant_id = $10 AND id = $11 AND state = $12
+            WHERE tenant_id = $10 AND id = $11 AND state = $12 AND locked_at IS NULL
             RETURNING id
             "#,
         )
@@ -2125,5 +2133,207 @@ impl RegistryRepo {
             edges,
             design_accession,
         }))
+    }
+}
+
+// ——— e-signatures (S5): sign ⇒ lock ———
+
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct Signature {
+    pub id: Uuid,
+    pub tenant_id: Uuid,
+    pub target_kind: String,
+    pub target_id: Uuid,
+    pub signer: String,
+    pub meaning: String,
+    pub statement: String,
+    pub content_hash: String,
+    pub created_at: DateTime<Utc>,
+}
+
+const SIGN_MEANINGS: [&str; 3] = ["approved", "witnessed", "reviewed"];
+const SIGN_KINDS: [&str; 2] = ["design_version", "risk_case"];
+
+impl RegistryRepo {
+    /// Sign a target. The signature is append-only; for a risk case the
+    /// decision locks permanently against further reviews in the same tx.
+    /// Content hash pins exactly what was signed.
+    pub async fn sign_target(
+        &self,
+        tenant_id: TenantId,
+        target_kind: &str,
+        target_id: Uuid,
+        signer: &str,
+        meaning: &str,
+        statement: &str,
+    ) -> HelixResult<Signature> {
+        if !SIGN_KINDS.contains(&target_kind) {
+            return Err(HelixError::validation(format!(
+                "target_kind must be one of {SIGN_KINDS:?}, got `{target_kind}`"
+            )));
+        }
+        if !SIGN_MEANINGS.contains(&meaning) {
+            return Err(HelixError::validation(format!(
+                "meaning must be one of {SIGN_MEANINGS:?}, got `{meaning}`"
+            )));
+        }
+        if signer.trim().is_empty() {
+            return Err(HelixError::validation("a named human signer is required"));
+        }
+
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| HelixError::dependency(format!("synthbio sign tx: {e}")))?;
+
+        // Resolve what is being signed (hash + owner design for the event).
+        let (content_hash, owner_design): (String, Uuid) = match target_kind {
+            "design_version" => {
+                let row: Option<(String, Uuid)> = sqlx::query_as(
+                    "SELECT content_hash, design_id FROM synthbio.design_versions WHERE tenant_id = $1 AND id = $2",
+                )
+                .bind(tenant_id.as_uuid())
+                .bind(target_id)
+                .fetch_optional(&mut *tx)
+                .await
+                .map_err(|e| HelixError::dependency(format!("synthbio sign version: {e}")))?;
+                row.ok_or_else(|| HelixError::not_found("design version not found"))?
+            }
+            _ => {
+                let row: Option<(String, Option<String>, String, JsonValue, Option<DateTime<Utc>>, Option<DateTime<Utc>>, Uuid)> =
+                    sqlx::query_as(
+                        "SELECT state, reviewer, policy_version, reasons, decided_at, locked_at, design_id FROM synthbio.risk_cases WHERE tenant_id = $1 AND id = $2",
+                    )
+                    .bind(tenant_id.as_uuid())
+                    .bind(target_id)
+                    .fetch_optional(&mut *tx)
+                    .await
+                    .map_err(|e| HelixError::dependency(format!("synthbio sign case: {e}")))?;
+                let (state, reviewer, policy, reasons, decided_at, locked_at, design_id) =
+                    row.ok_or_else(|| HelixError::not_found("risk case not found"))?;
+                if locked_at.is_some() {
+                    return Err(HelixError::conflict(
+                        "risk decision is already signed and locked",
+                    ));
+                }
+                if decided_at.is_none() || state == "unknown" {
+                    return Err(HelixError::validation(
+                        "an undecided risk case cannot be signed",
+                    ));
+                }
+                let hash = sha256_hex(&format!(
+                    "{state}|{}|{policy}|{}",
+                    reviewer.unwrap_or_default(),
+                    serde_json::to_string(&reasons).unwrap_or_default()
+                ));
+                (hash, design_id)
+            }
+        };
+
+        let id = Uuid::now_v7();
+        let sig: Signature = sqlx::query_as(
+            r#"
+            INSERT INTO synthbio.signatures
+                (id, tenant_id, target_kind, target_id, signer, meaning, statement, content_hash, created_at)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+            RETURNING id, tenant_id, target_kind, target_id, signer, meaning, statement, content_hash, created_at
+            "#,
+        )
+        .bind(id)
+        .bind(tenant_id.as_uuid())
+        .bind(target_kind)
+        .bind(target_id)
+        .bind(signer)
+        .bind(meaning)
+        .bind(statement)
+        .bind(&content_hash)
+        .bind(Utc::now())
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(|e| {
+            let msg = e.to_string();
+            if msg.contains("unique") || msg.contains("duplicate") {
+                HelixError::conflict("target already signed with this meaning")
+            } else {
+                HelixError::dependency(format!("synthbio sign insert: {e}"))
+            }
+        })?;
+
+        if target_kind == "risk_case" && meaning == "approved" {
+            let locked: Option<(Uuid,)> = sqlx::query_as(
+                "UPDATE synthbio.risk_cases SET locked_at = $1, updated_at = $1 WHERE tenant_id = $2 AND id = $3 AND locked_at IS NULL RETURNING id",
+            )
+            .bind(Utc::now())
+            .bind(tenant_id.as_uuid())
+            .bind(target_id)
+            .fetch_optional(&mut *tx)
+            .await
+            .map_err(|e| HelixError::dependency(format!("synthbio sign lock: {e}")))?;
+            if locked.is_none() {
+                return Err(HelixError::conflict(
+                    "risk decision locked concurrently; retry",
+                ));
+            }
+        }
+
+        self.record_event(
+            &mut tx,
+            tenant_id,
+            "design",
+            owner_design,
+            &format!("signed_{meaning}"),
+            signer,
+            serde_json::json!({"target_kind": target_kind, "target_id": target_id}),
+        )
+        .await?;
+        tx.commit()
+            .await
+            .map_err(|e| HelixError::dependency(format!("synthbio sign commit: {e}")))?;
+        Ok(sig)
+    }
+
+    pub async fn list_signatures(
+        &self,
+        tenant_id: TenantId,
+        target_kind: &str,
+        target_id: Uuid,
+    ) -> HelixResult<Vec<Signature>> {
+        let rows: Vec<Signature> = sqlx::query_as(
+            "SELECT id, tenant_id, target_kind, target_id, signer, meaning, statement, content_hash, created_at FROM synthbio.signatures WHERE tenant_id = $1 AND target_kind = $2 AND target_id = $3 ORDER BY created_at ASC",
+        )
+        .bind(tenant_id.as_uuid())
+        .bind(target_kind)
+        .bind(target_id)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| HelixError::dependency(format!("synthbio list signatures: {e}")))?;
+        Ok(rows)
+    }
+
+    /// Every signature touching a design: its versions and its risk case.
+    pub async fn design_signatures(
+        &self,
+        tenant_id: TenantId,
+        design_id: Uuid,
+    ) -> HelixResult<Vec<Signature>> {
+        let rows: Vec<Signature> = sqlx::query_as(
+            r#"
+            SELECT s.id, s.tenant_id, s.target_kind, s.target_id, s.signer, s.meaning, s.statement, s.content_hash, s.created_at
+            FROM synthbio.signatures s
+            WHERE s.tenant_id = $1
+              AND ((s.target_kind = 'design_version' AND s.target_id IN
+                    (SELECT id FROM synthbio.design_versions WHERE design_id = $2))
+                OR (s.target_kind = 'risk_case' AND s.target_id IN
+                    (SELECT id FROM synthbio.risk_cases WHERE design_id = $2)))
+            ORDER BY s.created_at ASC
+            "#,
+        )
+        .bind(tenant_id.as_uuid())
+        .bind(design_id)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| HelixError::dependency(format!("synthbio design signatures: {e}")))?;
+        Ok(rows)
     }
 }

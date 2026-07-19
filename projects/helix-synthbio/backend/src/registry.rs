@@ -53,6 +53,11 @@ pub fn routes() -> Router<AppState> {
             "/v1/registry/designs/{id}/notes",
             get(list_notes).post(add_note),
         )
+        .route("/v1/signatures", post(sign_target))
+        .route(
+            "/v1/registry/designs/{id}/signatures",
+            get(design_signatures),
+        )
 }
 
 // ——— payloads ———
@@ -787,6 +792,63 @@ async fn list_notes(
     let pool = require_pool(&state)?;
     let repo = RegistryRepo::new(pool);
     let items = repo.list_notes(p.tenant_id, id).await?;
+    Ok(Json(ApiResponse::ok(serde_json::json!({
+        "durable": true,
+        "items": items
+    }))))
+}
+
+// ——— signatures ———
+
+#[derive(Deserialize)]
+struct SignReq {
+    target_kind: String,
+    target_id: Uuid,
+    signer: String,
+    meaning: String,
+    #[serde(default)]
+    statement: String,
+}
+
+async fn sign_target(
+    State(state): State<AppState>,
+    RequireAuth(p): RequireAuth,
+    Json(body): Json<SignReq>,
+) -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
+    p.require_scope(shared_core::tenancy::Scope::Write)?;
+    let pool = require_pool(&state)?;
+    let repo = RegistryRepo::new(pool);
+    let sig = repo
+        .sign_target(
+            p.tenant_id,
+            &body.target_kind,
+            body.target_id,
+            &body.signer,
+            &body.meaning,
+            &body.statement,
+        )
+        .await?;
+    audit(
+        &state,
+        &p,
+        "synthbio.signature.sign",
+        &format!("synthbio.{}", body.target_kind),
+        body.target_id,
+        serde_json::json!({"signer": body.signer, "meaning": body.meaning}),
+    )
+    .await?;
+    Ok(Json(ApiResponse::ok(serde_json::json!(sig))))
+}
+
+async fn design_signatures(
+    State(state): State<AppState>,
+    RequireAuth(p): RequireAuth,
+    Path(id): Path<Uuid>,
+) -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
+    p.require_scope(shared_core::tenancy::Scope::Read)?;
+    let pool = require_pool(&state)?;
+    let repo = RegistryRepo::new(pool);
+    let items = repo.design_signatures(p.tenant_id, id).await?;
     Ok(Json(ApiResponse::ok(serde_json::json!({
         "durable": true,
         "items": items

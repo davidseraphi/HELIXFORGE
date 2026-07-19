@@ -1683,4 +1683,186 @@ ORIGIN
         let notes = repo.list_notes(tenant_id, design.id).await.expect("notes");
         assert_eq!(notes.len(), 1);
     }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn signatures_lock_decisions() {
+        let (state, _guard) = locked_state().await;
+        let tenant_id = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = helix_db::RegistryRepo::new(pool.clone());
+
+        let suffix = Uuid::now_v7().simple().to_string();
+        let design = repo
+            .create_design(
+                tenant_id,
+                &format!("pSign-{suffix}"),
+                "",
+                "internal",
+                &registry_input("ACGTACGT"),
+                "tester",
+            )
+            .await
+            .expect("create design");
+
+        // An undecided case cannot be signed.
+        let case = repo
+            .ensure_risk_case(tenant_id, design.id)
+            .await
+            .expect("case");
+        let err = repo
+            .sign_target(
+                tenant_id,
+                "risk_case",
+                case.id,
+                "Dr. Ada Biosafety",
+                "approved",
+                "",
+            )
+            .await
+            .expect_err("undecided case cannot be signed");
+        assert_eq!(err.code, shared_core::ErrorCode::Validation);
+
+        // Decide, then race 8 witnessed signatures: exactly one wins.
+        let case = repo
+            .review_risk(
+                tenant_id,
+                design.id,
+                &helix_db::ReviewDecision {
+                    state: "allowed".into(),
+                    intended_use: "bench research".into(),
+                    policy_version: "v1".into(),
+                    reasons: vec!["public backbone".into()],
+                    conditions: String::new(),
+                    expires_at: None,
+                    expected_state: Some("unknown".into()),
+                },
+                "Dr. Ada Biosafety",
+            )
+            .await
+            .expect("review");
+        let mut handles = Vec::new();
+        for _ in 0..8u32 {
+            let repo = repo.clone();
+            handles.push(tokio::spawn(async move {
+                repo.sign_target(
+                    tenant_id,
+                    "risk_case",
+                    case.id,
+                    "Dr. Witness",
+                    "witnessed",
+                    "",
+                )
+                .await
+            }));
+        }
+        let mut winners = 0usize;
+        let mut rejected = 0usize;
+        for h in handles {
+            match h.await.expect("sign task panicked") {
+                Ok(_) => winners += 1,
+                Err(e)
+                    if e.code == shared_core::ErrorCode::Conflict
+                        || e.code == shared_core::ErrorCode::Validation =>
+                {
+                    rejected += 1
+                }
+                Err(e) => panic!("unexpected sign error: {e}"),
+            }
+        }
+        assert_eq!(winners, 1, "exactly one racing signature may win");
+        assert_eq!(rejected, 7, "all losers must be rejected");
+
+        // The approving signature lands and locks the decision.
+        let sig = repo
+            .sign_target(
+                tenant_id,
+                "risk_case",
+                case.id,
+                "Dr. Ada Biosafety",
+                "approved",
+                "decision reviewed against biosafety-v1",
+            )
+            .await
+            .expect("sign");
+        assert_eq!(sig.meaning, "approved");
+        assert!(!sig.content_hash.is_empty());
+
+        // The decision is now locked.
+        let locked = repo
+            .get_risk_case(tenant_id, design.id)
+            .await
+            .expect("case")
+            .expect("case exists");
+        assert!(locked.locked_at.is_some(), "signed case must be locked");
+        let err = repo
+            .review_risk(
+                tenant_id,
+                design.id,
+                &helix_db::ReviewDecision {
+                    state: "blocked".into(),
+                    intended_use: "bench research".into(),
+                    policy_version: "v1".into(),
+                    reasons: vec![],
+                    conditions: String::new(),
+                    expires_at: None,
+                    expected_state: Some("allowed".into()),
+                },
+                "Dr. Ada Biosafety",
+            )
+            .await
+            .expect_err("locked decision refuses further review");
+        assert_eq!(err.code, shared_core::ErrorCode::Validation);
+
+        // Any further signature on the locked case conflicts.
+        let err = repo
+            .sign_target(
+                tenant_id,
+                "risk_case",
+                case.id,
+                "Dr. Ada Biosafety",
+                "approved",
+                "second sign attempt",
+            )
+            .await
+            .expect_err("locked case refuses further signatures");
+        assert_eq!(err.code, shared_core::ErrorCode::Conflict);
+
+        // Signing a version pins its exact content hash.
+        let view = repo
+            .design_360(tenant_id, design.id)
+            .await
+            .expect("360")
+            .expect("design exists");
+        let v = &view.versions[0];
+        let vsig = repo
+            .sign_target(
+                tenant_id,
+                "design_version",
+                v.id,
+                "Dr. Ada Biosafety",
+                "reviewed",
+                "sequence reviewed",
+            )
+            .await
+            .expect("sign version");
+        assert_eq!(vsig.content_hash, v.content_hash);
+
+        // Signatures are append-only.
+        let err = sqlx::query("UPDATE synthbio.signatures SET statement = 'edited' WHERE id = $1")
+            .bind(sig.id)
+            .execute(pool)
+            .await
+            .expect_err("immutable signatures trigger must reject UPDATE");
+        assert!(err.to_string().contains("immutable record"), "{err}");
+
+        let sigs = repo
+            .design_signatures(tenant_id, design.id)
+            .await
+            .expect("design signatures");
+        assert_eq!(sigs.len(), 3, "approved + witnessed + version review");
+    }
 }
