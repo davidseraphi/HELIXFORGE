@@ -290,7 +290,11 @@ impl StudioRepo {
             .ok_or_else(|| HelixError::not_found("app not found"))
     }
 
-    /// Publish a draft app. Requires at least one non-deleted page.
+    /// Publish a draft app. Requires at least one non-deleted page. The
+    /// draft-status and page-exists guards are part of the UPDATE itself,
+    /// so a concurrent publish or a page deleted mid-flight cannot slip
+    /// through a check-then-act window; the earlier reads only shape the
+    /// error returned for the steady-state cases.
     pub async fn publish_app(&self, tenant_id: TenantId, app_id: Uuid) -> HelixResult<App> {
         let app = self
             .get_parent(tenant_id, app_id)
@@ -317,7 +321,11 @@ impl StudioRepo {
             r#"
             UPDATE studio.apps
             SET status = $1, published_at = $2, updated_at = $2
-            WHERE tenant_id = $3 AND id = $4 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND id = $4 AND status = 'draft' AND deleted_at IS NULL
+              AND EXISTS (
+                  SELECT 1 FROM studio.pages p
+                  WHERE p.tenant_id = $3 AND p.parent_id = $4 AND p.deleted_at IS NULL
+              )
             {APP_RETURNING}
             "#
         ))
@@ -329,8 +337,9 @@ impl StudioRepo {
         .await
         .map_err(|e| HelixError::dependency(format!("studio publish app: {e}")))?;
 
-        row.map(AppRow::into_app)
-            .ok_or_else(|| HelixError::not_found("app not found"))
+        row.map(AppRow::into_app).ok_or_else(|| {
+            HelixError::conflict("app changed during publish or lost its last page; retry")
+        })
     }
 
     pub async fn unpublish_app(&self, tenant_id: TenantId, app_id: Uuid) -> HelixResult<App> {
@@ -340,11 +349,13 @@ impl StudioRepo {
             .ok_or_else(|| HelixError::not_found("app not found"))?;
         let next = next_app_status(&app.status, "unpublish")?;
         let now = Utc::now();
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<AppRow> = sqlx::query_as(&format!(
             r#"
             UPDATE studio.apps
             SET status = $1, updated_at = $2
-            WHERE tenant_id = $3 AND id = $4 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND id = $4 AND status = $5 AND deleted_at IS NULL
             {APP_RETURNING}
             "#
         ))
@@ -352,12 +363,13 @@ impl StudioRepo {
         .bind(now)
         .bind(tenant_id.as_uuid())
         .bind(app_id)
+        .bind(&app.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("studio unpublish app: {e}")))?;
 
         row.map(AppRow::into_app)
-            .ok_or_else(|| HelixError::not_found("app not found"))
+            .ok_or_else(|| HelixError::conflict("app changed during unpublish; retry"))
     }
 
     pub async fn soft_delete_app(&self, tenant_id: TenantId, app_id: Uuid) -> HelixResult<App> {
@@ -449,17 +461,17 @@ impl StudioRepo {
         body: &str,
         metadata: serde_json::Value,
     ) -> HelixResult<Page> {
-        let _parent = self
-            .get_parent(tenant_id, parent_id)
-            .await?
-            .ok_or_else(|| HelixError::not_found("parent not found"))?;
         let id = Uuid::now_v7();
         let created_at = Utc::now();
-        let row: PageRow = sqlx::query_as(&format!(
+        // The non-deleted-parent guard is part of the INSERT itself: an app
+        // soft-deleted between a separate check and insert cannot leak pages.
+        let row: Option<PageRow> = sqlx::query_as(&format!(
             r#"
             INSERT INTO studio.pages
                 (id, tenant_id, parent_id, title, body, status, metadata, created_at, updated_at)
-            VALUES ($1,$2,$3,$4,$5,'open',$6,$7,$7)
+            SELECT $1,$2,$3,$4,$5,'open',$6,$7,$7
+            FROM studio.apps a
+            WHERE a.tenant_id = $2 AND a.id = $3 AND a.deleted_at IS NULL
             {PAGE_RETURNING}
             "#
         ))
@@ -470,10 +482,11 @@ impl StudioRepo {
         .bind(body)
         .bind(&metadata)
         .bind(created_at)
-        .fetch_one(&self.pool)
+        .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("studio create child: {e}")))?;
-        Ok(row.into_page())
+        row.map(PageRow::into_page)
+            .ok_or_else(|| HelixError::not_found("parent not found"))
     }
 
     pub async fn get_page(
@@ -567,11 +580,13 @@ impl StudioRepo {
         let next = next_page_status(&page.status, action)?;
         let now = Utc::now();
         let archived_at = if next == "archived" { Some(now) } else { None };
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<PageRow> = sqlx::query_as(&format!(
             r#"
             UPDATE studio.pages
             SET status = $1, archived_at = $2, updated_at = $3
-            WHERE tenant_id = $4 AND parent_id = $5 AND id = $6 AND deleted_at IS NULL
+            WHERE tenant_id = $4 AND parent_id = $5 AND id = $6 AND status = $7 AND deleted_at IS NULL
             {PAGE_RETURNING}
             "#
         ))
@@ -581,12 +596,13 @@ impl StudioRepo {
         .bind(tenant_id.as_uuid())
         .bind(app_id)
         .bind(page_id)
+        .bind(&page.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("studio {action} page: {e}")))?;
 
         row.map(PageRow::into_page)
-            .ok_or_else(|| HelixError::not_found("page not found"))
+            .ok_or_else(|| HelixError::conflict("page changed during transition; retry"))
     }
 
     pub async fn archive_page(

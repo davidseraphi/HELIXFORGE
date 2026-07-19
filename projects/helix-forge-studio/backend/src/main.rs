@@ -756,4 +756,98 @@ mod tests {
         assert_eq!(restored_app.status, "published");
         assert!(restored_app.deleted_at.is_none());
     }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn pages_rejected_on_deleted_app() {
+        let (state, _guard) = locked_state().await;
+        let tenant_id = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = StudioRepo::new(pool.clone());
+
+        let app = repo
+            .create_parent(tenant_id, "Doomed app", "", serde_json::json!({}))
+            .await
+            .expect("create app");
+        repo.soft_delete_app(tenant_id, app.id)
+            .await
+            .expect("delete app");
+
+        // 8 racing page creates on a soft-deleted app all fail.
+        let mut handles = Vec::new();
+        for _ in 0..8u32 {
+            let repo = repo.clone();
+            handles.push(tokio::spawn(async move {
+                repo.create_child(tenant_id, app.id, "leak", "", serde_json::json!({}))
+                    .await
+            }));
+        }
+        let mut rejected = 0usize;
+        for h in handles {
+            match h.await.expect("create task panicked") {
+                Ok(_) => panic!("page created on a deleted app"),
+                Err(e) if e.code == shared_core::ErrorCode::NotFound => rejected += 1,
+                Err(e) => panic!("unexpected create error: {e}"),
+            }
+        }
+        assert_eq!(rejected, 8, "all racing creates must be rejected");
+
+        let pages = repo
+            .list_children(tenant_id, app.id)
+            .await
+            .expect("list pages");
+        assert_eq!(pages.len(), 0, "no page may leak onto a deleted app");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn concurrent_publish_single_winner() {
+        let (state, _guard) = locked_state().await;
+        let tenant_id = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = StudioRepo::new(pool.clone());
+
+        let app = repo
+            .create_parent(tenant_id, "Race publish", "", serde_json::json!({}))
+            .await
+            .expect("create app");
+        repo.create_child(tenant_id, app.id, "Home", "", serde_json::json!({}))
+            .await
+            .expect("create page");
+
+        // 8 racing publishes of one draft app.
+        let mut handles = Vec::new();
+        for _ in 0..8u32 {
+            let repo = repo.clone();
+            handles.push(tokio::spawn(async move {
+                repo.publish_app(tenant_id, app.id).await
+            }));
+        }
+        let mut winners = 0usize;
+        let mut rejected = 0usize;
+        for h in handles {
+            match h.await.expect("publish task panicked") {
+                Ok(_) => winners += 1,
+                Err(e)
+                    if e.code == shared_core::ErrorCode::Conflict
+                        || e.code == shared_core::ErrorCode::Validation =>
+                {
+                    rejected += 1
+                }
+                Err(e) => panic!("unexpected publish error: {e}"),
+            }
+        }
+        assert_eq!(winners, 1, "exactly one racing publish may win");
+        assert_eq!(rejected, 7, "all losers must be rejected");
+
+        let apps = repo.list_parents(tenant_id).await.expect("list apps");
+        let row = apps.iter().find(|a| a.id == app.id).expect("app listed");
+        assert_eq!(row.status, "published");
+    }
 }
