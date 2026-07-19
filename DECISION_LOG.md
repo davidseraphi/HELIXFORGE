@@ -1,5 +1,48 @@
 # Decision log (append-only)
 
+## 2026-07-19 — HELIXTERRAPRIME-DURABILITY closed; thirteenth product through the gate
+
+- Completed the HelixTerra Prime durability-gate packet
+  (`helix-terra-prime` added to `durability_gate_proven_products`):
+  - **Check-then-insert window closed:** `TerraRepo::create_child` now
+    enforces the non-deleted parent field condition inside the INSERT
+    itself (`INSERT ... SELECT`), so a field soft-deleted in between can
+    no longer leak observations (`crates/helix-db/src/terra.rs`).
+  - **Guarded transitions:** `retire_field` is a single guarded `UPDATE`
+    requiring `status = 'active'`, not deleted, and `NOT EXISTS` a
+    non-deleted draft observation; `activate_field`, `reopen_field`,
+    `confirm_observation`, and `dismiss_observation` carry their
+    expected-from status in the `WHERE` — a concurrent transition now
+    loses with a conflict instead of overwriting.
+  - New ignored Postgres integration tests:
+    `observations_rejected_on_deleted_field` (after soft-deleting a
+    field, 8 concurrent observation creates all rejected; no observation
+    leaks in) and `concurrent_retire_single_winner` (8 racing retires of
+    one active field → exactly one success, 7 rejected, field ends
+    retired).
+  - `scripts/helix_terra_prime_durability.ps1` proves:
+    field/activate/observation/confirm/retire lifecycle; an acknowledged
+    retired field surviving an immediate forced kill of the API (status,
+    retired_at, and confirmed observation fully present after restart);
+    and a `terra` schema `pg_dump` roundtrip into a scratch database with
+    equal field/observation counts and equal content hashes.
+  - `terra-durability` CI job running the ignored integration tests and
+    the proof script.
+- Verification:
+  - `cargo fmt --all -- --check` clean.
+  - `cargo clippy --workspace --all-targets -- -D warnings` clean.
+  - `cargo test --workspace --all-features` clean.
+  - Race proofs pass against live Postgres; durability script passes
+    locally (Windows) and in CI (ubuntu).
+  - GitHub Actions run `29671334631` is all green, including the new
+    **HelixTerra Prime durability gate** job and all 19 product smoke
+    jobs.
+- Commits `c4d90c8` (activation) and `1711acb` (implementation) pushed to
+  `main`.
+- `PROJECT_STATE.json` and `NEXT_ACTION.md` updated; `helix-terra-prime`
+  recorded in `durability_gate_proven_products`.
+- Next action: founder selects the next explicit named goal.
+
 ## 2026-07-19 — HELIXCURAPRIME-DURABILITY closed; twelfth product through the gate
 
 - Completed the HelixCura Prime durability-gate packet (`helix-cura-prime`
