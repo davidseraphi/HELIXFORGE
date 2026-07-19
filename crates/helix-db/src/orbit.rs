@@ -328,11 +328,13 @@ impl OrbitRepo {
             .ok_or_else(|| HelixError::not_found("asset not found"))?;
         let next = next_asset_status(&asset.status, "commission")?;
         let now = Utc::now();
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<AssetRow> = sqlx::query_as(&format!(
             r#"
             UPDATE orbit.assets
             SET status = $1, commissioned_at = $2, updated_at = $2
-            WHERE tenant_id = $3 AND id = $4 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND id = $4 AND status = $5 AND deleted_at IS NULL
             {ASSET_RETURNING}
             "#
         ))
@@ -340,15 +342,20 @@ impl OrbitRepo {
         .bind(now)
         .bind(tenant_id.as_uuid())
         .bind(asset_id)
+        .bind(&asset.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("orbit commission asset: {e}")))?;
 
         row.map(AssetRow::into_asset)
-            .ok_or_else(|| HelixError::not_found("asset not found"))
+            .ok_or_else(|| HelixError::conflict("asset changed during commission; retry"))
     }
 
-    /// Decommission an active asset. Rejected while draft or planned passes remain.
+    /// Decommission an active asset. Rejected while draft or planned passes
+    /// remain. The active-status and no-open-passes guards are part of the
+    /// UPDATE itself, so a concurrent decommission or a pass created
+    /// mid-flight cannot slip through a check-then-act window; the earlier
+    /// reads only shape the error returned for the steady-state cases.
     pub async fn decommission_asset(
         &self,
         tenant_id: TenantId,
@@ -379,7 +386,12 @@ impl OrbitRepo {
             r#"
             UPDATE orbit.assets
             SET status = $1, decommissioned_at = $2, updated_at = $2
-            WHERE tenant_id = $3 AND id = $4 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND id = $4 AND status = 'active' AND deleted_at IS NULL
+              AND NOT EXISTS (
+                  SELECT 1 FROM orbit.passes p
+                  WHERE p.tenant_id = $3 AND p.parent_id = $4
+                    AND p.status IN ('draft','planned') AND p.deleted_at IS NULL
+              )
             {ASSET_RETURNING}
             "#
         ))
@@ -391,8 +403,9 @@ impl OrbitRepo {
         .await
         .map_err(|e| HelixError::dependency(format!("orbit decommission asset: {e}")))?;
 
-        row.map(AssetRow::into_asset)
-            .ok_or_else(|| HelixError::not_found("asset not found"))
+        row.map(AssetRow::into_asset).ok_or_else(|| {
+            HelixError::conflict("asset changed during decommission or gained an open pass; retry")
+        })
     }
 
     pub async fn recommission_asset(
@@ -406,11 +419,13 @@ impl OrbitRepo {
             .ok_or_else(|| HelixError::not_found("asset not found"))?;
         let next = next_asset_status(&asset.status, "recommission")?;
         let now = Utc::now();
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<AssetRow> = sqlx::query_as(&format!(
             r#"
             UPDATE orbit.assets
             SET status = $1, decommissioned_at = NULL, updated_at = $2
-            WHERE tenant_id = $3 AND id = $4 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND id = $4 AND status = $5 AND deleted_at IS NULL
             {ASSET_RETURNING}
             "#
         ))
@@ -418,12 +433,13 @@ impl OrbitRepo {
         .bind(now)
         .bind(tenant_id.as_uuid())
         .bind(asset_id)
+        .bind(&asset.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("orbit recommission asset: {e}")))?;
 
         row.map(AssetRow::into_asset)
-            .ok_or_else(|| HelixError::not_found("asset not found"))
+            .ok_or_else(|| HelixError::conflict("asset changed during recommission; retry"))
     }
 
     pub async fn soft_delete_asset(
@@ -525,17 +541,17 @@ impl OrbitRepo {
         body: &str,
         metadata: serde_json::Value,
     ) -> HelixResult<Pass> {
-        let _parent = self
-            .get_parent(tenant_id, parent_id)
-            .await?
-            .ok_or_else(|| HelixError::not_found("parent not found"))?;
         let id = Uuid::now_v7();
         let created_at = Utc::now();
-        let row: PassRow = sqlx::query_as(&format!(
+        // The non-deleted-parent guard is part of the INSERT itself: an asset
+        // soft-deleted between a separate check and insert cannot leak passes.
+        let row: Option<PassRow> = sqlx::query_as(&format!(
             r#"
             INSERT INTO orbit.passes
                 (id, tenant_id, parent_id, title, body, status, metadata, created_at, updated_at)
-            VALUES ($1,$2,$3,$4,$5,'draft',$6,$7,$7)
+            SELECT $1,$2,$3,$4,$5,'draft',$6,$7,$7
+            FROM orbit.assets a
+            WHERE a.tenant_id = $2 AND a.id = $3 AND a.deleted_at IS NULL
             {PASS_RETURNING}
             "#
         ))
@@ -546,10 +562,11 @@ impl OrbitRepo {
         .bind(body)
         .bind(&metadata)
         .bind(created_at)
-        .fetch_one(&self.pool)
+        .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("orbit create child: {e}")))?;
-        Ok(row.into_pass())
+        row.map(PassRow::into_pass)
+            .ok_or_else(|| HelixError::not_found("parent not found"))
     }
 
     pub async fn get_pass(
@@ -648,11 +665,13 @@ impl OrbitRepo {
             "cancelled" => (pass.planned_at, None, Some(now)),
             _ => (pass.planned_at, pass.completed_at, pass.cancelled_at),
         };
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<PassRow> = sqlx::query_as(&format!(
             r#"
             UPDATE orbit.passes
             SET status = $1, planned_at = $2, completed_at = $3, cancelled_at = $4, updated_at = $5
-            WHERE tenant_id = $6 AND parent_id = $7 AND id = $8 AND deleted_at IS NULL
+            WHERE tenant_id = $6 AND parent_id = $7 AND id = $8 AND status = $9 AND deleted_at IS NULL
             {PASS_RETURNING}
             "#
         ))
@@ -664,12 +683,13 @@ impl OrbitRepo {
         .bind(tenant_id.as_uuid())
         .bind(asset_id)
         .bind(pass_id)
+        .bind(&pass.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("orbit {action} pass: {e}")))?;
 
         row.map(PassRow::into_pass)
-            .ok_or_else(|| HelixError::not_found("pass not found"))
+            .ok_or_else(|| HelixError::conflict("pass changed during transition; retry"))
     }
 
     pub async fn plan_pass(

@@ -815,4 +815,101 @@ mod tests {
         assert_eq!(restored.status, "active");
         assert!(restored.deleted_at.is_none());
     }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn passes_rejected_on_deleted_asset() {
+        let (state, _guard) = locked_state().await;
+        let tenant_id = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = OrbitRepo::new(pool.clone());
+
+        let asset = repo
+            .create_parent(tenant_id, "Doomed asset", "", serde_json::json!({}))
+            .await
+            .expect("create asset");
+        repo.soft_delete_asset(tenant_id, asset.id)
+            .await
+            .expect("delete asset");
+
+        // 8 racing pass creates on a soft-deleted asset all fail.
+        let mut handles = Vec::new();
+        for _ in 0..8u32 {
+            let repo = repo.clone();
+            handles.push(tokio::spawn(async move {
+                repo.create_child(tenant_id, asset.id, "leak", "", serde_json::json!({}))
+                    .await
+            }));
+        }
+        let mut rejected = 0usize;
+        for h in handles {
+            match h.await.expect("create task panicked") {
+                Ok(_) => panic!("pass created on a deleted asset"),
+                Err(e) if e.code == shared_core::ErrorCode::NotFound => rejected += 1,
+                Err(e) => panic!("unexpected create error: {e}"),
+            }
+        }
+        assert_eq!(rejected, 8, "all racing creates must be rejected");
+
+        let passes = repo
+            .list_children(tenant_id, asset.id)
+            .await
+            .expect("list passes");
+        assert_eq!(passes.len(), 0, "no pass may leak onto a deleted asset");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn concurrent_decommission_single_winner() {
+        let (state, _guard) = locked_state().await;
+        let tenant_id = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = OrbitRepo::new(pool.clone());
+
+        let asset = repo
+            .create_parent(tenant_id, "Race decommission", "", serde_json::json!({}))
+            .await
+            .expect("create asset");
+        repo.commission_asset(tenant_id, asset.id)
+            .await
+            .expect("commission asset");
+
+        // 8 racing decommissions of one active asset with no open passes.
+        let mut handles = Vec::new();
+        for _ in 0..8u32 {
+            let repo = repo.clone();
+            handles.push(tokio::spawn(async move {
+                repo.decommission_asset(tenant_id, asset.id).await
+            }));
+        }
+        let mut winners = 0usize;
+        let mut rejected = 0usize;
+        for h in handles {
+            match h.await.expect("decommission task panicked") {
+                Ok(_) => winners += 1,
+                Err(e)
+                    if e.code == shared_core::ErrorCode::Conflict
+                        || e.code == shared_core::ErrorCode::Validation =>
+                {
+                    rejected += 1
+                }
+                Err(e) => panic!("unexpected decommission error: {e}"),
+            }
+        }
+        assert_eq!(winners, 1, "exactly one racing decommission may win");
+        assert_eq!(rejected, 7, "all losers must be rejected");
+
+        let assets = repo.list_parents(tenant_id).await.expect("list assets");
+        let row = assets
+            .iter()
+            .find(|a| a.id == asset.id)
+            .expect("asset listed");
+        assert_eq!(row.status, "decommissioned");
+    }
 }
