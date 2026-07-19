@@ -35,7 +35,10 @@ the gate.
 
 ## Status
 
-- **Active**
+- **Closed / CI-proven**
+- CI run: `29667399976` (**HelixWell durability gate** job green)
+- Proof script: `scripts/helix_well_durability.ps1`
+- Gate proven locally (Windows) and in CI (ubuntu)
 
 ## Out of scope
 

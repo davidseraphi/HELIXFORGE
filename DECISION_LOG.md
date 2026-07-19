@@ -1,5 +1,39 @@
 # Decision log (append-only)
 
+## 2026-07-19 — HELIXWELL-DURABILITY closed; seventh product through the gate
+
+- Completed the HelixWell durability-gate packet (`helix-well` added to
+  `durability_gate_proven_products`):
+  - **Check-then-insert window closed:** `WellRepo::log_habit` now
+    enforces the active, non-deleted habit condition inside the INSERT
+    itself (`INSERT ... SELECT`), so a habit paused in between can no
+    longer silently accept a log (`crates/helix-db/src/well.rs`).
+  - New ignored Postgres integration tests:
+    `logs_rejected_on_paused_habit` (after pausing a habit, 8 concurrent
+    log attempts all rejected; only the baseline log exists) and
+    `concurrent_logs_all_landed` (8 concurrent logs on an active habit all
+    persist with the exact total quantity).
+  - `scripts/helix_well_durability.ps1` proves: habit/log/summary
+    lifecycle; an acknowledged check-in surviving an immediate forced kill
+    of the API (mood, energy, and notes present after restart); and a
+    `well` schema `pg_dump` roundtrip into a scratch database with equal
+    habit/log/checkin counts and equal content hashes.
+  - `well-durability` CI job running the ignored integration tests and the
+    proof script.
+- Verification:
+  - `cargo fmt --all -- --check` clean.
+  - `cargo clippy --workspace --all-targets -- -D warnings` clean.
+  - `cargo test --workspace --all-features` clean.
+  - Race proofs pass against live Postgres; durability script passes
+    locally (Windows) and in CI (ubuntu).
+  - GitHub Actions run `29667399976` is all green, including the new
+    **HelixWell durability gate** job and all 19 product smoke jobs.
+- Commits `b6b41ad` (activation) and `13289c2` (implementation) pushed to
+  `main`.
+- `PROJECT_STATE.json` and `NEXT_ACTION.md` updated; `helix-well` recorded
+  in `durability_gate_proven_products`.
+- Next action: founder selects the next explicit named goal.
+
 ## 2026-07-19 — HELIXEDU-DURABILITY closed; sixth product through the gate
 
 - Completed the HelixEdu durability-gate packet (`helix-edu` added to

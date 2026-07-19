@@ -1,35 +1,33 @@
 # Next action
 
-## Latest: HELIXEDU-DURABILITY closed — sixth product through the gate
+## Latest: HELIXWELL-DURABILITY closed — seventh product through the gate
 
-HELIXEDU-DURABILITY is complete. The implementation passed local
-verification and GitHub Actions run `29667121757` is all green, including
-the new **HelixEdu durability gate** job.
+HELIXWELL-DURABILITY is complete. The implementation passed local
+verification and GitHub Actions run `29667399976` is all green, including
+the new **HelixWell durability gate** job.
 
-- Repo: `crates/helix-db/src/edu.rs` (atomic enroll INSERT...SELECT,
-  guarded withdraw)
-- Tests: `projects/helix-edu/backend/src/main.rs`
-  (`concurrent_enroll_same_learner_single_winner`,
-  `enroll_rejected_when_unpublished`)
-- Proof: `scripts/helix_edu_durability.ps1` (forced-kill + restore)
-- CI: `.github/workflows/ci.yml` `edu-durability` job
-- Docs: `docs/goals/HELIXEDU_DURABILITY.md`, `DECISION_LOG.md`
+- Repo: `crates/helix-db/src/well.rs` (atomic log INSERT...SELECT)
+- Tests: `projects/helix-well/backend/src/main.rs`
+  (`logs_rejected_on_paused_habit`, `concurrent_logs_all_landed`)
+- Proof: `scripts/helix_well_durability.ps1` (forced-kill + restore)
+- CI: `.github/workflows/ci.yml` `well-durability` job
+- Docs: `docs/goals/HELIXWELL_DURABILITY.md`, `DECISION_LOG.md`
 
 ### What was delivered
 
-- published-course guard enforced inside the enroll INSERT; withdraw is a
-  single guarded UPDATE
-- concurrency proof: 8 racing enrollments of one learner → exactly one
-  wins; enroll on a draft course always rejected
-- crash proof: acknowledged enrollment survives a forced kill of the API
+- active-habit guard enforced inside the log INSERT; a habit paused
+  mid-flight can no longer silently accept a log
+- concurrency proof: 8 racing logs on a paused habit all rejected; 8
+  racing logs on an active habit all persist with the exact total
+- crash proof: acknowledged check-in survives a forced kill of the API
 - restore proof: schema dump roundtrip with equal counts + content hashes
-- `helix-edu` recorded in `durability_gate_proven_products`
+- `helix-well` recorded in `durability_gate_proven_products`
 
 ### Active goal
 
-None. HELIXEDU-DURABILITY is closed.
+None. HELIXWELL-DURABILITY is closed.
 
 ### Next action
 
 Founder selects the next explicit named goal. Open: durability gates for
-the remaining 15 products.
+the remaining 14 products.
