@@ -388,24 +388,19 @@ impl EduRepo {
         learner_id: UserId,
         learner_label: &str,
     ) -> HelixResult<Enrollment> {
-        let course = self
-            .get_course(tenant_id, course_id)
-            .await?
-            .ok_or_else(|| HelixError::not_found("course not found"))?;
-        if course.status != "published" {
-            return Err(HelixError::validation(format!(
-                "course {} is not published",
-                course.slug
-            )));
-        }
-
         let id = Uuid::now_v7();
         let enrolled_at = Utc::now();
-        sqlx::query(
+        // The published-course guard is part of the INSERT itself: a course
+        // unpublished or deleted between a separate check and insert cannot
+        // leak enrollments.
+        let inserted: Option<(Uuid,)> = sqlx::query_as(
             r#"
             INSERT INTO edu.enrollments
                 (id, tenant_id, course_id, learner_id, learner_label, status, progress_pct, enrolled_at)
-            VALUES ($1,$2,$3,$4,$5,'active',0,$6)
+            SELECT $1, $2, $3, $4, $5, 'active', 0, $6
+            FROM edu.courses c
+            WHERE c.tenant_id = $2 AND c.id = $3 AND c.status = 'published' AND c.deleted_at IS NULL
+            RETURNING id
             "#,
         )
         .bind(id)
@@ -414,7 +409,7 @@ impl EduRepo {
         .bind(learner_id.as_uuid())
         .bind(learner_label)
         .bind(enrolled_at)
-        .execute(&self.pool)
+        .fetch_optional(&self.pool)
         .await
         .map_err(|e| {
             let msg = e.to_string();
@@ -424,6 +419,9 @@ impl EduRepo {
                 HelixError::dependency(format!("edu enroll: {e}"))
             }
         })?;
+        if inserted.is_none() {
+            return Err(HelixError::validation("course not found or not published"));
+        }
 
         Ok(Enrollment {
             id,
@@ -443,32 +441,65 @@ impl EduRepo {
         tenant_id: TenantId,
         enrollment_id: Uuid,
     ) -> HelixResult<Enrollment> {
-        let existing = self
-            .get_enrollment(tenant_id, enrollment_id)
-            .await?
-            .ok_or_else(|| HelixError::not_found("enrollment not found"))?;
-        if existing.status == "withdrawn" {
-            return Err(HelixError::validation("enrollment is already withdrawn"));
+        // Single guarded update: a concurrent withdraw or progress update
+        // cannot double-apply or reopen the row.
+        #[derive(sqlx::FromRow)]
+        struct Row {
+            id: Uuid,
+            tenant_id: Uuid,
+            course_id: Uuid,
+            learner_id: Uuid,
+            learner_label: String,
+            status: String,
+            progress_pct: i32,
+            enrolled_at: DateTime<Utc>,
+            completed_at: Option<DateTime<Utc>>,
         }
-
-        let res = sqlx::query(
+        let row: Option<Row> = sqlx::query_as(
             r#"
             UPDATE edu.enrollments
             SET status = 'withdrawn'
-            WHERE tenant_id = $1 AND id = $2
+            WHERE tenant_id = $1 AND id = $2 AND status <> 'withdrawn'
+            RETURNING id, tenant_id, course_id, learner_id, learner_label, status,
+                      progress_pct, enrolled_at, completed_at
             "#,
         )
         .bind(tenant_id.as_uuid())
         .bind(enrollment_id)
-        .execute(&self.pool)
+        .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("edu withdraw enrollment: {e}")))?;
-        if res.rows_affected() == 0 {
-            return Err(HelixError::not_found("enrollment not found"));
-        }
-        self.get_enrollment(tenant_id, enrollment_id)
-            .await?
-            .ok_or_else(|| HelixError::not_found("enrollment not found"))
+
+        let Some(r) = row else {
+            // Distinguish "not found" from "already withdrawn" without
+            // holding any lock across two statements.
+            let exists: Option<(String,)> = sqlx::query_as(
+                "SELECT status FROM edu.enrollments WHERE tenant_id = $1 AND id = $2",
+            )
+            .bind(tenant_id.as_uuid())
+            .bind(enrollment_id)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(|e| HelixError::dependency(format!("edu check enrollment: {e}")))?;
+            return match exists {
+                Some((status,)) if status == "withdrawn" => {
+                    Err(HelixError::validation("enrollment is already withdrawn"))
+                }
+                _ => Err(HelixError::not_found("enrollment not found")),
+            };
+        };
+
+        Ok(Enrollment {
+            id: r.id,
+            tenant_id: TenantId::from_uuid(r.tenant_id),
+            course_id: r.course_id,
+            learner_id: UserId::from_uuid(r.learner_id),
+            learner_label: r.learner_label,
+            status: r.status,
+            progress_pct: r.progress_pct,
+            enrolled_at: r.enrolled_at,
+            completed_at: r.completed_at,
+        })
     }
 
     pub async fn update_progress(

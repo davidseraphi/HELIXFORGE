@@ -915,4 +915,104 @@ mod tests {
         assert_eq!(rolled_back.status, "active");
         assert!(rolled_back.completed_at.is_none());
     }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn concurrent_enroll_same_learner_single_winner() {
+        let (state, _guard) = locked_state().await;
+        let principal = dev_principal("enroll-race");
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = EduRepo::new(pool.clone());
+
+        let course = repo
+            .create_course(
+                principal.tenant_id,
+                "race-course",
+                "Race Course",
+                "",
+                "beginner",
+                serde_json::json!({}),
+            )
+            .await
+            .expect("create course");
+        let published = repo
+            .publish_course(principal.tenant_id, course.id)
+            .await
+            .expect("publish course");
+
+        // 8 concurrent enrollments of the same learner in the same course.
+        let mut handles = Vec::new();
+        for _ in 0..8u32 {
+            let repo = repo.clone();
+            let tenant_id = principal.tenant_id;
+            let user_id = principal.user_id;
+            handles.push(tokio::spawn(async move {
+                repo.enroll(tenant_id, published.id, user_id, "racer").await
+            }));
+        }
+        let mut winners = 0usize;
+        let mut conflicts = 0usize;
+        for h in handles {
+            match h.await.expect("enroll task panicked") {
+                Ok(_) => winners += 1,
+                Err(e) if e.code == shared_core::ErrorCode::Conflict => conflicts += 1,
+                Err(e) => panic!("unexpected enroll error: {e}"),
+            }
+        }
+        assert_eq!(winners, 1, "exactly one enrollment may win");
+        assert_eq!(conflicts, 7, "all losers must get Conflict");
+
+        let enrollments = repo
+            .list_enrollments(principal.tenant_id, Some(published.id))
+            .await
+            .expect("list enrollments");
+        assert_eq!(enrollments.len(), 1, "exactly one enrollment row exists");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn enroll_rejected_when_unpublished() {
+        let (state, _guard) = locked_state().await;
+        let principal = dev_principal("enroll-guard");
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = EduRepo::new(pool.clone());
+
+        let course = repo
+            .create_course(
+                principal.tenant_id,
+                "guard-course",
+                "Guard Course",
+                "",
+                "beginner",
+                serde_json::json!({}),
+            )
+            .await
+            .expect("create course");
+
+        // 8 concurrent enroll attempts on a draft course: all rejected.
+        let mut handles = Vec::new();
+        for _ in 0..8u32 {
+            let repo = repo.clone();
+            let tenant_id = principal.tenant_id;
+            let user_id = principal.user_id;
+            handles.push(tokio::spawn(async move {
+                repo.enroll(tenant_id, course.id, user_id, "guard").await
+            }));
+        }
+        let mut rejected = 0usize;
+        for h in handles {
+            match h.await.expect("enroll task panicked") {
+                Err(e) if e.code == shared_core::ErrorCode::Validation => rejected += 1,
+                Ok(_) => panic!("enroll on a draft course must be rejected"),
+                Err(e) => panic!("unexpected enroll error: {e}"),
+            }
+        }
+        assert_eq!(rejected, 8, "every enroll on a draft course must fail");
+
+        let enrollments = repo
+            .list_enrollments(principal.tenant_id, Some(course.id))
+            .await
+            .expect("list enrollments");
+        assert!(enrollments.is_empty(), "no enrollment may leak in");
+    }
 }
