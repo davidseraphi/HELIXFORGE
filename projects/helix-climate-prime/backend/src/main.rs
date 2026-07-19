@@ -805,4 +805,101 @@ mod tests {
         assert_eq!(restored.status, "active");
         assert!(restored.deleted_at.is_none());
     }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn scores_rejected_on_deleted_scenario() {
+        let (state, _guard) = locked_state().await;
+        let tenant_id = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = ClimateRepo::new(pool.clone());
+
+        let scenario = repo
+            .create_parent(tenant_id, "Doomed scenario", "", serde_json::json!({}))
+            .await
+            .expect("create scenario");
+        repo.soft_delete_scenario(tenant_id, scenario.id)
+            .await
+            .expect("delete scenario");
+
+        // 8 racing score creates on a soft-deleted scenario all fail.
+        let mut handles = Vec::new();
+        for _ in 0..8u32 {
+            let repo = repo.clone();
+            handles.push(tokio::spawn(async move {
+                repo.create_child(tenant_id, scenario.id, "leak", "", serde_json::json!({}))
+                    .await
+            }));
+        }
+        let mut rejected = 0usize;
+        for h in handles {
+            match h.await.expect("create task panicked") {
+                Ok(_) => panic!("score created on a deleted scenario"),
+                Err(e) if e.code == shared_core::ErrorCode::NotFound => rejected += 1,
+                Err(e) => panic!("unexpected create error: {e}"),
+            }
+        }
+        assert_eq!(rejected, 8, "all racing creates must be rejected");
+
+        let scores = repo
+            .list_children(tenant_id, scenario.id)
+            .await
+            .expect("list scores");
+        assert_eq!(scores.len(), 0, "no score may leak onto a deleted scenario");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn concurrent_archive_single_winner() {
+        let (state, _guard) = locked_state().await;
+        let tenant_id = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = ClimateRepo::new(pool.clone());
+
+        let scenario = repo
+            .create_parent(tenant_id, "Race archive", "", serde_json::json!({}))
+            .await
+            .expect("create scenario");
+        repo.activate_scenario(tenant_id, scenario.id)
+            .await
+            .expect("activate scenario");
+
+        // 8 racing archives of one active scenario with no draft scores.
+        let mut handles = Vec::new();
+        for _ in 0..8u32 {
+            let repo = repo.clone();
+            handles.push(tokio::spawn(async move {
+                repo.archive_scenario(tenant_id, scenario.id).await
+            }));
+        }
+        let mut winners = 0usize;
+        let mut rejected = 0usize;
+        for h in handles {
+            match h.await.expect("archive task panicked") {
+                Ok(_) => winners += 1,
+                Err(e)
+                    if e.code == shared_core::ErrorCode::Conflict
+                        || e.code == shared_core::ErrorCode::Validation =>
+                {
+                    rejected += 1
+                }
+                Err(e) => panic!("unexpected archive error: {e}"),
+            }
+        }
+        assert_eq!(winners, 1, "exactly one racing archive may win");
+        assert_eq!(rejected, 7, "all losers must be rejected");
+
+        let scenarios = repo.list_parents(tenant_id).await.expect("list scenarios");
+        let row = scenarios
+            .iter()
+            .find(|s| s.id == scenario.id)
+            .expect("scenario listed");
+        assert_eq!(row.status, "archived");
+    }
 }

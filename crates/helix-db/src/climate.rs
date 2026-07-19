@@ -317,11 +317,13 @@ impl ClimateRepo {
             .ok_or_else(|| HelixError::not_found("scenario not found"))?;
         let next = next_scenario_status(&scenario.status, "activate")?;
         let now = Utc::now();
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<ScenarioRow> = sqlx::query_as(&format!(
             r#"
             UPDATE climate.scenarios
             SET status = $1, activated_at = $2, updated_at = $2
-            WHERE tenant_id = $3 AND id = $4 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND id = $4 AND status = $5 AND deleted_at IS NULL
             {SCENARIO_RETURNING}
             "#
         ))
@@ -329,15 +331,21 @@ impl ClimateRepo {
         .bind(now)
         .bind(tenant_id.as_uuid())
         .bind(scenario_id)
+        .bind(&scenario.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("climate activate scenario: {e}")))?;
 
         row.map(ScenarioRow::into_scenario)
-            .ok_or_else(|| HelixError::not_found("scenario not found"))
+            .ok_or_else(|| HelixError::conflict("scenario changed during activate; retry"))
     }
 
     /// Archive an active scenario. Rejected while draft scores remain.
+    /// The active-status and no-draft-scores guards are part of the
+    /// UPDATE itself, so a concurrent archive or a score created
+    /// mid-flight cannot slip through a check-then-act window; the
+    /// earlier reads only shape the error returned for the steady-state
+    /// cases.
     pub async fn archive_scenario(
         &self,
         tenant_id: TenantId,
@@ -368,7 +376,12 @@ impl ClimateRepo {
             r#"
             UPDATE climate.scenarios
             SET status = $1, archived_at = $2, updated_at = $2
-            WHERE tenant_id = $3 AND id = $4 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND id = $4 AND status = 'active' AND deleted_at IS NULL
+              AND NOT EXISTS (
+                  SELECT 1 FROM climate.risk_scores r
+                  WHERE r.tenant_id = $3 AND r.parent_id = $4
+                    AND r.status = 'draft' AND r.deleted_at IS NULL
+              )
             {SCENARIO_RETURNING}
             "#
         ))
@@ -380,8 +393,9 @@ impl ClimateRepo {
         .await
         .map_err(|e| HelixError::dependency(format!("climate archive scenario: {e}")))?;
 
-        row.map(ScenarioRow::into_scenario)
-            .ok_or_else(|| HelixError::not_found("scenario not found"))
+        row.map(ScenarioRow::into_scenario).ok_or_else(|| {
+            HelixError::conflict("scenario changed during archive or gained a draft score; retry")
+        })
     }
 
     pub async fn reopen_scenario(
@@ -395,11 +409,13 @@ impl ClimateRepo {
             .ok_or_else(|| HelixError::not_found("scenario not found"))?;
         let next = next_scenario_status(&scenario.status, "reopen")?;
         let now = Utc::now();
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<ScenarioRow> = sqlx::query_as(&format!(
             r#"
             UPDATE climate.scenarios
             SET status = $1, archived_at = NULL, updated_at = $2
-            WHERE tenant_id = $3 AND id = $4 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND id = $4 AND status = $5 AND deleted_at IS NULL
             {SCENARIO_RETURNING}
             "#
         ))
@@ -407,12 +423,13 @@ impl ClimateRepo {
         .bind(now)
         .bind(tenant_id.as_uuid())
         .bind(scenario_id)
+        .bind(&scenario.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("climate reopen scenario: {e}")))?;
 
         row.map(ScenarioRow::into_scenario)
-            .ok_or_else(|| HelixError::not_found("scenario not found"))
+            .ok_or_else(|| HelixError::conflict("scenario changed during reopen; retry"))
     }
 
     pub async fn soft_delete_scenario(
@@ -514,17 +531,17 @@ impl ClimateRepo {
         body: &str,
         metadata: serde_json::Value,
     ) -> HelixResult<RiskScore> {
-        let _parent = self
-            .get_parent(tenant_id, parent_id)
-            .await?
-            .ok_or_else(|| HelixError::not_found("parent not found"))?;
         let id = Uuid::now_v7();
         let created_at = Utc::now();
-        let row: ScoreRow = sqlx::query_as(&format!(
+        // The non-deleted-parent guard is part of the INSERT itself: a scenario
+        // soft-deleted between a separate check and insert cannot leak scores.
+        let row: Option<ScoreRow> = sqlx::query_as(&format!(
             r#"
             INSERT INTO climate.risk_scores
                 (id, tenant_id, parent_id, title, body, status, metadata, created_at, updated_at)
-            VALUES ($1,$2,$3,$4,$5,'draft',$6,$7,$7)
+            SELECT $1,$2,$3,$4,$5,'draft',$6,$7,$7
+            FROM climate.scenarios s
+            WHERE s.tenant_id = $2 AND s.id = $3 AND s.deleted_at IS NULL
             {SCORE_RETURNING}
             "#
         ))
@@ -535,10 +552,11 @@ impl ClimateRepo {
         .bind(body)
         .bind(&metadata)
         .bind(created_at)
-        .fetch_one(&self.pool)
+        .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("climate create child: {e}")))?;
-        Ok(row.into_score())
+        row.map(ScoreRow::into_score)
+            .ok_or_else(|| HelixError::not_found("parent not found"))
     }
 
     pub async fn get_score(
@@ -630,11 +648,13 @@ impl ClimateRepo {
             .ok_or_else(|| HelixError::not_found("score not found"))?;
         let next = next_score_status(&score.status, "assess")?;
         let now = Utc::now();
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<ScoreRow> = sqlx::query_as(&format!(
             r#"
             UPDATE climate.risk_scores
             SET status = $1, assessed_at = $2, updated_at = $2
-            WHERE tenant_id = $3 AND parent_id = $4 AND id = $5 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND parent_id = $4 AND id = $5 AND status = $6 AND deleted_at IS NULL
             {SCORE_RETURNING}
             "#
         ))
@@ -643,12 +663,13 @@ impl ClimateRepo {
         .bind(tenant_id.as_uuid())
         .bind(scenario_id)
         .bind(score_id)
+        .bind(&score.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("climate assess score: {e}")))?;
 
         row.map(ScoreRow::into_score)
-            .ok_or_else(|| HelixError::not_found("score not found"))
+            .ok_or_else(|| HelixError::conflict("score changed during assess; retry"))
     }
 
     pub async fn dismiss_score(
@@ -663,11 +684,13 @@ impl ClimateRepo {
             .ok_or_else(|| HelixError::not_found("score not found"))?;
         let next = next_score_status(&score.status, "dismiss")?;
         let now = Utc::now();
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<ScoreRow> = sqlx::query_as(&format!(
             r#"
             UPDATE climate.risk_scores
             SET status = $1, dismissed_at = $2, updated_at = $2
-            WHERE tenant_id = $3 AND parent_id = $4 AND id = $5 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND parent_id = $4 AND id = $5 AND status = $6 AND deleted_at IS NULL
             {SCORE_RETURNING}
             "#
         ))
@@ -676,12 +699,13 @@ impl ClimateRepo {
         .bind(tenant_id.as_uuid())
         .bind(scenario_id)
         .bind(score_id)
+        .bind(&score.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("climate dismiss score: {e}")))?;
 
         row.map(ScoreRow::into_score)
-            .ok_or_else(|| HelixError::not_found("score not found"))
+            .ok_or_else(|| HelixError::conflict("score changed during dismiss; retry"))
     }
 
     pub async fn soft_delete_score(
