@@ -793,4 +793,98 @@ mod tests {
         assert_eq!(restored.status, "active");
         assert!(restored.deleted_at.is_none());
     }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn readings_rejected_on_deleted_site() {
+        let (state, _guard) = locked_state().await;
+        let tenant_id = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = GridRepo::new(pool.clone());
+
+        let site = repo
+            .create_parent(tenant_id, "Doomed site", "", serde_json::json!({}))
+            .await
+            .expect("create site");
+        repo.soft_delete_site(tenant_id, site.id)
+            .await
+            .expect("delete site");
+
+        // 8 racing reading creates on a soft-deleted site all fail.
+        let mut handles = Vec::new();
+        for _ in 0..8u32 {
+            let repo = repo.clone();
+            handles.push(tokio::spawn(async move {
+                repo.create_child(tenant_id, site.id, "leak", "", serde_json::json!({}))
+                    .await
+            }));
+        }
+        let mut rejected = 0usize;
+        for h in handles {
+            match h.await.expect("create task panicked") {
+                Ok(_) => panic!("reading created on a deleted site"),
+                Err(e) if e.code == shared_core::ErrorCode::NotFound => rejected += 1,
+                Err(e) => panic!("unexpected create error: {e}"),
+            }
+        }
+        assert_eq!(rejected, 8, "all racing creates must be rejected");
+
+        let readings = repo
+            .list_children(tenant_id, site.id)
+            .await
+            .expect("list readings");
+        assert_eq!(readings.len(), 0, "no reading may leak onto a deleted site");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn concurrent_offline_single_winner() {
+        let (state, _guard) = locked_state().await;
+        let tenant_id = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = GridRepo::new(pool.clone());
+
+        let site = repo
+            .create_parent(tenant_id, "Race offline", "", serde_json::json!({}))
+            .await
+            .expect("create site");
+        repo.energize_site(tenant_id, site.id)
+            .await
+            .expect("energize site");
+
+        // 8 racing offlines of one active site with no draft readings.
+        let mut handles = Vec::new();
+        for _ in 0..8u32 {
+            let repo = repo.clone();
+            handles.push(tokio::spawn(async move {
+                repo.take_offline(tenant_id, site.id).await
+            }));
+        }
+        let mut winners = 0usize;
+        let mut rejected = 0usize;
+        for h in handles {
+            match h.await.expect("offline task panicked") {
+                Ok(_) => winners += 1,
+                Err(e)
+                    if e.code == shared_core::ErrorCode::Conflict
+                        || e.code == shared_core::ErrorCode::Validation =>
+                {
+                    rejected += 1
+                }
+                Err(e) => panic!("unexpected offline error: {e}"),
+            }
+        }
+        assert_eq!(winners, 1, "exactly one racing offline may win");
+        assert_eq!(rejected, 7, "all losers must be rejected");
+
+        let sites = repo.list_parents(tenant_id).await.expect("list sites");
+        let row = sites.iter().find(|s| s.id == site.id).expect("site listed");
+        assert_eq!(row.status, "offline");
+    }
 }

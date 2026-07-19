@@ -308,11 +308,13 @@ impl GridRepo {
             .ok_or_else(|| HelixError::not_found("site not found"))?;
         let next = next_site_status(&site.status, "energize")?;
         let now = Utc::now();
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<SiteRow> = sqlx::query_as(&format!(
             r#"
             UPDATE grid.sites
             SET status = $1, energized_at = $2, updated_at = $2
-            WHERE tenant_id = $3 AND id = $4 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND id = $4 AND status = $5 AND deleted_at IS NULL
             {SITE_RETURNING}
             "#
         ))
@@ -320,15 +322,21 @@ impl GridRepo {
         .bind(now)
         .bind(tenant_id.as_uuid())
         .bind(site_id)
+        .bind(&site.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("grid energize site: {e}")))?;
 
         row.map(SiteRow::into_site)
-            .ok_or_else(|| HelixError::not_found("site not found"))
+            .ok_or_else(|| HelixError::conflict("site changed during energize; retry"))
     }
 
     /// Take an active site offline. Rejected while draft readings remain.
+    /// The active-status and no-draft-readings guards are part of the
+    /// UPDATE itself, so a concurrent offline/energize or a reading
+    /// created mid-flight cannot slip through a check-then-act window; the
+    /// earlier reads only shape the error returned for the steady-state
+    /// cases.
     pub async fn take_offline(&self, tenant_id: TenantId, site_id: Uuid) -> HelixResult<GridSite> {
         let site = self
             .get_parent(tenant_id, site_id)
@@ -355,7 +363,12 @@ impl GridRepo {
             r#"
             UPDATE grid.sites
             SET status = $1, offline_at = $2, updated_at = $2
-            WHERE tenant_id = $3 AND id = $4 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND id = $4 AND status = 'active' AND deleted_at IS NULL
+              AND NOT EXISTS (
+                  SELECT 1 FROM grid.readings r
+                  WHERE r.tenant_id = $3 AND r.parent_id = $4
+                    AND r.status = 'draft' AND r.deleted_at IS NULL
+              )
             {SITE_RETURNING}
             "#
         ))
@@ -367,8 +380,9 @@ impl GridRepo {
         .await
         .map_err(|e| HelixError::dependency(format!("grid take site offline: {e}")))?;
 
-        row.map(SiteRow::into_site)
-            .ok_or_else(|| HelixError::not_found("site not found"))
+        row.map(SiteRow::into_site).ok_or_else(|| {
+            HelixError::conflict("site changed during offline or gained a draft reading; retry")
+        })
     }
 
     pub async fn bring_online(&self, tenant_id: TenantId, site_id: Uuid) -> HelixResult<GridSite> {
@@ -378,11 +392,13 @@ impl GridRepo {
             .ok_or_else(|| HelixError::not_found("site not found"))?;
         let next = next_site_status(&site.status, "online")?;
         let now = Utc::now();
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<SiteRow> = sqlx::query_as(&format!(
             r#"
             UPDATE grid.sites
             SET status = $1, offline_at = NULL, updated_at = $2
-            WHERE tenant_id = $3 AND id = $4 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND id = $4 AND status = $5 AND deleted_at IS NULL
             {SITE_RETURNING}
             "#
         ))
@@ -390,12 +406,13 @@ impl GridRepo {
         .bind(now)
         .bind(tenant_id.as_uuid())
         .bind(site_id)
+        .bind(&site.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("grid bring site online: {e}")))?;
 
         row.map(SiteRow::into_site)
-            .ok_or_else(|| HelixError::not_found("site not found"))
+            .ok_or_else(|| HelixError::conflict("site changed during online; retry"))
     }
 
     pub async fn soft_delete_site(
@@ -493,17 +510,17 @@ impl GridRepo {
         body: &str,
         metadata: serde_json::Value,
     ) -> HelixResult<Reading> {
-        let _parent = self
-            .get_parent(tenant_id, parent_id)
-            .await?
-            .ok_or_else(|| HelixError::not_found("parent not found"))?;
         let id = Uuid::now_v7();
         let created_at = Utc::now();
-        let row: ReadingRow = sqlx::query_as(&format!(
+        // The non-deleted-parent guard is part of the INSERT itself: a site
+        // soft-deleted between a separate check and insert cannot leak readings.
+        let row: Option<ReadingRow> = sqlx::query_as(&format!(
             r#"
             INSERT INTO grid.readings
                 (id, tenant_id, parent_id, title, body, status, metadata, created_at, updated_at)
-            VALUES ($1,$2,$3,$4,$5,'draft',$6,$7,$7)
+            SELECT $1,$2,$3,$4,$5,'draft',$6,$7,$7
+            FROM grid.sites s
+            WHERE s.tenant_id = $2 AND s.id = $3 AND s.deleted_at IS NULL
             {READING_RETURNING}
             "#
         ))
@@ -514,10 +531,11 @@ impl GridRepo {
         .bind(body)
         .bind(&metadata)
         .bind(created_at)
-        .fetch_one(&self.pool)
+        .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("grid create child: {e}")))?;
-        Ok(row.into_reading())
+        row.map(ReadingRow::into_reading)
+            .ok_or_else(|| HelixError::not_found("parent not found"))
     }
 
     pub async fn get_reading(
@@ -609,11 +627,13 @@ impl GridRepo {
             .ok_or_else(|| HelixError::not_found("reading not found"))?;
         let next = next_reading_status(&reading.status, "verify")?;
         let now = Utc::now();
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<ReadingRow> = sqlx::query_as(&format!(
             r#"
             UPDATE grid.readings
             SET status = $1, verified_at = $2, updated_at = $2
-            WHERE tenant_id = $3 AND parent_id = $4 AND id = $5 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND parent_id = $4 AND id = $5 AND status = $6 AND deleted_at IS NULL
             {READING_RETURNING}
             "#
         ))
@@ -622,12 +642,13 @@ impl GridRepo {
         .bind(tenant_id.as_uuid())
         .bind(site_id)
         .bind(reading_id)
+        .bind(&reading.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("grid verify reading: {e}")))?;
 
         row.map(ReadingRow::into_reading)
-            .ok_or_else(|| HelixError::not_found("reading not found"))
+            .ok_or_else(|| HelixError::conflict("reading changed during verify; retry"))
     }
 
     pub async fn reject_reading(
@@ -642,11 +663,13 @@ impl GridRepo {
             .ok_or_else(|| HelixError::not_found("reading not found"))?;
         let next = next_reading_status(&reading.status, "reject")?;
         let now = Utc::now();
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<ReadingRow> = sqlx::query_as(&format!(
             r#"
             UPDATE grid.readings
             SET status = $1, rejected_at = $2, updated_at = $2
-            WHERE tenant_id = $3 AND parent_id = $4 AND id = $5 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND parent_id = $4 AND id = $5 AND status = $6 AND deleted_at IS NULL
             {READING_RETURNING}
             "#
         ))
@@ -655,12 +678,13 @@ impl GridRepo {
         .bind(tenant_id.as_uuid())
         .bind(site_id)
         .bind(reading_id)
+        .bind(&reading.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("grid reject reading: {e}")))?;
 
         row.map(ReadingRow::into_reading)
-            .ok_or_else(|| HelixError::not_found("reading not found"))
+            .ok_or_else(|| HelixError::conflict("reading changed during reject; retry"))
     }
 
     pub async fn soft_delete_reading(
