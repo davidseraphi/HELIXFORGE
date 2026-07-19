@@ -796,4 +796,98 @@ mod tests {
         assert_eq!(restored.status, "active");
         assert!(restored.deleted_at.is_none());
     }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn notes_rejected_on_deleted_case() {
+        let (state, _guard) = locked_state().await;
+        let tenant_id = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = CuraRepo::new(pool.clone());
+
+        let case = repo
+            .create_parent(tenant_id, "Doomed case", "", serde_json::json!({}))
+            .await
+            .expect("create case");
+        repo.soft_delete_case(tenant_id, case.id)
+            .await
+            .expect("delete case");
+
+        // 8 racing note creates on a soft-deleted case all fail.
+        let mut handles = Vec::new();
+        for _ in 0..8u32 {
+            let repo = repo.clone();
+            handles.push(tokio::spawn(async move {
+                repo.create_child(tenant_id, case.id, "leak", "", serde_json::json!({}))
+                    .await
+            }));
+        }
+        let mut rejected = 0usize;
+        for h in handles {
+            match h.await.expect("create task panicked") {
+                Ok(_) => panic!("note created on a deleted case"),
+                Err(e) if e.code == shared_core::ErrorCode::NotFound => rejected += 1,
+                Err(e) => panic!("unexpected create error: {e}"),
+            }
+        }
+        assert_eq!(rejected, 8, "all racing creates must be rejected");
+
+        let notes = repo
+            .list_children(tenant_id, case.id)
+            .await
+            .expect("list notes");
+        assert_eq!(notes.len(), 0, "no note may leak onto a deleted case");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn concurrent_discharge_single_winner() {
+        let (state, _guard) = locked_state().await;
+        let tenant_id = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = CuraRepo::new(pool.clone());
+
+        let case = repo
+            .create_parent(tenant_id, "Race discharge", "", serde_json::json!({}))
+            .await
+            .expect("create case");
+        repo.activate_case(tenant_id, case.id)
+            .await
+            .expect("activate case");
+
+        // 8 racing discharges of one active case with no draft notes.
+        let mut handles = Vec::new();
+        for _ in 0..8u32 {
+            let repo = repo.clone();
+            handles.push(tokio::spawn(async move {
+                repo.discharge_case(tenant_id, case.id).await
+            }));
+        }
+        let mut winners = 0usize;
+        let mut rejected = 0usize;
+        for h in handles {
+            match h.await.expect("discharge task panicked") {
+                Ok(_) => winners += 1,
+                Err(e)
+                    if e.code == shared_core::ErrorCode::Conflict
+                        || e.code == shared_core::ErrorCode::Validation =>
+                {
+                    rejected += 1
+                }
+                Err(e) => panic!("unexpected discharge error: {e}"),
+            }
+        }
+        assert_eq!(winners, 1, "exactly one racing discharge may win");
+        assert_eq!(rejected, 7, "all losers must be rejected");
+
+        let cases = repo.list_parents(tenant_id).await.expect("list cases");
+        let row = cases.iter().find(|c| c.id == case.id).expect("case listed");
+        assert_eq!(row.status, "discharged");
+    }
 }

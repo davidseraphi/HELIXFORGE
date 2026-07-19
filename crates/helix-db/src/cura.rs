@@ -308,11 +308,13 @@ impl CuraRepo {
             .ok_or_else(|| HelixError::not_found("case not found"))?;
         let next = next_case_status(&case.status, "activate")?;
         let now = Utc::now();
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<CaseRow> = sqlx::query_as(&format!(
             r#"
             UPDATE cura.care_cases
             SET status = $1, activated_at = $2, updated_at = $2
-            WHERE tenant_id = $3 AND id = $4 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND id = $4 AND status = $5 AND deleted_at IS NULL
             {CASE_RETURNING}
             "#
         ))
@@ -320,15 +322,20 @@ impl CuraRepo {
         .bind(now)
         .bind(tenant_id.as_uuid())
         .bind(case_id)
+        .bind(&case.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("cura activate case: {e}")))?;
 
         row.map(CaseRow::into_case)
-            .ok_or_else(|| HelixError::not_found("case not found"))
+            .ok_or_else(|| HelixError::conflict("case changed during activate; retry"))
     }
 
-    /// Discharge an active case. Rejected while draft notes remain.
+    /// Discharge an active case. Rejected while draft notes remain. The
+    /// active-status and no-draft-notes guards are part of the UPDATE
+    /// itself, so a concurrent discharge or a note created mid-flight
+    /// cannot slip through a check-then-act window; the earlier reads only
+    /// shape the error returned for the steady-state cases.
     pub async fn discharge_case(
         &self,
         tenant_id: TenantId,
@@ -359,7 +366,12 @@ impl CuraRepo {
             r#"
             UPDATE cura.care_cases
             SET status = $1, discharged_at = $2, updated_at = $2
-            WHERE tenant_id = $3 AND id = $4 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND id = $4 AND status = 'active' AND deleted_at IS NULL
+              AND NOT EXISTS (
+                  SELECT 1 FROM cura.notes n
+                  WHERE n.tenant_id = $3 AND n.parent_id = $4
+                    AND n.status = 'draft' AND n.deleted_at IS NULL
+              )
             {CASE_RETURNING}
             "#
         ))
@@ -371,8 +383,9 @@ impl CuraRepo {
         .await
         .map_err(|e| HelixError::dependency(format!("cura discharge case: {e}")))?;
 
-        row.map(CaseRow::into_case)
-            .ok_or_else(|| HelixError::not_found("case not found"))
+        row.map(CaseRow::into_case).ok_or_else(|| {
+            HelixError::conflict("case changed during discharge or gained a draft note; retry")
+        })
     }
 
     pub async fn reopen_case(&self, tenant_id: TenantId, case_id: Uuid) -> HelixResult<CareCase> {
@@ -382,11 +395,13 @@ impl CuraRepo {
             .ok_or_else(|| HelixError::not_found("case not found"))?;
         let next = next_case_status(&case.status, "reopen")?;
         let now = Utc::now();
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<CaseRow> = sqlx::query_as(&format!(
             r#"
             UPDATE cura.care_cases
             SET status = $1, discharged_at = NULL, updated_at = $2
-            WHERE tenant_id = $3 AND id = $4 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND id = $4 AND status = $5 AND deleted_at IS NULL
             {CASE_RETURNING}
             "#
         ))
@@ -394,12 +409,13 @@ impl CuraRepo {
         .bind(now)
         .bind(tenant_id.as_uuid())
         .bind(case_id)
+        .bind(&case.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("cura reopen case: {e}")))?;
 
         row.map(CaseRow::into_case)
-            .ok_or_else(|| HelixError::not_found("case not found"))
+            .ok_or_else(|| HelixError::conflict("case changed during reopen; retry"))
     }
 
     pub async fn soft_delete_case(
@@ -497,17 +513,17 @@ impl CuraRepo {
         body: &str,
         metadata: serde_json::Value,
     ) -> HelixResult<CareNote> {
-        let _parent = self
-            .get_parent(tenant_id, parent_id)
-            .await?
-            .ok_or_else(|| HelixError::not_found("parent not found"))?;
         let id = Uuid::now_v7();
         let created_at = Utc::now();
-        let row: NoteRow = sqlx::query_as(&format!(
+        // The non-deleted-parent guard is part of the INSERT itself: a case
+        // soft-deleted between a separate check and insert cannot leak notes.
+        let row: Option<NoteRow> = sqlx::query_as(&format!(
             r#"
             INSERT INTO cura.notes
                 (id, tenant_id, parent_id, title, body, status, metadata, created_at, updated_at)
-            VALUES ($1,$2,$3,$4,$5,'draft',$6,$7,$7)
+            SELECT $1,$2,$3,$4,$5,'draft',$6,$7,$7
+            FROM cura.care_cases c
+            WHERE c.tenant_id = $2 AND c.id = $3 AND c.deleted_at IS NULL
             {NOTE_RETURNING}
             "#
         ))
@@ -518,10 +534,11 @@ impl CuraRepo {
         .bind(body)
         .bind(&metadata)
         .bind(created_at)
-        .fetch_one(&self.pool)
+        .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("cura create child: {e}")))?;
-        Ok(row.into_note())
+        row.map(NoteRow::into_note)
+            .ok_or_else(|| HelixError::not_found("parent not found"))
     }
 
     pub async fn get_note(
@@ -600,7 +617,10 @@ impl CuraRepo {
         builder.push_bind(case_id);
         builder.push(" AND id = ");
         builder.push_bind(note_id);
-        builder.push(" AND deleted_at IS NULL");
+        // The draft-only guard is part of the UPDATE itself: a sign landing
+        // between the read above and this write cannot be overwritten —
+        // signed notes stay immutable under race.
+        builder.push(" AND status = 'draft' AND deleted_at IS NULL");
         builder.push(format!(" {NOTE_RETURNING}"));
 
         let row: Option<NoteRow> = builder
@@ -610,7 +630,7 @@ impl CuraRepo {
             .map_err(|e| HelixError::dependency(format!("cura update note: {e}")))?;
 
         row.map(NoteRow::into_note)
-            .ok_or_else(|| HelixError::not_found("note not found"))
+            .ok_or_else(|| HelixError::conflict("note changed during edit; retry"))
     }
 
     pub async fn sign_note(
@@ -625,11 +645,13 @@ impl CuraRepo {
             .ok_or_else(|| HelixError::not_found("note not found"))?;
         let next = next_note_status(&note.status, "sign")?;
         let now = Utc::now();
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<NoteRow> = sqlx::query_as(&format!(
             r#"
             UPDATE cura.notes
             SET status = $1, signed_at = $2, updated_at = $2
-            WHERE tenant_id = $3 AND parent_id = $4 AND id = $5 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND parent_id = $4 AND id = $5 AND status = $6 AND deleted_at IS NULL
             {NOTE_RETURNING}
             "#
         ))
@@ -638,12 +660,13 @@ impl CuraRepo {
         .bind(tenant_id.as_uuid())
         .bind(case_id)
         .bind(note_id)
+        .bind(&note.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("cura sign note: {e}")))?;
 
         row.map(NoteRow::into_note)
-            .ok_or_else(|| HelixError::not_found("note not found"))
+            .ok_or_else(|| HelixError::conflict("note changed during sign; retry"))
     }
 
     pub async fn void_note(
@@ -658,11 +681,13 @@ impl CuraRepo {
             .ok_or_else(|| HelixError::not_found("note not found"))?;
         let next = next_note_status(&note.status, "void")?;
         let now = Utc::now();
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<NoteRow> = sqlx::query_as(&format!(
             r#"
             UPDATE cura.notes
             SET status = $1, voided_at = $2, updated_at = $2
-            WHERE tenant_id = $3 AND parent_id = $4 AND id = $5 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND parent_id = $4 AND id = $5 AND status = $6 AND deleted_at IS NULL
             {NOTE_RETURNING}
             "#
         ))
@@ -671,12 +696,13 @@ impl CuraRepo {
         .bind(tenant_id.as_uuid())
         .bind(case_id)
         .bind(note_id)
+        .bind(&note.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("cura void note: {e}")))?;
 
         row.map(NoteRow::into_note)
-            .ok_or_else(|| HelixError::not_found("note not found"))
+            .ok_or_else(|| HelixError::conflict("note changed during void; retry"))
     }
 
     pub async fn soft_delete_note(
