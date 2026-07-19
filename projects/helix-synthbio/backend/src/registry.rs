@@ -41,6 +41,18 @@ pub fn routes() -> Router<AppState> {
         )
         .route("/v1/measurements/{id}/accept", post(accept_measurement))
         .route("/v1/measurements/{id}/reject", post(reject_measurement))
+        .route("/v1/claims", post(create_claim))
+        .route(
+            "/v1/registry/designs/{id}/claims",
+            get(list_claims),
+        )
+        .route("/v1/claims/{id}/evidence", post(link_evidence))
+        .route("/v1/claims/{id}/attest", post(attest_claim))
+        .route("/v1/claims/{id}/challenge", post(challenge_claim))
+        .route(
+            "/v1/registry/designs/{id}/notes",
+            get(list_notes).post(add_note),
+        )
 }
 
 // ——— payloads ———
@@ -605,4 +617,178 @@ async fn verdict_measurement(
     )
     .await?;
     Ok(Json(ApiResponse::ok(serde_json::json!(m))))
+}
+
+// ——— claims + notes ———
+
+#[derive(Deserialize)]
+struct ClaimReq {
+    design_id: Uuid,
+    statement: String,
+}
+
+#[derive(Deserialize)]
+struct EvidenceReq {
+    target_kind: String,
+    target_id: Uuid,
+    support: String,
+    #[serde(default)]
+    note: String,
+}
+
+#[derive(Deserialize)]
+struct AttestReq {
+    attestor: String,
+}
+
+#[derive(Deserialize)]
+struct ChallengeReq {
+    #[serde(default)]
+    reason: String,
+}
+
+#[derive(Deserialize)]
+struct NoteReq {
+    body: String,
+}
+
+async fn create_claim(
+    State(state): State<AppState>,
+    RequireAuth(p): RequireAuth,
+    Json(body): Json<ClaimReq>,
+) -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
+    p.require_scope(shared_core::tenancy::Scope::Write)?;
+    let pool = require_pool(&state)?;
+    let repo = RegistryRepo::new(pool);
+    let actor = actor(&p);
+    let claim = repo
+        .create_claim(p.tenant_id, body.design_id, &body.statement, &actor)
+        .await?;
+    audit(
+        &state,
+        &p,
+        "synthbio.claim.create",
+        "synthbio.claim",
+        claim.id,
+        serde_json::json!({"accession": claim.accession, "design": claim.design_id}),
+    )
+    .await?;
+    Ok(Json(ApiResponse::ok(serde_json::json!(claim))))
+}
+
+async fn list_claims(
+    State(state): State<AppState>,
+    RequireAuth(p): RequireAuth,
+    Path(id): Path<Uuid>,
+) -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
+    p.require_scope(shared_core::tenancy::Scope::Read)?;
+    let pool = require_pool(&state)?;
+    let repo = RegistryRepo::new(pool);
+    let items = repo.list_claims(p.tenant_id, id).await?;
+    Ok(Json(ApiResponse::ok(serde_json::json!({
+        "durable": true,
+        "items": items
+    }))))
+}
+
+async fn link_evidence(
+    State(state): State<AppState>,
+    RequireAuth(p): RequireAuth,
+    Path(id): Path<Uuid>,
+    Json(body): Json<EvidenceReq>,
+) -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
+    p.require_scope(shared_core::tenancy::Scope::Write)?;
+    let pool = require_pool(&state)?;
+    let repo = RegistryRepo::new(pool);
+    let actor = actor(&p);
+    let link = repo
+        .link_evidence(
+            p.tenant_id,
+            id,
+            &body.target_kind,
+            body.target_id,
+            &body.support,
+            &body.note,
+            &actor,
+        )
+        .await?;
+    Ok(Json(ApiResponse::ok(serde_json::json!(link))))
+}
+
+async fn attest_claim(
+    State(state): State<AppState>,
+    RequireAuth(p): RequireAuth,
+    Path(id): Path<Uuid>,
+    Json(body): Json<AttestReq>,
+) -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
+    p.require_scope(shared_core::tenancy::Scope::Write)?;
+    let pool = require_pool(&state)?;
+    let repo = RegistryRepo::new(pool);
+    let claim = repo
+        .attest_claim(p.tenant_id, id, &body.attestor)
+        .await?;
+    audit(
+        &state,
+        &p,
+        "synthbio.claim.attest",
+        "synthbio.claim",
+        id,
+        serde_json::json!({"accession": claim.accession, "attestor": body.attestor}),
+    )
+    .await?;
+    Ok(Json(ApiResponse::ok(serde_json::json!(claim))))
+}
+
+async fn challenge_claim(
+    State(state): State<AppState>,
+    RequireAuth(p): RequireAuth,
+    Path(id): Path<Uuid>,
+    Json(body): Json<ChallengeReq>,
+) -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
+    p.require_scope(shared_core::tenancy::Scope::Write)?;
+    let pool = require_pool(&state)?;
+    let repo = RegistryRepo::new(pool);
+    let actor = actor(&p);
+    let claim = repo
+        .challenge_claim(p.tenant_id, id, &body.reason, &actor)
+        .await?;
+    audit(
+        &state,
+        &p,
+        "synthbio.claim.challenge",
+        "synthbio.claim",
+        id,
+        serde_json::json!({"accession": claim.accession}),
+    )
+    .await?;
+    Ok(Json(ApiResponse::ok(serde_json::json!(claim))))
+}
+
+async fn add_note(
+    State(state): State<AppState>,
+    RequireAuth(p): RequireAuth,
+    Path(id): Path<Uuid>,
+    Json(body): Json<NoteReq>,
+) -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
+    p.require_scope(shared_core::tenancy::Scope::Write)?;
+    let pool = require_pool(&state)?;
+    let repo = RegistryRepo::new(pool);
+    let actor = actor(&p);
+    let note = repo.add_note(p.tenant_id, id, &body.body, &actor).await?;
+    Ok(Json(ApiResponse::ok(serde_json::json!(note))))
+}
+
+async fn list_notes(
+    State(state): State<AppState>,
+    RequireAuth(p): RequireAuth,
+    Path(id): Path<Uuid>,
+) -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
+    p.require_scope(shared_core::tenancy::Scope::Read)?;
+    let pool = require_pool(&state)?;
+    let repo = RegistryRepo::new(pool);
+    let items = repo.list_notes(p.tenant_id, id).await?;
+    Ok(Json(ApiResponse::ok(serde_json::json!({
+        "durable": true,
+        "items": items
+    }))))
 }

@@ -1387,6 +1387,405 @@ impl RegistryRepo {
     }
 }
 
+// ——— claims (S4): statements + evidence links + ELN notes ———
+
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct Claim {
+    pub id: Uuid,
+    pub tenant_id: Uuid,
+    pub accession: String,
+    pub design_id: Uuid,
+    pub statement: String,
+    pub status: String,
+    pub attested_by: Option<String>,
+    pub attested_at: Option<DateTime<Utc>>,
+    pub created_by: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub deleted_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct EvidenceLink {
+    pub id: Uuid,
+    pub tenant_id: Uuid,
+    pub claim_id: Uuid,
+    pub target_kind: String,
+    pub target_id: Uuid,
+    pub support: String,
+    pub note: String,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct DesignNote {
+    pub id: Uuid,
+    pub tenant_id: Uuid,
+    pub design_id: Uuid,
+    pub body: String,
+    pub created_by: String,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClaimDetail {
+    pub claim: Claim,
+    pub evidence: Vec<EvidenceLink>,
+}
+
+const EVIDENCE_KINDS: [&str; 3] = ["measurement", "design_version", "analysis"];
+const SUPPORT_KINDS: [&str; 3] = ["supports", "conflicts", "missing"];
+
+impl RegistryRepo {
+    /// Open a claim on a design. The parent-design guard is part of the
+    /// INSERT itself: a deleted design cannot acquire claims.
+    pub async fn create_claim(
+        &self,
+        tenant_id: TenantId,
+        design_id: Uuid,
+        statement: &str,
+        actor: &str,
+    ) -> HelixResult<Claim> {
+        if statement.trim().is_empty() {
+            return Err(HelixError::validation("claim statement required"));
+        }
+        let accession = self.next_accession(tenant_id, "claim", "CLM").await?;
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| HelixError::dependency(format!("synthbio claim tx: {e}")))?;
+
+        let id = Uuid::now_v7();
+        let now = Utc::now();
+        let row: Option<Claim> = sqlx::query_as(
+            r#"
+            INSERT INTO synthbio.claims
+                (id, tenant_id, accession, design_id, statement, status, created_by, created_at, updated_at)
+            SELECT $1,$2,$3,$4,$5,'draft',$6,$7,$7
+            FROM synthbio.registry_designs d
+            WHERE d.tenant_id = $2 AND d.id = $4 AND d.deleted_at IS NULL
+            RETURNING id, tenant_id, accession, design_id, statement, status, attested_by,
+                      attested_at, created_by, created_at, updated_at, NULL AS deleted_at
+            "#,
+        )
+        .bind(id)
+        .bind(tenant_id.as_uuid())
+        .bind(&accession)
+        .bind(design_id)
+        .bind(statement)
+        .bind(actor)
+        .bind(now)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(|e| HelixError::dependency(format!("synthbio create claim: {e}")))?;
+        let claim = row.ok_or_else(|| HelixError::not_found("design not found"))?;
+
+        self.add_edge(&mut tx, tenant_id, "claim", id, "design", design_id, "about")
+            .await?;
+        self.record_event(
+            &mut tx,
+            tenant_id,
+            "design",
+            design_id,
+            "claim_created",
+            actor,
+            serde_json::json!({"accession": accession}),
+        )
+        .await?;
+        tx.commit()
+            .await
+            .map_err(|e| HelixError::dependency(format!("synthbio claim commit: {e}")))?;
+        Ok(claim)
+    }
+
+    /// Link evidence to a claim. Links are append-only (DB trigger).
+    pub async fn link_evidence(
+        &self,
+        tenant_id: TenantId,
+        claim_id: Uuid,
+        target_kind: &str,
+        target_id: Uuid,
+        support: &str,
+        note: &str,
+        actor: &str,
+    ) -> HelixResult<EvidenceLink> {
+        if !EVIDENCE_KINDS.contains(&target_kind) {
+            return Err(HelixError::validation(format!(
+                "target_kind must be one of {EVIDENCE_KINDS:?}, got `{target_kind}`"
+            )));
+        }
+        if !SUPPORT_KINDS.contains(&support) {
+            return Err(HelixError::validation(format!(
+                "support must be one of {SUPPORT_KINDS:?}, got `{support}`"
+            )));
+        }
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| HelixError::dependency(format!("synthbio evidence tx: {e}")))?;
+
+        let claim: Option<(Uuid, Uuid)> = sqlx::query_as(
+            "SELECT id, design_id FROM synthbio.claims WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL FOR UPDATE",
+        )
+        .bind(tenant_id.as_uuid())
+        .bind(claim_id)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(|e| HelixError::dependency(format!("synthbio evidence claim lock: {e}")))?;
+        let (claim_id, design_id) =
+            claim.ok_or_else(|| HelixError::not_found("claim not found"))?;
+
+        // Referential integrity on the evidence target.
+        let target_exists: bool = match target_kind {
+            "measurement" => {
+                sqlx::query_scalar::<_, Option<Uuid>>(
+                    "SELECT id FROM synthbio.measurements WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL",
+                )
+                .bind(tenant_id.as_uuid())
+                .bind(target_id)
+                .fetch_optional(&mut *tx)
+                .await
+                .map_err(|e| HelixError::dependency(format!("synthbio evidence target: {e}")))?
+                .is_some()
+            }
+            "design_version" => {
+                sqlx::query_scalar::<_, Option<Uuid>>(
+                    "SELECT id FROM synthbio.design_versions WHERE tenant_id = $1 AND id = $2",
+                )
+                .bind(tenant_id.as_uuid())
+                .bind(target_id)
+                .fetch_optional(&mut *tx)
+                .await
+                .map_err(|e| HelixError::dependency(format!("synthbio evidence target: {e}")))?
+                .is_some()
+            }
+            _ => true, // analysis: external reference, no local table
+        };
+        if !target_exists {
+            return Err(HelixError::not_found(format!("{target_kind} not found")));
+        }
+
+        let id = Uuid::now_v7();
+        let link: EvidenceLink = sqlx::query_as(
+            r#"
+            INSERT INTO synthbio.evidence_links
+                (id, tenant_id, claim_id, target_kind, target_id, support, note, created_at)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+            RETURNING id, tenant_id, claim_id, target_kind, target_id, support, note, created_at
+            "#,
+        )
+        .bind(id)
+        .bind(tenant_id.as_uuid())
+        .bind(claim_id)
+        .bind(target_kind)
+        .bind(target_id)
+        .bind(support)
+        .bind(note)
+        .bind(Utc::now())
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(|e| HelixError::dependency(format!("synthbio link evidence: {e}")))?;
+
+        self.add_edge(&mut tx, tenant_id, "claim", claim_id, target_kind, target_id, support)
+            .await?;
+        self.record_event(
+            &mut tx,
+            tenant_id,
+            "design",
+            design_id,
+            "evidence_linked",
+            actor,
+            serde_json::json!({"claim": claim_id, "support": support, "target_kind": target_kind}),
+        )
+        .await?;
+        tx.commit()
+            .await
+            .map_err(|e| HelixError::dependency(format!("synthbio evidence commit: {e}")))?;
+        Ok(link)
+    }
+
+    pub async fn list_claims(
+        &self,
+        tenant_id: TenantId,
+        design_id: Uuid,
+    ) -> HelixResult<Vec<ClaimDetail>> {
+        let claims: Vec<Claim> = sqlx::query_as(
+            "SELECT id, tenant_id, accession, design_id, statement, status, attested_by, attested_at, created_by, created_at, updated_at, deleted_at FROM synthbio.claims WHERE tenant_id = $1 AND design_id = $2 AND deleted_at IS NULL ORDER BY created_at DESC",
+        )
+        .bind(tenant_id.as_uuid())
+        .bind(design_id)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| HelixError::dependency(format!("synthbio list claims: {e}")))?;
+        let mut out = Vec::new();
+        for claim in claims {
+            let evidence: Vec<EvidenceLink> = sqlx::query_as(
+                "SELECT id, tenant_id, claim_id, target_kind, target_id, support, note, created_at FROM synthbio.evidence_links WHERE tenant_id = $1 AND claim_id = $2 ORDER BY created_at ASC",
+            )
+            .bind(tenant_id.as_uuid())
+            .bind(claim.id)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| HelixError::dependency(format!("synthbio claim evidence: {e}")))?;
+            out.push(ClaimDetail { claim, evidence });
+        }
+        Ok(out)
+    }
+
+    /// Human attestation: draft|under_review → accepted with a named
+    /// attester, single guarded UPDATE so a concurrent attestation loses.
+    pub async fn attest_claim(
+        &self,
+        tenant_id: TenantId,
+        claim_id: Uuid,
+        attestor: &str,
+    ) -> HelixResult<Claim> {
+        if attestor.trim().is_empty() {
+            return Err(HelixError::validation(
+                "a named human attester is required",
+            ));
+        }
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| HelixError::dependency(format!("synthbio attest tx: {e}")))?;
+        let row: Option<Claim> = sqlx::query_as(
+            r#"
+            UPDATE synthbio.claims
+            SET status = 'accepted', attested_by = $1, attested_at = $2, updated_at = $2
+            WHERE tenant_id = $3 AND id = $4 AND status IN ('draft','under_review') AND deleted_at IS NULL
+            RETURNING id, tenant_id, accession, design_id, statement, status, attested_by,
+                      attested_at, created_by, created_at, updated_at, deleted_at
+            "#,
+        )
+        .bind(attestor)
+        .bind(Utc::now())
+        .bind(tenant_id.as_uuid())
+        .bind(claim_id)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(|e| HelixError::dependency(format!("synthbio attest: {e}")))?;
+        let claim = row.ok_or_else(|| {
+            HelixError::conflict("claim already attested or not found")
+        })?;
+        self.record_event(
+            &mut tx,
+            tenant_id,
+            "design",
+            claim.design_id,
+            "claim_attested",
+            attestor,
+            serde_json::json!({"accession": claim.accession}),
+        )
+        .await?;
+        tx.commit()
+            .await
+            .map_err(|e| HelixError::dependency(format!("synthbio attest commit: {e}")))?;
+        Ok(claim)
+    }
+
+    /// Challenge a claim — it becomes `challenged` without erasing history.
+    pub async fn challenge_claim(
+        &self,
+        tenant_id: TenantId,
+        claim_id: Uuid,
+        reason: &str,
+        actor: &str,
+    ) -> HelixResult<Claim> {
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| HelixError::dependency(format!("synthbio challenge tx: {e}")))?;
+        let row: Option<Claim> = sqlx::query_as(
+            r#"
+            UPDATE synthbio.claims
+            SET status = 'challenged', updated_at = $1
+            WHERE tenant_id = $2 AND id = $3 AND status IN ('draft','under_review','accepted') AND deleted_at IS NULL
+            RETURNING id, tenant_id, accession, design_id, statement, status, attested_by,
+                      attested_at, created_by, created_at, updated_at, deleted_at
+            "#,
+        )
+        .bind(Utc::now())
+        .bind(tenant_id.as_uuid())
+        .bind(claim_id)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(|e| HelixError::dependency(format!("synthbio challenge: {e}")))?;
+        let claim = row.ok_or_else(|| {
+            HelixError::conflict("claim already challenged or not found")
+        })?;
+        self.record_event(
+            &mut tx,
+            tenant_id,
+            "design",
+            claim.design_id,
+            "claim_challenged",
+            actor,
+            serde_json::json!({"accession": claim.accession, "reason": reason}),
+        )
+        .await?;
+        tx.commit()
+            .await
+            .map_err(|e| HelixError::dependency(format!("synthbio challenge commit: {e}")))?;
+        Ok(claim)
+    }
+
+    // ——— ELN notes ———
+
+    /// Append an ELN note to a design (append-only, DB trigger).
+    pub async fn add_note(
+        &self,
+        tenant_id: TenantId,
+        design_id: Uuid,
+        body: &str,
+        actor: &str,
+    ) -> HelixResult<DesignNote> {
+        if body.trim().is_empty() {
+            return Err(HelixError::validation("note body required"));
+        }
+        let id = Uuid::now_v7();
+        let row: Option<DesignNote> = sqlx::query_as(
+            r#"
+            INSERT INTO synthbio.notes (id, tenant_id, design_id, body, created_by, created_at)
+            SELECT $1,$2,$3,$4,$5,$6
+            FROM synthbio.registry_designs d
+            WHERE d.tenant_id = $2 AND d.id = $3 AND d.deleted_at IS NULL
+            RETURNING id, tenant_id, design_id, body, created_by, created_at
+            "#,
+        )
+        .bind(id)
+        .bind(tenant_id.as_uuid())
+        .bind(design_id)
+        .bind(body)
+        .bind(actor)
+        .bind(Utc::now())
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| HelixError::dependency(format!("synthbio add note: {e}")))?;
+        row.ok_or_else(|| HelixError::not_found("design not found"))
+    }
+
+    pub async fn list_notes(
+        &self,
+        tenant_id: TenantId,
+        design_id: Uuid,
+    ) -> HelixResult<Vec<DesignNote>> {
+        let rows: Vec<DesignNote> = sqlx::query_as(
+            "SELECT id, tenant_id, design_id, body, created_by, created_at FROM synthbio.notes WHERE tenant_id = $1 AND design_id = $2 ORDER BY created_at DESC",
+        )
+        .bind(tenant_id.as_uuid())
+        .bind(design_id)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| HelixError::dependency(format!("synthbio list notes: {e}")))?;
+        Ok(rows)
+    }
+}
+
 impl RegistryRepo {
     /// Register an accessioned sample, optionally linked to a design — one tx.
     pub async fn register_sample(

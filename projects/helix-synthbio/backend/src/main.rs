@@ -1543,4 +1543,144 @@ ORIGIN
             .expect_err("accepted measurement is terminal");
         assert_eq!(err.code, shared_core::ErrorCode::Conflict);
     }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn claims_evidence_attest_challenge() {
+        let (state, _guard) = locked_state().await;
+        let tenant_id = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = helix_db::RegistryRepo::new(pool.clone());
+
+        let suffix = Uuid::now_v7().simple().to_string();
+        let design = repo
+            .create_design(
+                tenant_id,
+                &format!("pClaim-{suffix}"),
+                "",
+                "internal",
+                &registry_input("ACGTACGT"),
+                "tester",
+            )
+            .await
+            .expect("create design");
+        let sample = repo
+            .register_sample(tenant_id, &format!("cs-{suffix}"), "strain", None, "", "tester")
+            .await
+            .expect("register");
+        let measurement = repo
+            .record_measurement(
+                tenant_id,
+                &helix_db::MeasurementInput {
+                    sample_id: sample.id,
+                    design_version_id: None,
+                    kind: "absorbance".into(),
+                    method: "plate".into(),
+                    value: Some(1.0),
+                    unit: "AU".into(),
+                    uncertainty: None,
+                    raw: serde_json::json!({}),
+                },
+                "tester",
+            )
+            .await
+            .expect("record");
+
+        let claim = repo
+            .create_claim(
+                tenant_id,
+                design.id,
+                "The construct expresses demo enzyme at useful levels",
+                "tester",
+            )
+            .await
+            .expect("create claim");
+        assert!(claim.accession.starts_with("CLM-"));
+        assert_eq!(claim.status, "draft");
+
+        let link = repo
+            .link_evidence(
+                tenant_id,
+                claim.id,
+                "measurement",
+                measurement.id,
+                "supports",
+                "A1 well shows expression",
+                "tester",
+            )
+            .await
+            .expect("link evidence");
+        assert_eq!(link.support, "supports");
+
+        let err = repo
+            .link_evidence(
+                tenant_id,
+                claim.id,
+                "measurement",
+                Uuid::now_v7(),
+                "conflicts",
+                "",
+                "tester",
+            )
+            .await
+            .expect_err("missing target refused");
+        assert_eq!(err.code, shared_core::ErrorCode::NotFound);
+
+        // Evidence links are append-only: raw UPDATE rejected by trigger.
+        let err = sqlx::query("UPDATE synthbio.evidence_links SET note = 'x' WHERE id = $1")
+            .bind(link.id)
+            .execute(pool)
+            .await
+            .expect_err("immutable evidence trigger must reject UPDATE");
+        assert!(err.to_string().contains("immutable record"), "{err}");
+
+        // 8 racing attestations: exactly one wins.
+        let mut handles = Vec::new();
+        for _ in 0..8u32 {
+            let repo = repo.clone();
+            handles.push(tokio::spawn(async move {
+                repo.attest_claim(tenant_id, claim.id, "Dr. Ada PI").await
+            }));
+        }
+        let mut winners = 0usize;
+        let mut rejected = 0usize;
+        for h in handles {
+            match h.await.expect("attest task panicked") {
+                Ok(_) => winners += 1,
+                Err(e) if e.code == shared_core::ErrorCode::Conflict => rejected += 1,
+                Err(e) => panic!("unexpected attest error: {e}"),
+            }
+        }
+        assert_eq!(winners, 1, "exactly one racing attestation may win");
+        assert_eq!(rejected, 7, "all losers must conflict");
+
+        // Challenge after acceptance keeps history.
+        let challenged = repo
+            .challenge_claim(tenant_id, claim.id, "new conflicting plate", "tester")
+            .await
+            .expect("challenge");
+        assert_eq!(challenged.status, "challenged");
+        assert_eq!(challenged.attested_by.as_deref(), Some("Dr. Ada PI"));
+
+        let claims = repo.list_claims(tenant_id, design.id).await.expect("list");
+        assert_eq!(claims.len(), 1);
+        assert_eq!(claims[0].evidence.len(), 1);
+        assert_eq!(claims[0].claim.status, "challenged");
+
+        // ELN notes append-only.
+        repo.add_note(tenant_id, design.id, "first bench note", "tester")
+            .await
+            .expect("note");
+        let err = sqlx::query("UPDATE synthbio.notes SET body = 'edited' WHERE design_id = $1")
+            .bind(design.id)
+            .execute(pool)
+            .await
+            .expect_err("immutable notes trigger must reject UPDATE");
+        assert!(err.to_string().contains("immutable record"), "{err}");
+        let notes = repo.list_notes(tenant_id, design.id).await.expect("notes");
+        assert_eq!(notes.len(), 1);
+    }
 }

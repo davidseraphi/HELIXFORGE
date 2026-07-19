@@ -133,9 +133,10 @@ pub use synthbio::{
     SynthbioSummaryRow,
 };
 pub use synthbio_registry::{
-    Component, CustodyEvent, Design360, DesignVersion, EvidenceBundle, ImportManifest,
-    ImportRejected, LineageEdge, LineageEvent, Measurement, MeasurementInput, RegistryDesign,
-    RegistryRepo, ReviewDecision, RiskCase, Sample, SampleDetail, VersionInput,
+    Claim, ClaimDetail, Component, CustodyEvent, Design360, DesignNote, DesignVersion,
+    EvidenceBundle, EvidenceLink, ImportManifest, ImportRejected, LineageEdge, LineageEvent,
+    Measurement, MeasurementInput, RegistryDesign, RegistryRepo, ReviewDecision, RiskCase,
+    Sample, SampleDetail, VersionInput,
 };
 pub use tenants::{TenantRecord, TenantRepo, TenantStatus};
 pub use terra::{
