@@ -1,41 +1,41 @@
 # Next action
 
-## Active: HELIXQUANTUMFORGE-DURABILITY — sixteenth product through the gate
+## Latest: HELIXQUANTUMFORGE-DURABILITY closed — sixteenth product through the gate
 
-Prove the Foundation Integrity durability gate on HelixQuantum Forge:
-fresh crash, concurrency, and restore, verified locally and in CI.
-Sixteenth product (after `helix-collab`, `helix-capital`,
-`helix-commerce`, `helix-flow`, `helix-insights`, `helix-edu`,
-`helix-well`, `helix-network`, `helix-forge-studio`, `helix-synthbio`,
-`helix-lex-prime`, `helix-cura-prime`, `helix-terra-prime`,
-`helix-climate-prime`, `helix-orbit-prime`).
+HELIXQUANTUMFORGE-DURABILITY is complete. The implementation passed
+local verification and GitHub Actions run `29672764891` is all green,
+including the new **HelixQuantum Forge durability gate** job.
 
-Goal doc: `docs/goals/HELIXQUANTUMFORGE_DURABILITY.md`.
+- Repo: `crates/helix-db/src/quantum.rs` (atomic `create_child`
+  INSERT...SELECT; guarded `submit_job` / `transition_job` /
+  `validate_circuit` / `archive_circuit`)
+- Tests: `projects/helix-quantum-forge/backend/src/main.rs`
+  (`circuits_rejected_on_deleted_job`, `concurrent_submit_single_winner`)
+- Proof: `scripts/helix_quantum_forge_durability.ps1` (forced-kill +
+  restore)
+- CI: `.github/workflows/ci.yml` `quantum-durability` job
+- Docs: `docs/goals/HELIXQUANTUMFORGE_DURABILITY.md`, `DECISION_LOG.md`
 
-### Scope
+### What was delivered
 
-`create_child` checked the parent job in a separate SELECT before the
-circuit INSERT; `submit_job` counted circuits and checked draft status
-in separate statements from the UPDATE; complete/fail and
-validate/archive carry no expected-from status guard. This packet folds
-the guards into the writes and proves the gate.
+- non-deleted-parent guard enforced inside the circuit INSERT; a job
+  soft-deleted mid-flight can no longer leak circuits
+- submit is one guarded UPDATE (draft + not deleted + EXISTS circuit);
+  complete/fail and validate/archive carry expected-from status in the
+  WHERE
+- concurrency proof: 8 racing creates on a deleted job all rejected; 8
+  racing submits → exactly one winner
+- crash proof: acknowledged completed job survives a forced kill of the
+  API
+- restore proof: schema dump roundtrip with equal counts + content
+  hashes
+- `helix-quantum-forge` recorded in `durability_gate_proven_products`
 
-### Definition of done
+### Active goal
 
-1. `create_child` inserts with `INSERT ... SELECT` against a non-deleted
-   job — one statement.
-2. `submit_job` is a single guarded `UPDATE` (draft + not deleted +
-   `EXISTS` circuit).
-3. `transition_job`, `validate_circuit`, `archive_circuit` carry
-   expected-from status in the `WHERE`.
-4. Ignored tests `circuits_rejected_on_deleted_job` and
-   `concurrent_submit_single_winner` pass locally and in CI.
-5. `scripts/helix_quantum_forge_durability.ps1` proves lifecycle,
-   forced-kill survival, and schema restore roundtrip.
-6. `quantum-durability` CI job in `.github/workflows/ci.yml`.
-7. `cargo test --workspace --all-features` and
-   `cargo clippy --workspace --all-targets -- -D warnings` clean.
+None. HELIXQUANTUMFORGE-DURABILITY is closed.
 
 ### Next action
 
-Push the implementation and watch CI to green.
+Founder selects the next explicit named goal. Open: durability gates for
+the remaining 5 products.

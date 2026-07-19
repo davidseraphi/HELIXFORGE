@@ -1,5 +1,47 @@
 # Decision log (append-only)
 
+## 2026-07-19 — HELIXQUANTUMFORGE-DURABILITY closed; sixteenth product through the gate
+
+- Completed the HelixQuantum Forge durability-gate packet
+  (`helix-quantum-forge` added to `durability_gate_proven_products`):
+  - **Check-then-insert window closed:** `QuantumRepo::create_child` now
+    enforces the non-deleted parent job condition inside the INSERT
+    itself (`INSERT ... SELECT`), so a job soft-deleted in between can
+    no longer leak circuits (`crates/helix-db/src/quantum.rs`).
+  - **Guarded transitions:** `submit_job` is a single guarded `UPDATE`
+    requiring `status = 'draft'`, not deleted, and `EXISTS` at least one
+    non-deleted circuit; the job `transition_job` and
+    `validate_circuit` / `archive_circuit` carry their expected-from
+    status in the `WHERE` — a concurrent transition now loses with a
+    conflict instead of overwriting.
+  - New ignored Postgres integration tests:
+    `circuits_rejected_on_deleted_job` (after soft-deleting a job, 8
+    concurrent circuit creates all rejected; no circuit leaks in) and
+    `concurrent_submit_single_winner` (8 racing submits of one draft job
+    → exactly one success, 7 rejected, job ends submitted).
+  - `scripts/helix_quantum_forge_durability.ps1` proves:
+    job/circuit/submit/complete lifecycle; an acknowledged completed job
+    surviving an immediate forced kill of the API (status, completed_at,
+    and circuit fully present after restart); and a `quantum` schema
+    `pg_dump` roundtrip into a scratch database with equal job/circuit
+    counts and equal content hashes.
+  - `quantum-durability` CI job running the ignored integration tests
+    and the proof script.
+- Verification:
+  - `cargo fmt --all -- --check` clean.
+  - `cargo clippy --workspace --all-targets -- -D warnings` clean.
+  - `cargo test --workspace --all-features` clean.
+  - Race proofs pass against live Postgres; durability script passes
+    locally (Windows) and in CI (ubuntu).
+  - GitHub Actions run `29672764891` is all green, including the new
+    **HelixQuantum Forge durability gate** job and all 19 product smoke
+    jobs.
+- Commits `7b188b4` (activation) and `9f2d972` (implementation) pushed to
+  `main`.
+- `PROJECT_STATE.json` and `NEXT_ACTION.md` updated;
+  `helix-quantum-forge` recorded in `durability_gate_proven_products`.
+- Next action: founder selects the next explicit named goal.
+
 ## 2026-07-19 — HELIXORBITPRIME-DURABILITY closed; fifteenth product through the gate
 
 - Completed the HelixOrbit Prime durability-gate packet
