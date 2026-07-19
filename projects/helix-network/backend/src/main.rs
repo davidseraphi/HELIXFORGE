@@ -870,9 +870,10 @@ mod tests {
         let pool = state.clients.db.as_ref().expect("Postgres required");
         let repo = NetworkRepo::new(pool.clone());
 
-        let alice_user = dev_user("net-alice");
-        let bob_user = dev_user("net-bob");
-        let carol_user = dev_user("net-carol");
+        let run_suffix = Uuid::now_v7().simple().to_string();
+        let alice_user = dev_user(&format!("net-alice-{run_suffix}"));
+        let bob_user = dev_user(&format!("net-bob-{run_suffix}"));
+        let carol_user = dev_user(&format!("net-carol-{run_suffix}"));
 
         let alice = repo
             .create_profile(
@@ -1133,5 +1134,143 @@ mod tests {
             .expect("restore bob");
         assert_eq!(restored_bob.status, "active");
         assert!(restored_bob.deleted_at.is_none());
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn concurrent_accepts_single_winner() {
+        let (state, _guard) = locked_state().await;
+        let tenant_id = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = NetworkRepo::new(pool.clone());
+
+        let suffix_a = Uuid::now_v7().simple().to_string();
+        let alice = repo
+            .create_profile(
+                tenant_id,
+                dev_user(&format!("accept-alice-{suffix_a}")),
+                "Accept Alice",
+                "",
+                "",
+                serde_json::json!([]),
+                "",
+                serde_json::json!({}),
+            )
+            .await
+            .expect("create alice");
+        let bob = repo
+            .create_profile(
+                tenant_id,
+                dev_user(&format!("accept-bob-{suffix_a}")),
+                "Accept Bob",
+                "",
+                "",
+                serde_json::json!([]),
+                "",
+                serde_json::json!({}),
+            )
+            .await
+            .expect("create bob");
+        let conn = repo
+            .request_connection(tenant_id, alice.id, bob.id, "hi")
+            .await
+            .expect("request");
+
+        // 8 racing accepts by the receiver.
+        let mut handles = Vec::new();
+        for _ in 0..8u32 {
+            let repo = repo.clone();
+            handles.push(tokio::spawn(async move {
+                repo.accept_connection(tenant_id, conn.id, bob.id).await
+            }));
+        }
+        let mut winners = 0usize;
+        let mut rejected = 0usize;
+        for h in handles {
+            match h.await.expect("accept task panicked") {
+                Ok(_) => winners += 1,
+                Err(e) if e.code == shared_core::ErrorCode::NotFound => rejected += 1,
+                Err(e) => panic!("unexpected accept error: {e}"),
+            }
+        }
+        assert_eq!(winners, 1, "exactly one racing accept may win");
+        assert_eq!(rejected, 7, "all losers must be rejected");
+
+        let accepted = repo
+            .get_connection(tenant_id, conn.id)
+            .await
+            .expect("get connection")
+            .expect("connection exists");
+        assert_eq!(accepted.status, "accepted");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn concurrent_requests_same_pair() {
+        let (state, _guard) = locked_state().await;
+        let tenant_id = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = NetworkRepo::new(pool.clone());
+
+        let suffix_r = Uuid::now_v7().simple().to_string();
+        let alice = repo
+            .create_profile(
+                tenant_id,
+                dev_user(&format!("req-alice-{suffix_r}")),
+                "Req Alice",
+                "",
+                "",
+                serde_json::json!([]),
+                "",
+                serde_json::json!({}),
+            )
+            .await
+            .expect("create alice");
+        let bob = repo
+            .create_profile(
+                tenant_id,
+                dev_user(&format!("req-bob-{suffix_r}")),
+                "Req Bob",
+                "",
+                "",
+                serde_json::json!([]),
+                "",
+                serde_json::json!({}),
+            )
+            .await
+            .expect("create bob");
+
+        // 8 racing requests for the same ordered pair.
+        let mut handles = Vec::new();
+        for _ in 0..8u32 {
+            let repo = repo.clone();
+            handles.push(tokio::spawn(async move {
+                repo.request_connection(tenant_id, alice.id, bob.id, "race")
+                    .await
+            }));
+        }
+        let mut winners = 0usize;
+        let mut conflicts = 0usize;
+        for h in handles {
+            match h.await.expect("request task panicked") {
+                Ok(_) => winners += 1,
+                Err(e) if e.code == shared_core::ErrorCode::Conflict => conflicts += 1,
+                Err(e) => panic!("unexpected request error: {e}"),
+            }
+        }
+        assert_eq!(winners, 1, "exactly one racing request may win");
+        assert_eq!(conflicts, 7, "all losers must get Conflict");
+
+        let conns = repo
+            .list_connections(tenant_id, Some(alice.id))
+            .await
+            .expect("list connections");
+        assert_eq!(conns.len(), 1, "exactly one connection row exists");
     }
 }

@@ -615,6 +615,8 @@ impl NetworkRepo {
 
     /// Request a connection. A declined or removed ordered pair is revived back
     /// to pending; a pair with a `blocked` row in either direction is rejected.
+    /// Profile checks, blocked-pair check, and the insert/revive run in one
+    /// transaction with the profile rows locked — no check-then-act window.
     pub async fn request_connection(
         &self,
         tenant_id: TenantId,
@@ -625,14 +627,37 @@ impl NetworkRepo {
         if from_profile_id == to_profile_id {
             return Err(HelixError::validation("cannot connect to yourself"));
         }
-        let from = self
-            .get_profile(tenant_id, from_profile_id)
-            .await?
+
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| HelixError::dependency(format!("network request tx: {e}")))?;
+
+        let from: Option<ProfileRow> = sqlx::query_as(&format!(
+            "{PROFILE_SELECT} WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL FOR UPDATE"
+        ))
+        .bind(tenant_id.as_uuid())
+        .bind(from_profile_id)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(|e| HelixError::dependency(format!("network lock from profile: {e}")))?;
+        let from = from
+            .map(ProfileRow::into_profile)
             .ok_or_else(|| HelixError::not_found("from profile not found"))?;
-        let to = self
-            .get_profile(tenant_id, to_profile_id)
-            .await?
+
+        let to: Option<ProfileRow> = sqlx::query_as(&format!(
+            "{PROFILE_SELECT} WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL FOR UPDATE"
+        ))
+        .bind(tenant_id.as_uuid())
+        .bind(to_profile_id)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(|e| HelixError::dependency(format!("network lock to profile: {e}")))?;
+        let to = to
+            .map(ProfileRow::into_profile)
             .ok_or_else(|| HelixError::not_found("to profile not found"))?;
+
         if from.status != "active" || to.status != "active" {
             return Err(HelixError::validation(
                 "both profiles must be active to connect",
@@ -650,7 +675,7 @@ impl NetworkRepo {
         .bind(tenant_id.as_uuid())
         .bind(from_profile_id)
         .bind(to_profile_id)
-        .fetch_one(&self.pool)
+        .fetch_one(&mut *tx)
         .await
         .map_err(|e| HelixError::dependency(format!("network blocked-pair check: {e}")))?;
         if blocked > 0 {
@@ -660,12 +685,12 @@ impl NetworkRepo {
         }
 
         let existing: Option<ConnectionRow> = sqlx::query_as(&format!(
-            "{CONNECTION_SELECT} WHERE tenant_id = $1 AND from_profile_id = $2 AND to_profile_id = $3"
+            "{CONNECTION_SELECT} WHERE tenant_id = $1 AND from_profile_id = $2 AND to_profile_id = $3 FOR UPDATE"
         ))
         .bind(tenant_id.as_uuid())
         .bind(from_profile_id)
         .bind(to_profile_id)
-        .fetch_optional(&self.pool)
+        .fetch_optional(&mut *tx)
         .await
         .map_err(|e| HelixError::dependency(format!("network connection lookup: {e}")))?;
 
@@ -687,12 +712,16 @@ impl NetworkRepo {
                 .bind(now)
                 .bind(tenant_id.as_uuid())
                 .bind(conn.id)
-                .fetch_optional(&self.pool)
+                .fetch_optional(&mut *tx)
                 .await
                 .map_err(|e| HelixError::dependency(format!("network revive connection: {e}")))?;
-                return revived
+                let out = revived
                     .map(ConnectionRow::into_connection)
-                    .ok_or_else(|| HelixError::not_found("connection not found"));
+                    .ok_or_else(|| HelixError::not_found("connection not found"))?;
+                tx.commit()
+                    .await
+                    .map_err(|e| HelixError::dependency(format!("network revive commit: {e}")))?;
+                return Ok(out);
             }
             return Err(match status.as_str() {
                 "pending" => HelixError::conflict("connection already requested"),
@@ -717,7 +746,7 @@ impl NetworkRepo {
         .bind(to_profile_id)
         .bind(message)
         .bind(created_at)
-        .fetch_one(&self.pool)
+        .fetch_one(&mut *tx)
         .await
         .map_err(|e| {
             let msg = e.to_string();
@@ -727,7 +756,11 @@ impl NetworkRepo {
                 HelixError::dependency(format!("network request connection: {e}"))
             }
         })?;
-        Ok(row.into_connection())
+        let out = row.into_connection();
+        tx.commit()
+            .await
+            .map_err(|e| HelixError::dependency(format!("network request commit: {e}")))?;
+        Ok(out)
     }
 
     pub async fn accept_connection(
