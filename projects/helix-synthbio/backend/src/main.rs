@@ -1387,9 +1387,15 @@ ORIGIN
         for i in 0..8u32 {
             let repo = repo.clone();
             handles.push(tokio::spawn(async move {
-                repo
-                    .custody_event(tenant_id, sample.id, "transfer", &format!("loc-{i}"), "tester", "")
-                    .await
+                repo.custody_event(
+                    tenant_id,
+                    sample.id,
+                    "transfer",
+                    &format!("loc-{i}"),
+                    "tester",
+                    "",
+                )
+                .await
             }));
         }
         let mut oks = 0usize;
@@ -1489,7 +1495,14 @@ ORIGIN
 
         // Deleted samples leak nothing.
         let doomed = repo
-            .register_sample(tenant_id, &format!("doomed-{suffix}"), "oligo", None, "", "tester")
+            .register_sample(
+                tenant_id,
+                &format!("doomed-{suffix}"),
+                "oligo",
+                None,
+                "",
+                "tester",
+            )
             .await
             .expect("register doomed");
         sqlx::query("UPDATE synthbio.samples SET deleted_at = now() WHERE id = $1")
@@ -1568,7 +1581,14 @@ ORIGIN
             .await
             .expect("create design");
         let sample = repo
-            .register_sample(tenant_id, &format!("cs-{suffix}"), "strain", None, "", "tester")
+            .register_sample(
+                tenant_id,
+                &format!("cs-{suffix}"),
+                "strain",
+                None,
+                "",
+                "tester",
+            )
             .await
             .expect("register");
         let measurement = repo

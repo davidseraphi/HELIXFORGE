@@ -42,10 +42,7 @@ pub fn routes() -> Router<AppState> {
         .route("/v1/measurements/{id}/accept", post(accept_measurement))
         .route("/v1/measurements/{id}/reject", post(reject_measurement))
         .route("/v1/claims", post(create_claim))
-        .route(
-            "/v1/registry/designs/{id}/claims",
-            get(list_claims),
-        )
+        .route("/v1/registry/designs/{id}/claims", get(list_claims))
         .route("/v1/claims/{id}/evidence", post(link_evidence))
         .route("/v1/claims/{id}/attest", post(attest_claim))
         .route("/v1/claims/{id}/challenge", post(challenge_claim))
@@ -465,7 +462,14 @@ async fn custody_event(
     let repo = RegistryRepo::new(pool);
     let actor = actor(&p);
     let sample = repo
-        .custody_event(p.tenant_id, id, &body.event, &body.to_location, &actor, &body.notes)
+        .custody_event(
+            p.tenant_id,
+            id,
+            &body.event,
+            &body.to_location,
+            &actor,
+            &body.notes,
+        )
         .await?;
     audit(
         &state,
@@ -608,7 +612,11 @@ async fn verdict_measurement(
     p.require_scope(shared_core::tenancy::Scope::Write)?;
     let pool = require_pool(&state)?;
     let repo = RegistryRepo::new(pool);
-    let who = if analyst.is_empty() { actor(&p) } else { analyst };
+    let who = if analyst.is_empty() {
+        actor(&p)
+    } else {
+        analyst
+    };
     let m = repo
         .transition_measurement(p.tenant_id, id, action, &who)
         .await?;
@@ -729,9 +737,7 @@ async fn attest_claim(
     p.require_scope(shared_core::tenancy::Scope::Write)?;
     let pool = require_pool(&state)?;
     let repo = RegistryRepo::new(pool);
-    let claim = repo
-        .attest_claim(p.tenant_id, id, &body.attestor)
-        .await?;
+    let claim = repo.attest_claim(p.tenant_id, id, &body.attestor).await?;
     audit(
         &state,
         &p,

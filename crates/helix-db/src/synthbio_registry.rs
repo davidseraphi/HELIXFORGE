@@ -1296,11 +1296,27 @@ impl RegistryRepo {
         .map_err(|e| HelixError::dependency(format!("synthbio record measurement: {e}")))?;
         let m = row.ok_or_else(|| HelixError::not_found("sample not found"))?;
 
-        self.add_edge(&mut tx, tenant_id, "sample", input.sample_id, "measurement", id, "measured")
-            .await?;
+        self.add_edge(
+            &mut tx,
+            tenant_id,
+            "sample",
+            input.sample_id,
+            "measurement",
+            id,
+            "measured",
+        )
+        .await?;
         if let Some(dv) = input.design_version_id {
-            self.add_edge(&mut tx, tenant_id, "design_version", dv, "measurement", id, "characterizes")
-                .await?;
+            self.add_edge(
+                &mut tx,
+                tenant_id,
+                "design_version",
+                dv,
+                "measurement",
+                id,
+                "characterizes",
+            )
+            .await?;
         }
         self.record_event(
             &mut tx,
@@ -1352,11 +1368,10 @@ impl RegistryRepo {
                 )))
             }
         };
-        let mut tx = self
-            .pool
-            .begin()
-            .await
-            .map_err(|e| HelixError::dependency(format!("synthbio measure transition tx: {e}")))?;
+        let mut tx =
+            self.pool.begin().await.map_err(|e| {
+                HelixError::dependency(format!("synthbio measure transition tx: {e}"))
+            })?;
         let row: Option<Measurement> = sqlx::query_as(
             r#"
             UPDATE synthbio.measurements
@@ -1375,9 +1390,8 @@ impl RegistryRepo {
         .fetch_optional(&mut *tx)
         .await
         .map_err(|e| HelixError::dependency(format!("synthbio measure transition: {e}")))?;
-        let m = row.ok_or_else(|| {
-            HelixError::conflict("measurement already decided or not found")
-        })?;
+        let m =
+            row.ok_or_else(|| HelixError::conflict("measurement already decided or not found"))?;
         self.record_event(
             &mut tx,
             tenant_id,
@@ -1388,9 +1402,9 @@ impl RegistryRepo {
             serde_json::json!({"accession": m.accession}),
         )
         .await?;
-        tx.commit()
-            .await
-            .map_err(|e| HelixError::dependency(format!("synthbio measure transition commit: {e}")))?;
+        tx.commit().await.map_err(|e| {
+            HelixError::dependency(format!("synthbio measure transition commit: {e}"))
+        })?;
         Ok(m)
     }
 }
@@ -1489,8 +1503,10 @@ impl RegistryRepo {
         .map_err(|e| HelixError::dependency(format!("synthbio create claim: {e}")))?;
         let claim = row.ok_or_else(|| HelixError::not_found("design not found"))?;
 
-        self.add_edge(&mut tx, tenant_id, "claim", id, "design", design_id, "about")
-            .await?;
+        self.add_edge(
+            &mut tx, tenant_id, "claim", id, "design", design_id, "about",
+        )
+        .await?;
         self.record_event(
             &mut tx,
             tenant_id,
@@ -1596,8 +1612,16 @@ impl RegistryRepo {
         .await
         .map_err(|e| HelixError::dependency(format!("synthbio link evidence: {e}")))?;
 
-        self.add_edge(&mut tx, tenant_id, "claim", claim_id, target_kind, target_id, support)
-            .await?;
+        self.add_edge(
+            &mut tx,
+            tenant_id,
+            "claim",
+            claim_id,
+            target_kind,
+            target_id,
+            support,
+        )
+        .await?;
         self.record_event(
             &mut tx,
             tenant_id,
@@ -1651,9 +1675,7 @@ impl RegistryRepo {
         attestor: &str,
     ) -> HelixResult<Claim> {
         if attestor.trim().is_empty() {
-            return Err(HelixError::validation(
-                "a named human attester is required",
-            ));
+            return Err(HelixError::validation("a named human attester is required"));
         }
         let mut tx = self
             .pool
@@ -1676,9 +1698,8 @@ impl RegistryRepo {
         .fetch_optional(&mut *tx)
         .await
         .map_err(|e| HelixError::dependency(format!("synthbio attest: {e}")))?;
-        let claim = row.ok_or_else(|| {
-            HelixError::conflict("claim already attested or not found")
-        })?;
+        let claim =
+            row.ok_or_else(|| HelixError::conflict("claim already attested or not found"))?;
         self.record_event(
             &mut tx,
             tenant_id,
@@ -1723,9 +1744,8 @@ impl RegistryRepo {
         .fetch_optional(&mut *tx)
         .await
         .map_err(|e| HelixError::dependency(format!("synthbio challenge: {e}")))?;
-        let claim = row.ok_or_else(|| {
-            HelixError::conflict("claim already challenged or not found")
-        })?;
+        let claim =
+            row.ok_or_else(|| HelixError::conflict("claim already challenged or not found"))?;
         self.record_event(
             &mut tx,
             tenant_id,
@@ -1862,7 +1882,14 @@ impl RegistryRepo {
                 .await?;
         }
         self.append_custody(
-            &mut tx, tenant_id, id, "register", "", location, actor, "registered",
+            &mut tx,
+            tenant_id,
+            id,
+            "register",
+            "",
+            location,
+            actor,
+            "registered",
         )
         .await?;
         self.record_event(
@@ -2188,6 +2215,16 @@ impl RegistryRepo {
             .map_err(|e| HelixError::dependency(format!("synthbio sign tx: {e}")))?;
 
         // Resolve what is being signed (hash + owner design for the event).
+        #[derive(sqlx::FromRow)]
+        struct SignableCase {
+            state: String,
+            reviewer: Option<String>,
+            policy_version: String,
+            reasons: JsonValue,
+            decided_at: Option<DateTime<Utc>>,
+            locked_at: Option<DateTime<Utc>>,
+            design_id: Uuid,
+        }
         let (content_hash, owner_design): (String, Uuid) = match target_kind {
             "design_version" => {
                 let row: Option<(String, Uuid)> = sqlx::query_as(
@@ -2201,33 +2238,33 @@ impl RegistryRepo {
                 row.ok_or_else(|| HelixError::not_found("design version not found"))?
             }
             _ => {
-                let row: Option<(String, Option<String>, String, JsonValue, Option<DateTime<Utc>>, Option<DateTime<Utc>>, Uuid)> =
-                    sqlx::query_as(
-                        "SELECT state, reviewer, policy_version, reasons, decided_at, locked_at, design_id FROM synthbio.risk_cases WHERE tenant_id = $1 AND id = $2",
-                    )
-                    .bind(tenant_id.as_uuid())
-                    .bind(target_id)
-                    .fetch_optional(&mut *tx)
-                    .await
-                    .map_err(|e| HelixError::dependency(format!("synthbio sign case: {e}")))?;
-                let (state, reviewer, policy, reasons, decided_at, locked_at, design_id) =
-                    row.ok_or_else(|| HelixError::not_found("risk case not found"))?;
-                if locked_at.is_some() {
+                let row: Option<SignableCase> = sqlx::query_as(
+                    "SELECT state, reviewer, policy_version, reasons, decided_at, locked_at, design_id FROM synthbio.risk_cases WHERE tenant_id = $1 AND id = $2",
+                )
+                .bind(tenant_id.as_uuid())
+                .bind(target_id)
+                .fetch_optional(&mut *tx)
+                .await
+                .map_err(|e| HelixError::dependency(format!("synthbio sign case: {e}")))?;
+                let case = row.ok_or_else(|| HelixError::not_found("risk case not found"))?;
+                if case.locked_at.is_some() {
                     return Err(HelixError::conflict(
                         "risk decision is already signed and locked",
                     ));
                 }
-                if decided_at.is_none() || state == "unknown" {
+                if case.decided_at.is_none() || case.state == "unknown" {
                     return Err(HelixError::validation(
                         "an undecided risk case cannot be signed",
                     ));
                 }
                 let hash = sha256_hex(&format!(
-                    "{state}|{}|{policy}|{}",
-                    reviewer.unwrap_or_default(),
-                    serde_json::to_string(&reasons).unwrap_or_default()
+                    "{}|{}|{}|{}",
+                    case.state,
+                    case.reviewer.unwrap_or_default(),
+                    case.policy_version,
+                    serde_json::to_string(&case.reasons).unwrap_or_default()
                 ));
-                (hash, design_id)
+                (hash, case.design_id)
             }
         };
 
