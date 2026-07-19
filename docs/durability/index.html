@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HelixGate — Durability Observatory</title>
+<style>
+  :root {
+    --bg: #07070d;
+    --panel: rgba(255,255,255,.028);
+    --panel-2: rgba(255,255,255,.05);
+    --line: rgba(255,255,255,.08);
+    --line-hot: rgba(52,211,153,.55);
+    --text: #e8eaf0;
+    --muted: #8b93a7;
+    --dim: #5b6274;
+    --green: #34d399;
+    --green-deep: #059669;
+    --cyan: #22d3ee;
+    --gold: #fbbf24;
+    --violet: #a78bfa;
+    --mono: "SFMono-Regular", "Cascadia Code", Consolas, "JetBrains Mono", monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  ::selection { background: rgba(52,211,153,.25); }
+
+  /* ——— backdrop ——— */
+  #helix-canvas {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  }
+  .glow {
+    position: fixed; z-index: 0; pointer-events: none; border-radius: 50%;
+    filter: blur(120px); opacity: .16;
+  }
+  .glow.a { width: 640px; height: 640px; background: #059669; top: -260px; right: -160px; }
+  .glow.b { width: 520px; height: 520px; background: #0e7490; bottom: -220px; left: -180px; }
+  .grid-overlay {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background-image:
+      linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+    background-size: 56px 56px;
+    mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, black 30%, transparent 75%);
+  }
+
+  main { position: relative; z-index: 1; max-width: 1240px; margin: 0 auto; padding: 0 32px 96px; }
+
+  /* ——— topbar ——— */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 22px 0; border-bottom: 1px solid var(--line);
+  }
+  .mark { display: flex; align-items: center; gap: 12px; }
+  .mark-glyph {
+    width: 30px; height: 30px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--green-deep), var(--cyan));
+    display: grid; place-items: center;
+    font-weight: 800; font-size: 15px; color: #04110b;
+    box-shadow: 0 0 24px rgba(52,211,153,.35);
+  }
+  .mark-name { font-weight: 700; letter-spacing: .14em; font-size: 13px; }
+  .mark-sub { color: var(--dim); font-size: 11px; letter-spacing: .22em; text-transform: uppercase; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    border: 1px solid rgba(52,211,153,.35); background: rgba(52,211,153,.08);
+    color: var(--green); font-size: 12px; font-weight: 600; letter-spacing: .06em;
+    padding: 7px 14px; border-radius: 999px; text-transform: uppercase;
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green);
+    box-shadow: 0 0 0 0 rgba(52,211,153,.6); animation: pulse 2s infinite; }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(52,211,153,.55); }
+    70% { box-shadow: 0 0 0 9px rgba(52,211,153,0); }
+    100% { box-shadow: 0 0 0 0 rgba(52,211,153,0); }
+  }
+
+  /* ——— hero ——— */
+  .hero { padding: 84px 0 56px; }
+  .hero-kicker {
+    color: var(--cyan); font-size: 12px; font-weight: 600; letter-spacing: .3em;
+    text-transform: uppercase; margin-bottom: 18px;
+    animation: rise .6s cubic-bezier(.2,.7,.2,1) both;
+  }
+  .hero h1 {
+    font-size: clamp(44px, 7vw, 88px); line-height: .98; font-weight: 800;
+    letter-spacing: -.03em; margin-bottom: 22px;
+    animation: rise .6s .06s cubic-bezier(.2,.7,.2,1) both;
+  }
+  .hero h1 .grad {
+    background: linear-gradient(92deg, var(--green) 10%, var(--cyan) 85%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .counter {
+    font-variant-numeric: tabular-nums;
+    font-size: clamp(64px, 11vw, 148px); font-weight: 800; letter-spacing: -.04em;
+    line-height: 1; margin: 10px 0 6px;
+    animation: rise .55s .12s cubic-bezier(.2,.7,.2,1) both;
+  }
+  .counter .of { color: var(--dim); font-size: .42em; font-weight: 600; letter-spacing: 0; }
+  .hero-line {
+    color: var(--muted); font-size: clamp(15px, 1.6vw, 19px); max-width: 640px; line-height: 1.55;
+    animation: rise .6s .18s cubic-bezier(.2,.7,.2,1) both;
+  }
+  .hero-line b { color: var(--text); font-weight: 600; }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ——— stats ——— */
+  .stats {
+    display: grid; grid-template-columns: repeat(6, 1fr); gap: 1px;
+    background: var(--line); border: 1px solid var(--line); border-radius: 16px;
+    overflow: hidden; margin: 44px 0 72px;
+    animation: rise .6s .24s cubic-bezier(.2,.7,.2,1) both;
+  }
+  .stat { background: #0a0b12; padding: 22px 18px; }
+  .stat-v {
+    font-size: 30px; font-weight: 800; letter-spacing: -.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-v em { font-style: normal; color: var(--green); }
+  .stat-l { color: var(--dim); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; margin-top: 6px; }
+
+  /* ——— section heads ——— */
+  .sec { margin-bottom: 76px; }
+  .sec-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 26px; }
+  .sec-head h2 { font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
+  .sec-head span { color: var(--dim); font-size: 12px; letter-spacing: .16em; text-transform: uppercase; }
+
+  /* ——— ritual ——— */
+  .ritual { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .step {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+    padding: 22px 20px; position: relative; overflow: hidden;
+    transition: border-color .25s, transform .25s;
+  }
+  .step:hover { border-color: rgba(34,211,238,.4); transform: translateY(-2px); }
+  .step-num {
+    font-family: var(--mono); color: var(--cyan); font-size: 11px; letter-spacing: .2em; margin-bottom: 12px;
+  }
+  .step h3 { font-size: 15px; font-weight: 700; margin-bottom: 7px; }
+  .step p { color: var(--muted); font-size: 13px; line-height: 1.5; }
+
+  /* ——— gate wall ——— */
+  .wall { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .tile {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+    padding: 18px 18px 16px; position: relative;
+    opacity: 0; transform: translateY(14px);
+    animation: tile-in .5s cubic-bezier(.2,.7,.2,1) forwards;
+    transition: border-color .22s, transform .22s, box-shadow .22s, background .22s;
+  }
+  @keyframes tile-in { to { opacity: 1; transform: translateY(0); } }
+  .tile:hover {
+    border-color: var(--line-hot); transform: translateY(-3px);
+    box-shadow: 0 12px 40px -12px rgba(52,211,153,.22);
+    background: var(--panel-2);
+  }
+  .tile-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .tile-num { font-family: var(--mono); color: var(--dim); font-size: 11px; letter-spacing: .14em; }
+  .tile-check {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: rgba(52,211,153,.14); border: 1px solid rgba(52,211,153,.4);
+    display: grid; place-items: center; flex: none;
+  }
+  .tile-check svg { width: 11px; height: 11px; stroke: var(--green); stroke-width: 3; fill: none; }
+  .tile h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; letter-spacing: -.01em; }
+  .tile-fix { color: var(--muted); font-size: 12.5px; line-height: 1.45; min-height: 36px; }
+  .tile-foot {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line);
+  }
+  .tag {
+    font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--cyan); border: 1px solid rgba(34,211,238,.3); background: rgba(34,211,238,.07);
+    padding: 3px 8px; border-radius: 5px; white-space: nowrap;
+  }
+  .tag.gold { color: var(--gold); border-color: rgba(251,191,36,.3); background: rgba(251,191,36,.07); }
+  .tag.violet { color: var(--violet); border-color: rgba(167,139,250,.3); background: rgba(167,139,250,.07); }
+  .run {
+    font-family: var(--mono); font-size: 11px; color: var(--dim); text-decoration: none;
+    transition: color .2s;
+  }
+  .run:hover { color: var(--green); }
+  .run::after { content: "↗"; margin-left: 4px; }
+
+  /* ——— trophies ——— */
+  .trophies { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+  .trophy {
+    background: linear-gradient(180deg, rgba(251,191,36,.055), rgba(251,191,36,.015));
+    border: 1px solid rgba(251,191,36,.18); border-radius: 14px; padding: 20px 18px;
+    transition: border-color .25s, transform .25s;
+  }
+  .trophy:hover { border-color: rgba(251,191,36,.45); transform: translateY(-2px); }
+  .trophy-glyph { font-size: 19px; margin-bottom: 12px; }
+  .trophy h4 { font-size: 13.5px; font-weight: 700; margin-bottom: 7px; line-height: 1.35; }
+  .trophy p { color: var(--muted); font-size: 12px; line-height: 1.5; }
+
+  /* ——— timeline ——— */
+  .log { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--panel); }
+  .log-row {
+    display: grid; grid-template-columns: 34px 1fr auto auto; align-items: center; gap: 14px;
+    padding: 11px 18px; border-bottom: 1px solid var(--line);
+    font-size: 13px; transition: background .15s;
+  }
+  .log-row:last-child { border-bottom: none; }
+  .log-row:hover { background: rgba(255,255,255,.03); }
+  .log-check { color: var(--green); font-weight: 700; font-size: 13px; }
+  .log-name { font-weight: 600; }
+  .log-name span { color: var(--dim); font-weight: 400; margin-left: 10px; font-size: 12px; }
+  .log-tag { font-family: var(--mono); font-size: 10px; color: var(--cyan); letter-spacing: .1em; text-transform: uppercase; }
+  .log-run { font-family: var(--mono); font-size: 11.5px; color: var(--dim); text-decoration: none; }
+  .log-run:hover { color: var(--green); }
+
+  footer {
+    margin-top: 80px; padding-top: 26px; border-top: 1px solid var(--line);
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+    color: var(--dim); font-size: 12px; font-family: var(--mono);
+  }
+  footer b { color: var(--muted); font-weight: 500; }
+
+  @media (max-width: 1080px) {
+    .wall { grid-template-columns: repeat(2, 1fr); }
+    .stats { grid-template-columns: repeat(3, 1fr); }
+    .trophies { grid-template-columns: repeat(3, 1fr); }
+    .ritual { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 680px) {
+    .wall, .trophies, .ritual { grid-template-columns: 1fr; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .log-row { grid-template-columns: 24px 1fr auto; }
+    .log-tag { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<canvas id="helix-canvas"></canvas>
+<div class="glow a"></div>
+<div class="glow b"></div>
+<div class="grid-overlay"></div>
+
+<main>
+  <div class="topbar">
+    <div class="mark">
+      <div class="mark-glyph">H</div>
+      <div>
+        <div class="mark-name">HELIXGATE</div>
+        <div class="mark-sub">Durability Observatory</div>
+      </div>
+    </div>
+    <div class="pill"><span class="dot"></span>All systems gate-proven</div>
+  </div>
+
+  <section class="hero">
+    <div class="hero-kicker">Foundation Integrity · Durability Gate Program</div>
+    <h1>Every write survives<br><span class="grad">its own crash.</span></h1>
+    <div class="counter"><span id="counter">0</span><span class="of"> / 21</span></div>
+    <p class="hero-line">
+      <b>21 products. One gate.</b> Each one raced 8 writers against itself,
+      was killed mid-acknowledgement, dumped and restored row-for-row —
+      and came back green, locally and in CI. This is the proof wall.
+    </p>
+  </section>
+
+  <section class="stats" id="stats">
+    <div class="stat"><div class="stat-v" data-count="21">0</div><div class="stat-l">products gated</div></div>
+    <div class="stat"><div class="stat-v" data-count="44">0</div><div class="stat-l">race proofs</div></div>
+    <div class="stat"><div class="stat-v" data-count="21">0</div><div class="stat-l">forced kills survived</div></div>
+    <div class="stat"><div class="stat-v" data-count="21">0</div><div class="stat-l">restores hash-matched</div></div>
+    <div class="stat"><div class="stat-v" data-count="23">0</div><div class="stat-l">windows welded shut</div></div>
+    <div class="stat"><div class="stat-v"><em data-count="22">0</em></div><div class="stat-l">green CI runs</div></div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><h2>The ritual</h2><span>same gate, every product</span></div>
+    <div class="ritual">
+      <div class="step">
+        <div class="step-num">01 / RACE</div>
+        <h3>8 writers, 1 row</h3>
+        <p>Eight concurrent writes fire at one invariant. Exactly one may win; the rest must conflict cleanly. No silent losers.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">02 / KILL</div>
+        <h3>SIGKILL mid-ack</h3>
+        <p>The API acknowledges a write, then is force-killed on the spot. On restart, the acknowledged state must be fully present.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">03 / RESTORE</div>
+        <h3>Dump &amp; compare</h3>
+        <p>The product schema is pg_dump'd into a scratch database. Row counts and md5 content hashes must match exactly.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">04 / PROVE</div>
+        <h3>CI or it didn't happen</h3>
+        <p>Every gate runs as its own GitHub Actions job — race tests plus the kill-and-restore script, on Ubuntu, on record.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><h2>The gate wall</h2><span>21 / 21 green</span></div>
+    <div class="wall" id="wall"></div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><h2>Hardening tier</h2><span>beyond the gate</span></div>
+    <div class="wall" id="hardening" style="grid-template-columns: repeat(2, 1fr);"></div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><h2>Trophies</h2><span>real bugs, killed on record</span></div>
+    <div class="trophies" id="trophies"></div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><h2>Deploy log</h2><span>chronological record</span></div>
+    <div class="log" id="log"></div>
+  </section>
+
+  <footer>
+    <div>state of record — <b>DECISION_LOG.md · PROJECT_STATE.json · docs/goals/ · scripts/helix_*_durability.ps1</b></div>
+    <div>helixforge // helixgate v1</div>
+  </footer>
+</main>
+
+<script>
+const GATES = [
+  { num:"01", name:"HelixCollab", fix:"Torn create welded into one atomic write", tag:"atomic insert", run:"29661659103" },
+  { num:"02", name:"HelixCapital", fix:"Ledger writes guarded at the statement level", tag:"atomic insert", run:"29662883748" },
+  { num:"03", name:"HelixCommerce", fix:"Pool deadlock in cancel_order eliminated — items loaded inside the tx", tag:"deadlock killed", run:"29664024211" },
+  { num:"04", name:"HelixFlow", fix:"Unbootable API restored; terminal runs made immutable (finished_at guard)", tag:"boot + terminal", run:"29665124925" },
+  { num:"05", name:"HelixInsights", fix:"Points on deleted metrics rejected; 8 concurrent records all land", tag:"atomic insert", run:"29666090622" },
+  { num:"06", name:"HelixEdu", fix:"8 racing enrolls → 1 winner; draft course rejects all comers", tag:"atomic insert", run:"29667121757" },
+  { num:"07", name:"HelixWell", fix:"Paused habit rejects 8 racing logs; active habit lands all 8", tag:"atomic insert", run:"29667399976" },
+  { num:"08", name:"HelixNetwork", fix:"request_connection: four statements welded into one FOR UPDATE transaction", tag:"transaction", run:"29668195166" },
+  { num:"09", name:"HelixForge Studio", fix:"Deleted app rejects 8 racing pages; 8 racing publishes → 1", tag:"atomic insert", run:"29669148679" },
+  { num:"10", name:"HelixSynthBio", fix:"Deleted design rejects 8 racing sims; 8 racing approves → 1", tag:"guarded update", run:"29669804701" },
+  { num:"11", name:"HelixLex Prime", fix:"Deleted matter rejects 8 racing filings; 8 racing closes → 1", tag:"guarded update", run:"29670279394" },
+  { num:"12", name:"HelixCura Prime", fix:"Deleted case rejects 8 racing notes; signed notes immutable under race", tag:"guarded update", run:"29670866072" },
+  { num:"13", name:"HelixTerra Prime", fix:"Deleted field rejects 8 racing observations; 8 racing retires → 1", tag:"guarded update", run:"29671334631" },
+  { num:"14", name:"HelixClimate Prime", fix:"Deleted scenario rejects 8 racing scores; 8 racing archives → 1", tag:"guarded update", run:"29671780109" },
+  { num:"15", name:"HelixOrbit Prime", fix:"Deleted asset rejects 8 racing passes; 8 racing decommissions → 1", tag:"guarded update", run:"29672257327" },
+  { num:"16", name:"HelixQuantum Forge", fix:"Deleted job rejects 8 racing circuits; 8 racing submits → 1", tag:"guarded update", run:"29672764891" },
+  { num:"17", name:"HelixVita Prime", fix:"Deleted study rejects 8 racing cohorts; 8 racing completes → 1", tag:"guarded update", run:"29673285395" },
+  { num:"18", name:"HelixGrid Prime", fix:"Deleted site rejects 8 racing readings; 8 racing offlines → 1", tag:"guarded update", run:"29685116830" },
+  { num:"19", name:"HelixNova Labs", fix:"Deleted experiment rejects 8 racing findings; 8 racing concludes → 1", tag:"guarded update", run:"29685681271" },
+  { num:"20", name:"HelixPulse", fix:"Deleted monitor rejects 8 racing incidents; 8 racing pauses → 1", tag:"guarded update", run:"29686421129" },
+  { num:"21", name:"HelixCode", fix:"Terminal finishes guarded; FK-500s became clean 404s; boot bug killed", tag:"terminal guard", run:"29687099450" },
+];
+
+const HARDENING = [
+  { num:"H1", name:"Atomic Counters", fix:"16 racing issues + 16 racing events — all distinct, zero errors, zero MAX+1 window", tag:"row-locked upsert", tagClass:"violet", run:"29688633026" },
+  { num:"H2", name:"Ref Compare-and-Swap", fix:"8 racing commits → clean conflicts; branch history is exactly seed + winners", tag:"cas at git + mirror", tagClass:"violet", run:"29688633026" },
+];
+
+const TROPHIES = [
+  { glyph:"◉", title:"The pool deadlock", text:"cancel_order loaded items outside its transaction — 8 racing cancels hung the pool. Killed in HelixCommerce." },
+  { glyph:"◈", title:"The unbootable API", text:"nest_service at root panicked under current axum. Flow shipped dead; now it boots and its terminal runs are immutable." },
+  { glyph:"◐", title:"The four-statement window", text:"request_connection checked profiles, blocks, and duplicates in separate reads. Now one transaction, rows locked." },
+  { glyph:"◍", title:"The mutable signature", text:"A sign landing between read and write let an edit overwrite a signed note. signed_immutable now holds under race." },
+  { glyph:"◎", title:"The second unbootable", text:"HelixCode had the same axum boot bug plus unguarded terminal finishes. Both found by the gate, both buried." },
+];
+
+const RUN_URL = id => "https://github.com/davidseraphi/HELIXFORGE/actions/runs/" + id;
+
+const CHECK = '<svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+function tile(g, i) {
+  const a = document.createElement("article");
+  a.className = "tile";
+  a.style.animationDelay = (0.15 + i * 0.022) + "s";
+  a.innerHTML =
+    '<div class="tile-top"><span class="tile-num">' + g.num + '</span><span class="tile-check">' + CHECK + '</span></div>' +
+    '<h3>' + g.name + '</h3>' +
+    '<div class="tile-fix">' + g.fix + '</div>' +
+    '<div class="tile-foot"><span class="tag ' + (g.tagClass || "") + '">' + g.tag + '</span>' +
+    '<a class="run" href="' + RUN_URL(g.run) + '" target="_blank" rel="noopener">run ' + g.run + '</a></div>';
+  return a;
+}
+
+const wall = document.getElementById("wall");
+GATES.forEach((g, i) => wall.appendChild(tile(g, i)));
+const hard = document.getElementById("hardening");
+HARDENING.forEach((g, i) => hard.appendChild(tile(g, i)));
+
+const tr = document.getElementById("trophies");
+TROPHIES.forEach(t => {
+  const d = document.createElement("div");
+  d.className = "trophy";
+  d.innerHTML = '<div class="trophy-glyph">' + t.glyph + '</div><h4>' + t.title + '</h4><p>' + t.text + '</p>';
+  tr.appendChild(d);
+});
+
+const log = document.getElementById("log");
+[...GATES, ...HARDENING.map(h => ({...h}))].forEach(g => {
+  const r = document.createElement("div");
+  r.className = "log-row";
+  r.innerHTML =
+    '<span class="log-check">✓</span>' +
+    '<span class="log-name">' + g.name + '<span>' + g.fix + '</span></span>' +
+    '<span class="log-tag">gate green</span>' +
+    '<a class="log-run" href="' + RUN_URL(g.run) + '" target="_blank" rel="noopener">' + g.run + '</a>';
+  log.appendChild(r);
+});
+
+/* ——— instant-dopamine counter ——— */
+(function countUp() {
+  const el = document.getElementById("counter");
+  const target = 21, dur = 650, t0 = performance.now();
+  function tick(t) {
+    const p = Math.min((t - t0) / dur, 1);
+    const e = 1 - Math.pow(2, -10 * p); // easeOutExpo
+    el.textContent = Math.round(target * e);
+    if (p < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+})();
+
+/* ——— stats count-up on view ——— */
+(function statsCount() {
+  const els = document.querySelectorAll("[data-count]");
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(en => {
+      if (!en.isIntersecting) return;
+      io.unobserve(en.target);
+      const target = +en.target.dataset.count, dur = 900, t0 = performance.now();
+      (function tick(t) {
+        const p = Math.min((t - t0) / dur, 1);
+        const e = 1 - Math.pow(2, -10 * p);
+        en.target.textContent = Math.round(target * e);
+        if (p < 1) requestAnimationFrame(tick);
+      })(t0);
+    });
+  }, { threshold: .4 });
+  els.forEach(el => io.observe(el));
+})();
+
+/* ——— helix canvas ——— */
+(function helix() {
+  const c = document.getElementById("helix-canvas");
+  const ctx = c.getContext("2d");
+  let w, h, t = 0;
+  function size() { w = c.width = innerWidth; h = c.height = innerHeight; }
+  size(); addEventListener("resize", size);
+  const A = 46, PERIOD = 150, SPEED = .35;
+  function frame() {
+    t += SPEED;
+    ctx.clearRect(0, 0, w, h);
+    const cy = h * 0.42;
+    for (let strand = 0; strand < 2; strand++) {
+      ctx.beginPath();
+      for (let x = -20; x <= w + 20; x += 4) {
+        const ph = (x + t) / PERIOD * Math.PI * 2 + strand * Math.PI;
+        const y = cy + Math.sin(ph) * A;
+        x === -20 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = strand === 0 ? "rgba(52,211,153,.10)" : "rgba(34,211,238,.08)";
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
+    }
+    for (let x = 0; x <= w; x += 34) {
+      const ph = (x + t) / PERIOD * Math.PI * 2;
+      const y1 = cy + Math.sin(ph) * A, y2 = cy + Math.sin(ph + Math.PI) * A;
+      const rung = Math.abs(Math.cos(ph));
+      ctx.beginPath();
+      ctx.moveTo(x, y1); ctx.lineTo(x, y2);
+      ctx.strokeStyle = "rgba(139,147,167," + (0.02 + rung * 0.05) + ")";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(x, y1, 1.4, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(52,211,153," + (0.05 + rung * 0.10) + ")";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(x, y2, 1.4, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(34,211,238," + (0.04 + rung * 0.08) + ")";
+      ctx.fill();
+    }
+    if (!document.hidden) requestAnimationFrame(frame);
+  }
+  frame();
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) frame(); });
+})();
+</script>
+</body>
+</html>

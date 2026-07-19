@@ -20,7 +20,9 @@ export function Shell({ children, title = "HelixForge", subtitle = "Sovereign ec
           </div>
         </div>
         <nav className="nav">
-          <a href="/">Catalog</a>
+          <a href="/">Observatory</a>
+          <a href="/products">Products</a>
+          <a href="/catalog">Catalog</a>
           <a href="/core">HelixCore</a>
           <a href="/health">Health</a>
         </nav>
