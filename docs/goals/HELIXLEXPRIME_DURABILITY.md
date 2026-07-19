@@ -47,7 +47,10 @@ the guards into the writes and proves the gate.
 
 ## Status
 
-- **Active**
+- **Closed / CI-proven**
+- CI run: `29670279394` (**HelixLex Prime durability gate** job green)
+- Proof script: `scripts/helix_lex_prime_durability.ps1`
+- Gate proven locally (Windows) and in CI (ubuntu)
 
 ## Out of scope
 

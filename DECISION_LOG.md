@@ -1,5 +1,48 @@
 # Decision log (append-only)
 
+## 2026-07-19 — HELIXLEXPRIME-DURABILITY closed; eleventh product through the gate
+
+- Completed the HelixLex Prime durability-gate packet (`helix-lex-prime`
+  added to `durability_gate_proven_products`):
+  - **Check-then-insert window closed:** `LexRepo::create_child` now
+    enforces the non-deleted parent matter condition inside the INSERT
+    itself (`INSERT ... SELECT`), so a matter soft-deleted in between can
+    no longer leak filings (`crates/helix-db/src/lex.rs`).
+  - **Guarded transitions:** `close_matter` is a single guarded `UPDATE`
+    requiring `status = 'open'`, not deleted, and `NOT EXISTS` a
+    non-deleted draft filing; `open_matter`, `reopen_matter`,
+    `file_filing`, and `withdraw_filing` carry their expected-from status
+    in the `WHERE` — a concurrent transition now loses with a conflict
+    instead of overwriting.
+  - New ignored Postgres integration tests:
+    `filings_rejected_on_deleted_matter` (after soft-deleting a matter, 8
+    concurrent filing creates all rejected; no filing leaks in) and
+    `concurrent_close_single_winner` (8 racing closes of one open matter
+    → exactly one success, 7 rejected, matter ends closed).
+  - `scripts/helix_lex_prime_durability.ps1` proves:
+    matter/open/filing/file/close lifecycle; an acknowledged closed
+    matter surviving an immediate forced kill of the API (status,
+    closed_at, and filed filing fully present after restart); and a `lex`
+    schema `pg_dump` roundtrip into a scratch database with equal
+    matter/filing counts and equal content hashes.
+  - `lex-durability` CI job running the ignored integration tests and
+    the proof script.
+- Verification:
+  - `cargo fmt --all -- --check` clean.
+  - `cargo clippy --workspace --all-targets -- -D warnings` clean.
+  - `cargo test --workspace --all-features` clean.
+  - Race proofs pass against live Postgres; durability script passes
+    locally (Windows) and in CI (ubuntu).
+  - GitHub Actions run `29670279394` is all green, including the new
+    **HelixLex Prime durability gate** job and all 19 product smoke jobs.
+    (First attempt hit the known `55432` port-bind infra flake in an
+    unrelated smoke job; rerun `--failed` went green.)
+- Commits `87df64e` (activation) and `a843054` (implementation) pushed to
+  `main`.
+- `PROJECT_STATE.json` and `NEXT_ACTION.md` updated; `helix-lex-prime`
+  recorded in `durability_gate_proven_products`.
+- Next action: founder selects the next explicit named goal.
+
 ## 2026-07-19 — HELIXSYNTHBIO-DURABILITY closed; tenth product through the gate
 
 - Completed the HelixSynthBio durability-gate packet (`helix-synthbio`
