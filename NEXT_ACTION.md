@@ -1,41 +1,42 @@
 # Next action
 
-## Latest: HELIXGRIDPRIME-DURABILITY closed — eighteenth product through the gate
+## Active: HELIXNOVALABS-DURABILITY — nineteenth product through the gate
 
-HELIXGRIDPRIME-DURABILITY is complete. The implementation passed local
-verification and GitHub Actions run `29685116830` is all green, including
-the new **HelixGrid Prime durability gate** job.
+Prove the Foundation Integrity durability gate on HelixNova Labs: fresh
+crash, concurrency, and restore, verified locally and in CI. Nineteenth
+product (after `helix-collab`, `helix-capital`, `helix-commerce`,
+`helix-flow`, `helix-insights`, `helix-edu`, `helix-well`,
+`helix-network`, `helix-forge-studio`, `helix-synthbio`,
+`helix-lex-prime`, `helix-cura-prime`, `helix-terra-prime`,
+`helix-climate-prime`, `helix-orbit-prime`, `helix-quantum-forge`,
+`helix-vita-prime`, `helix-grid-prime`).
 
-- Repo: `crates/helix-db/src/grid.rs` (atomic `create_child`
-  INSERT...SELECT; guarded `take_offline` / `energize_site` /
-  `bring_online` / `verify_reading` / `reject_reading`)
-- Tests: `projects/helix-grid-prime/backend/src/main.rs`
-  (`readings_rejected_on_deleted_site`, `concurrent_offline_single_winner`)
-- Proof: `scripts/helix_grid_prime_durability.ps1` (forced-kill +
-  restore)
-- CI: `.github/workflows/ci.yml` `grid-durability` job
-- Docs: `docs/goals/HELIXGRIDPRIME_DURABILITY.md`, `DECISION_LOG.md`
+Goal doc: `docs/goals/HELIXNOVALABS_DURABILITY.md`.
 
-### What was delivered
+### Scope
 
-- non-deleted-parent guard enforced inside the reading INSERT; a site
-  soft-deleted mid-flight can no longer leak readings
-- offline is one guarded UPDATE (active + not deleted + NOT EXISTS draft
-  reading); energize/online and verify/reject carry expected-from
-  status in the WHERE
-- concurrency proof: 8 racing creates on a deleted site all rejected; 8
-  racing offlines → exactly one winner
-- crash proof: acknowledged offline site survives a forced kill of the
-  API
-- restore proof: schema dump roundtrip with equal counts + content
-  hashes
-- `helix-grid-prime` recorded in `durability_gate_proven_products`
+`create_child` checked the parent experiment in a separate SELECT before
+the finding INSERT; `conclude_experiment` counted draft findings and
+checked running status in separate statements from the UPDATE;
+start/reopen and confirm/reject carry no expected-from status guard.
+This packet folds the guards into the writes and proves the gate.
 
-### Active goal
+### Definition of done
 
-None. HELIXGRIDPRIME-DURABILITY is closed.
+1. `create_child` inserts with `INSERT ... SELECT` against a non-deleted
+   experiment — one statement.
+2. `conclude_experiment` is a single guarded `UPDATE` (running + not
+   deleted + `NOT EXISTS` draft finding).
+3. `start_experiment`, `reopen_experiment`, `confirm_finding`,
+   `reject_finding` carry expected-from status in the `WHERE`.
+4. Ignored tests `findings_rejected_on_deleted_experiment` and
+   `concurrent_conclude_single_winner` pass locally and in CI.
+5. `scripts/helix_nova_labs_durability.ps1` proves lifecycle,
+   forced-kill survival, and schema restore roundtrip.
+6. `nova-durability` CI job in `.github/workflows/ci.yml`.
+7. `cargo test --workspace --all-features` and
+   `cargo clippy --workspace --all-targets -- -D warnings` clean.
 
 ### Next action
 
-Founder selects the next explicit named goal. Open: durability gates for
-the remaining 3 products.
+Push the implementation and watch CI to green.
