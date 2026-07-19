@@ -56,6 +56,7 @@ export type RiskCase = {
   conditions: string;
   expires_at: string | null;
   decided_at: string | null;
+  locked_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -111,6 +112,175 @@ export type Bundle = {
   edges: LineageEdge[];
   bundle_hash: string;
 };
+
+/* ——— Inventory (samples) ——— */
+
+export type Sample = {
+  id: string;
+  accession: string;
+  name: string;
+  kind: string;
+  design_id: string | null;
+  status: string;
+  location: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CustodyEvent = {
+  id: string;
+  sample_id: string;
+  event: string;
+  from_location: string | null;
+  to_location: string | null;
+  actor: string;
+  notes: string;
+  created_at: string;
+};
+
+export type SampleDetailData = {
+  sample: Sample;
+  custody: CustodyEvent[];
+  edges: LineageEdge[];
+  design_accession: string | null;
+};
+
+export const SAMPLE_KINDS = [
+  "strain",
+  "plasmid_prep",
+  "oligo",
+  "protein",
+  "cell_line",
+  "other",
+] as const;
+
+/** All custody event kinds the API accepts/returns. */
+export const CUSTODY_EVENT_KINDS = [
+  "register",
+  "transfer",
+  "process",
+  "consume",
+  "store",
+  "dispose",
+  "aliquot",
+  "reconcile",
+] as const;
+
+/**
+ * Events offered in the Move form: register happens at creation and aliquot
+ * has its own action, so neither is posted as a plain custody event.
+ */
+export const MOVE_EVENTS = [
+  "transfer",
+  "process",
+  "store",
+  "consume",
+  "dispose",
+  "reconcile",
+] as const;
+
+/** Color tone key for a custody event chip/dot; unknown kinds fall back to slate. */
+export function custodyTone(ev: string): string {
+  return (CUSTODY_EVENT_KINDS as readonly string[]).includes(ev) ? ev : "store";
+}
+
+/* ——— Measurements ——— */
+
+export type Measurement = {
+  id: string;
+  accession: string;
+  sample_id: string;
+  kind: string;
+  method: string | null;
+  value: number | null;
+  unit: string | null;
+  uncertainty: number | null;
+  raw: Record<string, unknown> | null;
+  status: string;
+  analyst: string;
+  created_at: string;
+};
+
+export const MEASUREMENT_KINDS = [
+  "absorbance",
+  "fluorescence",
+  "qpcr",
+  "gel",
+  "ngs_qc",
+  "other",
+] as const;
+
+/** Status chip class for a measurement; unknown statuses fall back to draft slate. */
+export function measurementStatusClass(status: string): string {
+  return `sb-chip sb-ms-${["draft", "accepted", "rejected"].includes(status) ? status : "draft"}`;
+}
+
+/* ——— Claims & ELN notes ——— */
+
+export type EvidenceLink = {
+  target_kind: string;
+  target_id: string;
+  support: string;
+  note: string | null;
+  created_at: string;
+};
+
+export type Claim = {
+  id: string;
+  accession: string;
+  design_id: string;
+  statement: string;
+  status: string;
+  attested_by: string | null;
+  attested_at: string | null;
+  created_by: string;
+  created_at: string;
+};
+
+export type ClaimWithEvidence = { claim: Claim; evidence: EvidenceLink[] };
+
+export type ElnNote = {
+  id: string;
+  body: string;
+  created_by: string;
+  created_at: string;
+};
+
+export const CLAIM_STATUSES = ["draft", "under_review", "accepted", "challenged"] as const;
+
+/** Status chip class for a claim; unknown statuses fall back to draft slate. */
+export function claimStatusClass(status: string): string {
+  return `sb-chip sb-cl-${(CLAIM_STATUSES as readonly string[]).includes(status) ? status : "draft"}`;
+}
+
+export const EVIDENCE_SUPPORTS = ["supports", "conflicts", "missing"] as const;
+export const EVIDENCE_TARGET_KINDS = ["design_version", "measurement", "analysis"] as const;
+
+/** Support chip class for an evidence link; unknown values fall back to amber. */
+export function evidenceSupportClass(support: string): string {
+  return `sb-evi sb-evi-${(EVIDENCE_SUPPORTS as readonly string[]).includes(support) ? support : "missing"}`;
+}
+
+/* ——— E-signatures ——— */
+
+export type Signature = {
+  id: string;
+  target_kind: string;
+  target_id: string;
+  signer: string;
+  meaning: string;
+  statement: string | null;
+  content_hash: string;
+  created_at: string;
+};
+
+export const SIGNATURE_MEANINGS = ["approved", "witnessed", "reviewed"] as const;
+
+/** Seal color modifier for a signature meaning; unknown meanings fall back to reviewed violet. */
+export function signatureSealClass(meaning: string): string {
+  return `sb-seal-${(SIGNATURE_MEANINGS as readonly string[]).includes(meaning) ? meaning : "reviewed"}`;
+}
 
 /** Fetch through the BFF proxy; throws Error with the server's message on failure. */
 export async function sbApi<T = unknown>(path: string, init?: RequestInit): Promise<T> {

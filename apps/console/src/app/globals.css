@@ -2096,6 +2096,620 @@ h1 {
   fill: var(--sb-muted);
 }
 
+/* ——— inventory samples ——— */
+
+/* prominent current-location chip in the sample detail header */
+.sb-theme .sb-loc {
+  font-family: var(--sb-mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--sb-accent-ink);
+  border: 1px solid rgba(13, 148, 136, 0.45);
+  background: rgba(13, 148, 136, 0.07);
+  border-radius: 999px;
+  padding: 0.3rem 0.75rem;
+  white-space: nowrap;
+}
+
+/* sample statuses beyond active */
+.sb-theme .status.s-consumed,
+.sb-theme .status.s-disposed {
+  color: var(--sb-blocked);
+}
+
+/* actions row: move + aliquot forms side by side */
+.sb-theme .sb-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.sb-theme .sb-actions .create-form {
+  margin-bottom: 0;
+}
+
+/* custody event chips (colored per event kind) */
+.sb-theme .sb-ev {
+  display: inline-block;
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+
+.sb-theme .sb-ev-register {
+  color: var(--sb-accent-ink);
+  border-color: rgba(13, 148, 136, 0.45);
+  background: rgba(13, 148, 136, 0.08);
+}
+
+.sb-theme .sb-ev-transfer {
+  color: #1d4ed8;
+  border-color: rgba(37, 99, 235, 0.4);
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.sb-theme .sb-ev-process {
+  color: #6d28d9;
+  border-color: rgba(124, 58, 237, 0.4);
+  background: rgba(124, 58, 237, 0.08);
+}
+
+.sb-theme .sb-ev-store {
+  color: #475569;
+  border-color: rgba(100, 116, 139, 0.4);
+  background: rgba(100, 116, 139, 0.08);
+}
+
+.sb-theme .sb-ev-consume,
+.sb-theme .sb-ev-dispose {
+  color: var(--sb-blocked);
+  border-color: rgba(185, 28, 28, 0.45);
+  background: rgba(185, 28, 28, 0.08);
+}
+
+.sb-theme .sb-ev-aliquot {
+  color: var(--sb-allowed);
+  border-color: rgba(5, 150, 105, 0.4);
+  background: rgba(5, 150, 105, 0.08);
+}
+
+.sb-theme .sb-ev-reconcile {
+  color: var(--sb-restricted);
+  border-color: rgba(180, 83, 9, 0.4);
+  background: rgba(180, 83, 9, 0.08);
+}
+
+/* chain-of-custody vertical timeline */
+.sb-theme .sb-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sb-theme .sb-tl-item {
+  position: relative;
+  margin-left: 7px;
+  padding: 0 0 1.05rem 1.5rem;
+  border-left: 2px solid var(--sb-hairline);
+}
+
+.sb-theme .sb-tl-item:last-child {
+  padding-bottom: 0.2rem;
+  border-left-color: transparent;
+}
+
+.sb-theme .sb-tl-dot {
+  position: absolute;
+  left: -7px;
+  top: 4px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 2px solid var(--sb-surface);
+  background: var(--sb-muted);
+}
+
+.sb-theme .sb-tl-dot.ev-register { background: var(--sb-accent); }
+.sb-theme .sb-tl-dot.ev-transfer { background: #2563eb; }
+.sb-theme .sb-tl-dot.ev-process { background: #7c3aed; }
+.sb-theme .sb-tl-dot.ev-store { background: #64748b; }
+.sb-theme .sb-tl-dot.ev-consume,
+.sb-theme .sb-tl-dot.ev-dispose { background: var(--sb-blocked); }
+.sb-theme .sb-tl-dot.ev-aliquot { background: var(--sb-allowed); }
+.sb-theme .sb-tl-dot.ev-reconcile { background: var(--sb-restricted); }
+
+.sb-theme .sb-tl-head {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.sb-theme .sb-tl-loc {
+  font-family: var(--sb-mono);
+  font-size: 0.78rem;
+  color: var(--sb-ink-2);
+}
+
+.sb-theme .sb-tl-when {
+  font-size: 0.74rem;
+}
+
+.sb-theme .sb-tl-meta {
+  font-size: 0.74rem;
+  color: var(--sb-muted);
+  margin-top: 0.18rem;
+}
+
+.sb-theme .sb-tl-notes {
+  font-size: 0.8rem;
+  color: var(--sb-ink-2);
+  margin-top: 0.22rem;
+}
+
+/* lineage edges list */
+.sb-theme .sb-edge-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+  padding: 0.42rem 0;
+  border-bottom: 1px solid var(--sb-hairline);
+  font-size: 0.82rem;
+}
+
+.sb-theme .sb-edge-row:last-child {
+  border-bottom: none;
+}
+
+/* ——— measurements ——— */
+
+/* panel-head tools: analyst input + record button */
+.sb-theme .sb-m-head-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sb-theme .sb-analyst {
+  background: var(--sb-surface);
+  border: 1px solid var(--sb-hairline);
+  border-radius: 8px;
+  color: var(--sb-ink);
+  padding: 0.36rem 0.6rem;
+  font-size: 0.78rem;
+  width: 210px;
+}
+
+.sb-theme .sb-analyst:focus {
+  outline: none;
+  border-color: rgba(13, 148, 136, 0.6);
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.12);
+}
+
+/* measurement status chips (used with .sb-chip) */
+.sb-theme .sb-ms-draft {
+  color: var(--sb-unknown);
+  border-color: rgba(100, 116, 139, 0.4);
+  background: rgba(100, 116, 139, 0.08);
+}
+
+.sb-theme .sb-ms-accepted {
+  color: var(--sb-allowed);
+  border-color: rgba(5, 150, 105, 0.4);
+  background: rgba(5, 150, 105, 0.08);
+}
+
+.sb-theme .sb-ms-rejected {
+  color: var(--sb-blocked);
+  border-color: rgba(185, 28, 28, 0.45);
+  background: rgba(185, 28, 28, 0.08);
+}
+
+/* verdict button pair in the acts cell */
+.sb-theme .sb-m-verdict {
+  display: inline-flex;
+  gap: 0.3rem;
+  justify-content: flex-end;
+}
+
+/* uncertainty column */
+.sb-theme .sb-u {
+  font-family: var(--sb-mono);
+  font-size: 0.76rem;
+  color: var(--sb-muted);
+  white-space: nowrap;
+}
+
+/* ——— claims & eln notes ——— */
+
+/* claim status chips (used with .sb-chip) */
+.sb-theme .sb-cl-draft {
+  color: var(--sb-unknown);
+  border-color: rgba(100, 116, 139, 0.4);
+  background: rgba(100, 116, 139, 0.08);
+}
+
+.sb-theme .sb-cl-under_review {
+  color: #6d28d9;
+  border-color: rgba(124, 58, 237, 0.4);
+  background: rgba(124, 58, 237, 0.08);
+}
+
+.sb-theme .sb-cl-accepted {
+  color: var(--sb-allowed);
+  border-color: rgba(5, 150, 105, 0.4);
+  background: rgba(5, 150, 105, 0.08);
+}
+
+.sb-theme .sb-cl-challenged {
+  color: var(--sb-blocked);
+  border-color: rgba(185, 28, 28, 0.45);
+  background: rgba(185, 28, 28, 0.08);
+}
+
+/* evidence support chips */
+.sb-theme .sb-evi {
+  display: inline-block;
+  font-size: 0.64rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.16rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+
+.sb-theme .sb-evi-supports {
+  color: var(--sb-allowed);
+  border-color: rgba(5, 150, 105, 0.4);
+  background: rgba(5, 150, 105, 0.08);
+}
+
+.sb-theme .sb-evi-conflicts {
+  color: var(--sb-blocked);
+  border-color: rgba(185, 28, 28, 0.45);
+  background: rgba(185, 28, 28, 0.08);
+}
+
+.sb-theme .sb-evi-missing {
+  color: var(--sb-restricted);
+  border-color: rgba(180, 83, 9, 0.4);
+  background: rgba(180, 83, 9, 0.08);
+}
+
+.sb-theme .sb-evi-list {
+  display: inline-flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+
+/* attest / challenge controls under an expanded claim */
+.sb-theme .sb-verdict-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.9rem;
+}
+
+.sb-theme .sb-reason {
+  width: 260px;
+}
+
+/* notes timeline dot + append-only hint */
+.sb-theme .sb-tl-dot.ev-note {
+  background: var(--sb-accent);
+}
+
+.sb-theme .sb-note-hint {
+  font-size: 0.74rem;
+  align-self: center;
+}
+
+/* ——— e-signatures ——— */
+
+/* compact strip of seals under the 360 header */
+.sb-theme .sb-sig-strip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  background: var(--sb-surface);
+  border: 1px solid var(--sb-hairline);
+  border-radius: 12px;
+  padding: 0.55rem 0.9rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 1px 2px rgba(15, 27, 45, 0.04);
+}
+
+/* seal chip: meaning-colored pill with signer + hash */
+.sb-theme .sb-seal {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.74rem;
+  font-weight: 600;
+  padding: 0.26rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+
+.sb-theme .sb-seal-mark {
+  font-weight: 800;
+}
+
+.sb-theme .sb-seal-approved {
+  color: var(--sb-allowed);
+  border-color: rgba(5, 150, 105, 0.45);
+  background: rgba(5, 150, 105, 0.08);
+}
+
+.sb-theme .sb-seal-witnessed {
+  color: #1d4ed8;
+  border-color: rgba(37, 99, 235, 0.4);
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.sb-theme .sb-seal-reviewed {
+  color: #6d28d9;
+  border-color: rgba(124, 58, 237, 0.4);
+  background: rgba(124, 58, 237, 0.08);
+}
+
+.sb-theme .sb-seal-locked {
+  color: var(--sb-ink-2);
+  border-color: rgba(15, 27, 45, 0.35);
+  background: rgba(15, 27, 45, 0.05);
+}
+
+.sb-theme .sb-seal-hash {
+  font-size: 0.7rem;
+  opacity: 0.85;
+}
+
+/* inline sign form inside the strip / version child-row */
+.sb-theme .sb-sig-form {
+  flex-basis: 100%;
+  margin: 0.4rem 0 0;
+}
+
+/* ——— sequence editing suite ——— */
+
+.sb-theme .sb-edit-sub {
+  margin-bottom: 1rem;
+}
+
+/* inputs inside editable table cells */
+.sb-theme .sb-cell-input {
+  width: 100%;
+  min-width: 90px;
+  background: var(--sb-surface);
+  border: 1px solid var(--sb-hairline);
+  border-radius: 6px;
+  color: var(--sb-ink);
+  padding: 0.26rem 0.45rem;
+  font-size: 0.78rem;
+  font-family: inherit;
+}
+
+.sb-theme .sb-cell-input:focus {
+  outline: none;
+  border-color: rgba(13, 148, 136, 0.6);
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.12);
+}
+
+.sb-theme .sb-cell-input:disabled {
+  opacity: 0.6;
+  background: var(--sb-paper);
+}
+
+.sb-theme .sb-cell-num {
+  min-width: 64px;
+  width: 76px;
+  font-family: var(--sb-mono);
+}
+
+/* dropped-marked rows (feature editor / invalid fragments) */
+.sb-theme .sb-drop-row td {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+
+.sb-theme .sb-drop-row td.acts {
+  text-decoration: none;
+}
+
+/* action button row under an editor */
+.sb-theme .sb-edit-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-top: 0.8rem;
+}
+
+.sb-theme .sb-preview {
+  margin-top: 0.9rem;
+}
+
+.sb-theme .sb-snippet {
+  margin-top: 0.4rem;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.sb-theme .sb-op-err {
+  font-size: 0.82rem;
+}
+
+.sb-theme .sb-enzyme-chips {
+  margin-bottom: 0.9rem;
+}
+
+/* digest: fragment table + gel lane side by side */
+.sb-theme .sb-digest-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 200px;
+  gap: 1.2rem;
+  align-items: start;
+}
+
+/* simulated gel lane */
+.sb-theme .sb-gel {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 0.6rem;
+  align-items: start;
+}
+
+.sb-theme .sb-gel-lane {
+  position: relative;
+  height: 240px;
+  background: #0f1b2d;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.sb-theme .sb-gel-well {
+  position: absolute;
+  top: 6px;
+  left: 10px;
+  right: 10px;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.sb-theme .sb-gel-band {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.9);
+  transform: translateY(-50%);
+  box-shadow: 0 0 6px rgba(148, 233, 255, 0.35);
+}
+
+.sb-theme .sb-gel-labels {
+  position: relative;
+  height: 240px;
+}
+
+.sb-theme .sb-gel-label {
+  position: absolute;
+  left: 0;
+  transform: translateY(-50%);
+  font-family: var(--sb-mono);
+  font-size: 0.68rem;
+  color: var(--sb-muted);
+  white-space: nowrap;
+}
+
+.sb-theme .sb-gel-note {
+  grid-column: 1 / -1;
+  font-size: 0.72rem;
+}
+
+/* assembly: input column + preview column */
+.sb-theme .sb-assembly-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.2rem;
+  align-items: start;
+}
+
+.sb-theme .sb-frag-label {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--sb-ink-2);
+}
+
+.sb-theme .sb-frag-input {
+  background: var(--sb-surface);
+  border: 1px solid var(--sb-hairline);
+  border-radius: 8px;
+  color: var(--sb-ink);
+  padding: 0.6rem 0.75rem;
+  font-size: 0.76rem;
+  resize: vertical;
+}
+
+.sb-theme .sb-frag-input:focus {
+  outline: none;
+  border-color: rgba(13, 148, 136, 0.6);
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.12);
+}
+
+.sb-theme .sb-from-digest {
+  margin-top: 0.8rem;
+  display: grid;
+  gap: 0.4rem;
+}
+
+/* ——— read alignment ——— */
+
+.sb-theme .sb-align-summary {
+  margin-top: 1rem;
+}
+
+/* alignment status chips (used with .sb-chip) */
+.sb-theme .sb-al-exact {
+  color: var(--sb-allowed);
+  border-color: rgba(5, 150, 105, 0.4);
+  background: rgba(5, 150, 105, 0.08);
+}
+
+.sb-theme .sb-al-aligned {
+  color: #1d4ed8;
+  border-color: rgba(37, 99, 235, 0.4);
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.sb-theme .sb-al-no-seed {
+  color: var(--sb-restricted);
+  border-color: rgba(180, 83, 9, 0.4);
+  background: rgba(180, 83, 9, 0.08);
+}
+
+.sb-theme .sb-al-too-short {
+  color: var(--sb-unknown);
+  border-color: rgba(100, 116, 139, 0.4);
+  background: rgba(100, 116, 139, 0.08);
+}
+
+/* identity % thresholds */
+.sb-theme .sb-id-hi {
+  color: var(--sb-allowed);
+  font-weight: 700;
+}
+
+.sb-theme .sb-id-mid {
+  color: var(--sb-restricted);
+  font-weight: 700;
+}
+
+.sb-theme .sb-id-lo {
+  color: var(--sb-blocked);
+  font-weight: 700;
+}
+
+/* sample target picker for "save as measurement" */
+.sb-theme .sb-sample-select {
+  min-width: 280px;
+}
+
 /* ——— responsive ——— */
 
 @media (max-width: 720px) {

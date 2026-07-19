@@ -8,18 +8,21 @@ import {
   listOf,
   riskClass,
   sbApi,
+  SAMPLE_KINDS,
   type Design,
   type Design360Data,
   type ImportManifest,
   type QueueItem,
+  type Sample,
 } from "./lib";
 
-type Tab = "registry" | "risk" | "import";
+type Tab = "registry" | "risk" | "import" | "samples";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "registry", label: "Registry" },
   { key: "risk", label: "Risk Review" },
   { key: "import", label: "Import" },
+  { key: "samples", label: "Samples" },
 ];
 
 export function SynthBioApp() {
@@ -97,6 +100,7 @@ export function SynthBioApp() {
           {tab === "registry" && <RegistryTab onError={fail} onFlash={flash} />}
           {tab === "risk" && <RiskTab onError={fail} onFlash={flash} />}
           {tab === "import" && <ImportTab onError={fail} />}
+          {tab === "samples" && <SamplesTab onError={fail} onFlash={flash} />}
         </main>
       </div>
     </div>
@@ -664,6 +668,202 @@ function ImportTab({ onError }: { onError: (m: string) => void }) {
           )}
         </div>
       )}
+    </section>
+  );
+}
+
+/* ————————————————— Samples (inventory) ————————————————— */
+
+const KIND_FILTERS = ["all", ...SAMPLE_KINDS] as const;
+
+function SamplesTab({ onError, onFlash }: { onError: (m: string) => void; onFlash: (m: string) => void }) {
+  const router = useRouter();
+  const [rows, setRows] = useState<Sample[]>([]);
+  const [designs, setDesigns] = useState<Design[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [query, setQuery] = useState("");
+  const [kindFilter, setKindFilter] = useState<(typeof KIND_FILTERS)[number]>("all");
+
+  const load = useCallback(async () => {
+    try {
+      const [sj, dj] = await Promise.all([
+        sbApi("/v1/inventory/samples"),
+        sbApi("/v1/registry/designs"),
+      ]);
+      setRows(listOf<Sample>(sj));
+      setDesigns(listOf<Design>(dj));
+    } catch (e) {
+      onError(String(e instanceof Error ? e.message : e));
+    } finally {
+      setLoading(false);
+    }
+  }, [onError]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const out = rows.filter((s) => {
+      if (kindFilter !== "all" && s.kind !== kindFilter) return false;
+      if (
+        q &&
+        !s.name.toLowerCase().includes(q) &&
+        !s.accession.toLowerCase().includes(q) &&
+        !(s.location ?? "").toLowerCase().includes(q)
+      ) {
+        return false;
+      }
+      return true;
+    });
+    // newest first
+    return [...out].sort((a, b) => b.created_at.localeCompare(a.created_at));
+  }, [rows, query, kindFilter]);
+
+  const submit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(e.currentTarget).entries()) as Record<string, string>;
+    const body: Record<string, unknown> = { name: f.name, kind: f.kind };
+    if (f.location) body.location = f.location;
+    if (f.design_id) body.design_id = f.design_id;
+    setBusy(true);
+    try {
+      const j = await sbApi<{ data: Sample }>("/v1/inventory/samples", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+      setShowCreate(false);
+      onFlash(`Sample ${j.data.accession} registered`);
+      await load();
+    } catch (err) {
+      onError(String(err instanceof Error ? err.message : err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="panel sb-panel-flush">
+      <div className="panel-head">
+        <h2>inventory samples</h2>
+        <button className="btn primary" onClick={() => setShowCreate((v) => !v)}>
+          {showCreate ? "Close" : "Register sample"}
+        </button>
+      </div>
+
+      {showCreate && (
+        <form className="create-form sb-form-wide" onSubmit={submit}>
+          <label>
+            <span>Name *</span>
+            <input name="name" placeholder="e.g. pTet-GFP prep batch 3" required />
+          </label>
+          <label>
+            <span>Kind</span>
+            <select name="kind" defaultValue="plasmid_prep">
+              {SAMPLE_KINDS.map((k) => (
+                <option key={k} value={k}>
+                  {k}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>Location</span>
+            <input name="location" placeholder="e.g. freezer-A · shelf 2" />
+          </label>
+          <label>
+            <span>Linked design</span>
+            <select name="design_id" defaultValue="">
+              <option value="">— none —</option>
+              {designs.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.accession} — {d.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button className="btn primary" disabled={busy} type="submit">
+            {busy ? "Registering…" : "Register sample"}
+          </button>
+        </form>
+      )}
+
+      <div className="sb-registry-tools">
+        <input
+          className="sb-search"
+          type="search"
+          placeholder="Filter by name, accession or location…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        <div className="sb-chips" role="group" aria-label="kind filter">
+          {KIND_FILTERS.map((k) => (
+            <button
+              key={k}
+              type="button"
+              className={`sb-filter-chip${kindFilter === k ? " active" : ""}`}
+              onClick={() => setKindFilter(k)}
+            >
+              {k}
+            </button>
+          ))}
+        </div>
+        <span className="muted sb-count">
+          {visible.length} of {rows.length}
+        </span>
+      </div>
+
+      <table className="etable">
+        <thead>
+          <tr>
+            <th>accession</th>
+            <th>name</th>
+            <th>kind</th>
+            <th>status</th>
+            <th>location</th>
+            <th>created</th>
+          </tr>
+        </thead>
+        <tbody>
+          {!loading && visible.length === 0 && (
+            <tr>
+              <td colSpan={6} className="empty">
+                {rows.length === 0
+                  ? "No samples yet — register the first one."
+                  : "No samples match the current filters."}
+              </td>
+            </tr>
+          )}
+          {visible.map((s) => (
+            <tr
+              key={s.id}
+              className="sb-rowlink"
+              onClick={() => router.push(`/products/helix-synthbio/samples/${s.id}`)}
+            >
+              <td className="sb-mono">
+                <a
+                  href={`/products/helix-synthbio/samples/${s.id}`}
+                  onClick={(e) => e.preventDefault()}
+                >
+                  {s.accession}
+                </a>
+              </td>
+              <td>{s.name}</td>
+              <td>
+                <span className="sb-kind">{s.kind}</span>
+              </td>
+              <td>
+                <span className={`status s-${s.status}`}>{s.status}</span>
+              </td>
+              <td className="sb-mono">{s.location || "—"}</td>
+              <td className="muted">{fmtTime(s.created_at)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </section>
   );
 }
