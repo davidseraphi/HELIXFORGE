@@ -1,5 +1,47 @@
 # Decision log (append-only)
 
+## 2026-07-19 — HELIXGRIDPRIME-DURABILITY closed; eighteenth product through the gate
+
+- Completed the HelixGrid Prime durability-gate packet (`helix-grid-prime`
+  added to `durability_gate_proven_products`):
+  - **Check-then-insert window closed:** `GridRepo::create_child` now
+    enforces the non-deleted parent site condition inside the INSERT
+    itself (`INSERT ... SELECT`), so a site soft-deleted in between can
+    no longer leak readings (`crates/helix-db/src/grid.rs`).
+  - **Guarded transitions:** `take_offline` is a single guarded `UPDATE`
+    requiring `status = 'active'`, not deleted, and `NOT EXISTS` a
+    non-deleted draft reading; `energize_site`, `bring_online`,
+    `verify_reading`, and `reject_reading` carry their expected-from
+    status in the `WHERE` — a concurrent transition now loses with a
+    conflict instead of overwriting.
+  - New ignored Postgres integration tests:
+    `readings_rejected_on_deleted_site` (after soft-deleting a site, 8
+    concurrent reading creates all rejected; no reading leaks in) and
+    `concurrent_offline_single_winner` (8 racing offlines of one active
+    site → exactly one success, 7 rejected, site ends offline).
+  - `scripts/helix_grid_prime_durability.ps1` proves:
+    site/energize/reading/verify/offline lifecycle; an acknowledged
+    offline site surviving an immediate forced kill of the API (status,
+    offline_at, and verified reading fully present after restart); and a
+    `grid` schema `pg_dump` roundtrip into a scratch database with equal
+    site/reading counts and equal content hashes.
+  - `grid-durability` CI job running the ignored integration tests and
+    the proof script.
+- Verification:
+  - `cargo fmt --all -- --check` clean.
+  - `cargo clippy --workspace --all-targets -- -D warnings` clean.
+  - `cargo test --workspace --all-features` clean.
+  - Race proofs pass against live Postgres; durability script passes
+    locally (Windows) and in CI (ubuntu).
+  - GitHub Actions run `29685116830` is all green, including the new
+    **HelixGrid Prime durability gate** job and all 19 product smoke
+    jobs.
+- Commits `2c8c999` (activation) and `5bccbcd` (implementation) pushed to
+  `main`.
+- `PROJECT_STATE.json` and `NEXT_ACTION.md` updated; `helix-grid-prime`
+  recorded in `durability_gate_proven_products`.
+- Next action: founder selects the next explicit named goal.
+
 ## 2026-07-19 — HELIXVITAPRIME-DURABILITY closed; seventeenth product through the gate
 
 - Completed the HelixVita Prime durability-gate packet (`helix-vita-prime`

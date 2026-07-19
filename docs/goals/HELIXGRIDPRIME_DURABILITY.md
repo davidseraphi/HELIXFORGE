@@ -50,7 +50,10 @@ This packet folds the guards into the writes and proves the gate.
 
 ## Status
 
-- **Active**
+- **Closed / CI-proven**
+- CI run: `29685116830` (**HelixGrid Prime durability gate** job green)
+- Proof script: `scripts/helix_grid_prime_durability.ps1`
+- Gate proven locally (Windows) and in CI (ubuntu)
 
 ## Out of scope
 
