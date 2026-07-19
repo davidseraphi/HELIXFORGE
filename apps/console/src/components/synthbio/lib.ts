@@ -176,6 +176,46 @@ export function riskClass(state: string): string {
   return `sb-chip sb-risk-${RISK_STATES.includes(state as (typeof RISK_STATES)[number]) ? state : "unknown"}`;
 }
 
+/* ——— Feature role families (sequence map + components table) ——— */
+
+export type RoleFamily = "promoter" | "cds" | "rbs" | "terminator" | "origin" | "other";
+
+const SO_FAMILY: Record<string, RoleFamily> = {
+  "SO:0000167": "promoter", // promoter
+  "SO:0000316": "cds", // CDS
+  "SO:0000139": "rbs", // ribosome_entry_site
+  "SO:0000141": "terminator", // terminator
+  "SO:0000296": "origin", // origin_of_replication
+};
+
+export function roleFamily(roleSo: string, name = ""): RoleFamily {
+  const hit = SO_FAMILY[roleSo];
+  if (hit) return hit;
+  const n = name.toLowerCase();
+  if (/promoter|^p[A-Z]/.test(n) || n.includes("prom")) return "promoter";
+  if (n.includes("rbs") || n.includes("ribosome")) return "rbs";
+  if (n.includes("term")) return "terminator";
+  if (n.includes("ori") || n.includes("origin")) return "origin";
+  if (roleSo === "SO:0000316" || n.includes("cds") || n.includes("enzyme")) return "cds";
+  return "other";
+}
+
+export const ROLE_COLORS: Record<RoleFamily, string> = {
+  promoter: "#0d9488",
+  cds: "#2563eb",
+  rbs: "#7c3aed",
+  terminator: "#dc2626",
+  origin: "#d97706",
+  other: "#64748b",
+};
+
+export function hexToRgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 /** Small valid 2-record GenBank demo for the import tab. */
 export const DEMO_GENBANK = `LOCUS       DEMOPLASMA1            96 bp    DNA     circular SYN 19-JUL-2026
 DEFINITION  Demo plasmid backbone alpha.

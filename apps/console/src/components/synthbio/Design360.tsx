@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   fmtTime,
@@ -8,11 +8,15 @@ import {
   sbApi,
   shortHash,
   shortId,
-  wrapSeq,
   type Bundle,
+  type Component,
   type Design360Data,
   type DesignVersion,
 } from "./lib";
+import { SequenceMap } from "./SequenceMap";
+import { LineageGraph } from "./LineageGraph";
+import { scanMotifs, MOTIF_LIB_VERSION } from "./motifs";
+import { isCds, translateComponent, translationPreview } from "./translate";
 
 type Tab = "overview" | "versions" | "lineage" | "bundle";
 
@@ -23,6 +27,16 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "bundle", label: "Bundle" },
 ];
 
+/** Prefill handed to the New-version form (motif auto-annotation). */
+export type VersionPrefill = {
+  sequence_text: string;
+  alphabet: string;
+  topology: string;
+  provenance: string;
+  notes: string;
+  components: Component[];
+};
+
 export function Design360({ id }: { id: string }) {
   const router = useRouter();
   const [data, setData] = useState<Design360Data | null>(null);
@@ -30,6 +44,8 @@ export function Design360({ id }: { id: string }) {
   const [notice, setNotice] = useState("");
   const [tab, setTab] = useState<Tab>("overview");
   const [showVersionForm, setShowVersionForm] = useState(false);
+  const [prefill, setPrefill] = useState<VersionPrefill | null>(null);
+  const [selected, setSelected] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -44,9 +60,23 @@ export function Design360({ id }: { id: string }) {
     load();
   }, [load]);
 
+  // reset per-design UI state when navigating between designs
+  useEffect(() => {
+    setTab("overview");
+    setSelected(null);
+    setPrefill(null);
+    setShowVersionForm(false);
+  }, [id]);
+
   const flash = (msg: string) => {
     setNotice(msg);
     setTimeout(() => setNotice(""), 4000);
+  };
+
+  const openVersionForm = (p: VersionPrefill | null) => {
+    setPrefill(p);
+    setShowVersionForm(true);
+    setTab("versions");
   };
 
   if (error && !data) {
@@ -80,14 +110,7 @@ export function Design360({ id }: { id: string }) {
         </div>
         <span className={riskClass(data.effective_risk)}>{data.effective_risk}</span>
         <span className={`pill status s-${design.status}`}>{design.status}</span>
-        <button
-          className="btn primary"
-          style={{ marginLeft: "auto" }}
-          onClick={() => {
-            setTab("versions");
-            setShowVersionForm(true);
-          }}
-        >
+        <button className="btn primary" style={{ marginLeft: "auto" }} onClick={() => openVersionForm(null)}>
           New version
         </button>
       </header>
@@ -111,15 +134,19 @@ export function Design360({ id }: { id: string }) {
         ))}
       </nav>
 
-      {tab === "overview" && <Overview data={data} latest={latest} />}
+      {tab === "overview" && (
+        <Overview data={data} latest={latest} selected={selected} onSelect={setSelected} onPrefill={openVersionForm} />
+      )}
       {tab === "versions" && (
         <Versions
           id={id}
           versions={data.versions}
+          prefill={prefill}
           showForm={showVersionForm}
           setShowForm={setShowVersionForm}
           onCreated={async () => {
             setShowVersionForm(false);
+            setPrefill(null);
             flash("Version committed");
             await load();
           }}
@@ -134,8 +161,61 @@ export function Design360({ id }: { id: string }) {
 
 /* ————————————————— Overview ————————————————— */
 
-function Overview({ data, latest }: { data: Design360Data; latest?: DesignVersion }) {
+function Overview({
+  data,
+  latest,
+  selected,
+  onSelect,
+  onPrefill,
+}: {
+  data: Design360Data;
+  latest?: DesignVersion;
+  selected: number | null;
+  onSelect: (idx: number | null) => void;
+  onPrefill: (p: VersionPrefill) => void;
+}) {
   const { design, risk_case } = data;
+  const rowRefs = useRef<(HTMLTableRowElement | null)[]>([]);
+
+  const seq = latest?.sequence_text ?? "";
+  const candidates = useMemo(() => {
+    if (!seq) return [];
+    const existing = new Set(
+      (latest?.components ?? []).map((c) => `${c.name}:${c.start}:${c.end}`),
+    );
+    return scanMotifs(seq).filter((h) => !existing.has(`${h.name}:${h.start}:${h.end}`));
+  }, [seq, latest?.components]);
+
+  const selectFromMap = (idx: number | null) => {
+    onSelect(idx);
+    if (idx != null) {
+      rowRefs.current[idx]?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  };
+
+  const stageMotifs = (hits: typeof candidates) => {
+    if (!latest) return;
+    const staged: Component[] = [
+      ...latest.components,
+      ...hits.map((h) => ({
+        name: h.name,
+        role_so: h.role_so,
+        start: h.start,
+        end: h.end,
+        strand: h.strand as number,
+        source: h.source,
+      })),
+    ];
+    onPrefill({
+      sequence_text: latest.sequence_text,
+      alphabet: latest.alphabet,
+      topology: latest.topology,
+      provenance: `auto-annotated (${MOTIF_LIB_VERSION})`,
+      notes: `auto-annotation: +${hits.map((h) => h.name).join(", ")}`,
+      components: staged,
+    });
+  };
+
   const meta: [string, React.ReactNode][] = [
     ["alphabet", latest?.alphabet ?? "—"],
     ["topology", latest?.topology ?? "—"],
@@ -156,26 +236,22 @@ function Overview({ data, latest }: { data: Design360Data; latest?: DesignVersio
     ]);
   }
 
-  const seq = latest?.sequence_text ?? "";
-  const truncated = seq.length > 2000;
-  const shown = truncated ? seq.slice(0, 2000) : seq;
-
   return (
     <>
       {design.description && <p className="lead sb-desc">{design.description}</p>}
 
       <section className="panel">
         <div className="panel-head">
-          <h2>metadata</h2>
+          <h2>sequence map</h2>
+          <span className="muted">
+            {latest ? `v${latest.version} · ${latest.sequence_length.toLocaleString()} bp · ${latest.components.length} features` : "no version"}
+          </span>
         </div>
-        <div className="sb-meta-grid">
-          {meta.map(([k, v]) => (
-            <div key={k} className="sb-meta-item">
-              <div className="sb-meta-k">{k}</div>
-              <div className="sb-meta-v">{v}</div>
-            </div>
-          ))}
-        </div>
+        {latest ? (
+          <SequenceMap key={latest.id} version={latest} selected={selected} onSelect={selectFromMap} />
+        ) : (
+          <p className="muted">No version committed yet.</p>
+        )}
       </section>
 
       <section className="panel">
@@ -198,39 +274,153 @@ function Overview({ data, latest }: { data: Design360Data; latest?: DesignVersio
             </thead>
             <tbody>
               {latest.components.map((c, i) => (
-                <tr key={i}>
-                  <td>{c.name}</td>
-                  <td>
-                    <span className="sb-so">{c.role_so}</span>
-                  </td>
-                  <td className="num">
-                    {c.start}–{c.end}
-                  </td>
-                  <td className="sb-strand">{c.strand >= 0 ? "→" : "←"}</td>
-                  <td className="muted">{c.source}</td>
-                </tr>
+                <ComponentRow
+                  key={i}
+                  refIdx={(el) => {
+                    rowRefs.current[i] = el;
+                  }}
+                  component={c}
+                  seq={seq}
+                  selected={selected === i}
+                  onSelect={() => onSelect(selected === i ? null : i)}
+                />
               ))}
             </tbody>
           </table>
         )}
       </section>
 
+      {latest && seq && (
+        <section className="panel">
+          <div className="panel-head">
+            <h2>annotation candidates</h2>
+            <span className="muted">
+              {candidates.length} motif {candidates.length === 1 ? "hit" : "hits"} · {MOTIF_LIB_VERSION}
+            </span>
+          </div>
+          {candidates.length === 0 ? (
+            <p className="muted">No library motifs found on the current version.</p>
+          ) : (
+            <>
+              <table className="etable">
+                <thead>
+                  <tr>
+                    <th>motif</th>
+                    <th>role (SO)</th>
+                    <th className="num">start–end</th>
+                    <th>strand</th>
+                    <th className="acts">annotate</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {candidates.map((h, i) => (
+                    <tr key={`${h.name}-${h.start}-${i}`}>
+                      <td>{h.name}</td>
+                      <td>
+                        <span className="sb-so">{h.role_so}</span>
+                      </td>
+                      <td className="num">
+                        {h.start}–{h.end}
+                      </td>
+                      <td className="sb-strand">{h.strand >= 0 ? "→" : "←"}</td>
+                      <td className="acts">
+                        <button className="btn sm" onClick={() => stageMotifs([h])}>
+                          Add as component
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {candidates.length > 1 && (
+                <div className="sb-motif-all">
+                  <button className="btn" onClick={() => stageMotifs(candidates)}>
+                    Add all {candidates.length} as components
+                  </button>
+                  <span className="muted">opens the New-version form prefilled (provenance: auto-annotated · {MOTIF_LIB_VERSION})</span>
+                </div>
+              )}
+            </>
+          )}
+        </section>
+      )}
+
       <section className="panel">
         <div className="panel-head">
-          <h2>sequence</h2>
-          <span className="muted">
-            {latest ? `${latest.sequence_length} bp · v${latest.version}` : "no version"}
-          </span>
+          <h2>metadata</h2>
         </div>
-        {!seq ? (
-          <p className="muted">No sequence deposited on the current version.</p>
-        ) : (
-          <>
-            <pre className="sb-seq">{wrapSeq(shown)}</pre>
-            {truncated && <p className="muted sb-seq-more">… and {seq.length - 2000} more bp</p>}
-          </>
-        )}
+        <div className="sb-meta-grid">
+          {meta.map(([k, v]) => (
+            <div key={k} className="sb-meta-item">
+              <div className="sb-meta-k">{k}</div>
+              <div className="sb-meta-v">{v}</div>
+            </div>
+          ))}
+        </div>
       </section>
+    </>
+  );
+}
+
+/** One component row; CDS rows carry an expandable auto-translation. */
+function ComponentRow({
+  component: c,
+  seq,
+  selected,
+  onSelect,
+  refIdx,
+}: {
+  component: Component;
+  seq: string;
+  selected: boolean;
+  onSelect: () => void;
+  refIdx: (el: HTMLTableRowElement | null) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const protein = isCds(c.role_so) && seq ? translateComponent(seq, c.start, c.end, c.strand) : "";
+
+  return (
+    <>
+      <tr
+        ref={refIdx}
+        className={`sb-rowlink${selected ? " sb-row-selected" : ""}`}
+        onClick={onSelect}
+        title="click to highlight on the map"
+      >
+        <td>
+          {c.name}
+          {protein && (
+            <button
+              type="button"
+              className="sb-translation-toggle"
+              onClick={(e) => {
+                e.stopPropagation();
+                setExpanded((v) => !v);
+              }}
+              title="auto-translation (click to expand)"
+            >
+              {translationPreview(protein)} {expanded ? "▾" : "▸"}
+            </button>
+          )}
+        </td>
+        <td>
+          <span className="sb-so">{c.role_so}</span>
+        </td>
+        <td className="num">
+          {c.start}–{c.end}
+        </td>
+        <td className="sb-strand">{c.strand >= 0 ? "→" : "←"}</td>
+        <td className="muted">{c.source}</td>
+      </tr>
+      {expanded && protein && (
+        <tr className="child-row">
+          <td colSpan={5}>
+            <pre className="sb-seq sb-translation">
+              {protein.replace(new RegExp(`(.{60})`, "g"), "$1\n")}
+            </pre>
+          </td>
+        </tr>
+      )}
     </>
   );
 }
@@ -240,13 +430,15 @@ function Overview({ data, latest }: { data: Design360Data; latest?: DesignVersio
 function Versions(props: {
   id: string;
   versions: DesignVersion[];
+  prefill: VersionPrefill | null;
   showForm: boolean;
   setShowForm: (v: boolean) => void;
   onCreated: () => Promise<void>;
   onError: (m: string) => void;
 }) {
-  const { id, versions, showForm, setShowForm, onCreated, onError } = props;
+  const { id, versions, prefill, showForm, setShowForm, onCreated, onError } = props;
   const [busy, setBusy] = useState(false);
+  const [staged, setStaged] = useState<Component[]>(prefill?.components ?? []);
   const sorted = [...versions].sort((a, b) => b.version - a.version);
   const latest = sorted[0];
 
@@ -256,6 +448,8 @@ function Versions(props: {
     const body: Record<string, unknown> = { alphabet: f.alphabet, topology: f.topology };
     if (f.sequence_text) body.sequence_text = f.sequence_text;
     if (f.notes) body.notes = f.notes;
+    if (f.provenance) body.provenance = f.provenance;
+    if (staged.length > 0) body.components = staged;
     setBusy(true);
     try {
       await sbApi(`/v1/registry/designs/${id}/versions`, {
@@ -280,10 +474,10 @@ function Versions(props: {
       </div>
 
       {showForm && (
-        <form className="create-form sb-form-wide" onSubmit={submit}>
+        <form className="create-form sb-form-wide" key={prefill ? "prefilled" : "blank"} onSubmit={submit}>
           <label>
             <span>Alphabet</span>
-            <select name="alphabet" defaultValue={latest?.alphabet ?? "dna"}>
+            <select name="alphabet" defaultValue={prefill?.alphabet ?? latest?.alphabet ?? "dna"}>
               <option value="dna">dna</option>
               <option value="rna">rna</option>
               <option value="protein">protein</option>
@@ -291,19 +485,71 @@ function Versions(props: {
           </label>
           <label>
             <span>Topology</span>
-            <select name="topology" defaultValue={latest?.topology ?? "circular"}>
+            <select name="topology" defaultValue={prefill?.topology ?? latest?.topology ?? "circular"}>
               <option value="circular">circular</option>
               <option value="linear">linear</option>
             </select>
           </label>
           <label className="sb-span-all">
             <span>Sequence</span>
-            <textarea name="sequence_text" rows={4} placeholder="ACGT… (optional)" />
+            <textarea
+              name="sequence_text"
+              rows={4}
+              placeholder="ACGT… (optional)"
+              defaultValue={prefill?.sequence_text ?? ""}
+            />
           </label>
-          <label className="sb-span-all">
+          <label>
+            <span>Provenance</span>
+            <input name="provenance" placeholder="e.g. benchling import" defaultValue={prefill?.provenance ?? ""} />
+          </label>
+          <label>
             <span>Notes</span>
-            <input name="notes" placeholder="what changed in this version" />
+            <input name="notes" placeholder="what changed in this version" defaultValue={prefill?.notes ?? ""} />
           </label>
+
+          {staged.length > 0 && (
+            <div className="sb-span-all sb-staged">
+              <div className="sb-meta-k">components staged on this version ({staged.length})</div>
+              <table className="etable">
+                <thead>
+                  <tr>
+                    <th>name</th>
+                    <th>role (SO)</th>
+                    <th className="num">start–end</th>
+                    <th>strand</th>
+                    <th>source</th>
+                    <th className="acts" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {staged.map((c, i) => (
+                    <tr key={`${c.name}-${c.start}-${i}`}>
+                      <td>{c.name}</td>
+                      <td>
+                        <span className="sb-so">{c.role_so}</span>
+                      </td>
+                      <td className="num">
+                        {c.start}–{c.end}
+                      </td>
+                      <td className="sb-strand">{c.strand >= 0 ? "→" : "←"}</td>
+                      <td className="muted">{c.source}</td>
+                      <td className="acts">
+                        <button
+                          type="button"
+                          className="btn sm ghost"
+                          onClick={() => setStaged((s) => s.filter((_, k) => k !== i))}
+                        >
+                          remove
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
           <button className="btn primary" disabled={busy} type="submit">
             {busy ? "Committing…" : "Commit version"}
           </button>
@@ -317,6 +563,7 @@ function Versions(props: {
             <th>alphabet / topology</th>
             <th>source</th>
             <th className="num">length</th>
+            <th className="num">features</th>
             <th>content hash</th>
             <th>provenance</th>
             <th>created by</th>
@@ -326,7 +573,7 @@ function Versions(props: {
         <tbody>
           {sorted.length === 0 && (
             <tr>
-              <td colSpan={8} className="empty">
+              <td colSpan={9} className="empty">
                 No versions yet.
               </td>
             </tr>
@@ -342,6 +589,7 @@ function Versions(props: {
                 {v.source_name ? ` · ${v.source_name}` : ""}
               </td>
               <td className="num">{v.sequence_length}</td>
+              <td className="num">{v.components.length}</td>
               <td className="sb-mono" title={v.content_hash}>
                 {shortHash(v.content_hash, 12)}
               </td>
@@ -363,41 +611,10 @@ function Lineage({ data }: { data: Design360Data }) {
     <>
       <section className="panel">
         <div className="panel-head">
-          <h2>lineage edges</h2>
-          <span className="muted">{data.edges.length}</span>
+          <h2>lineage graph</h2>
+          <span className="muted">{data.edges.length} edges</span>
         </div>
-        {data.edges.length === 0 ? (
-          <p className="muted">No lineage edges recorded.</p>
-        ) : (
-          <table className="etable">
-            <thead>
-              <tr>
-                <th>parent</th>
-                <th>relation</th>
-                <th>child</th>
-                <th>created</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.edges.map((e) => (
-                <tr key={e.id}>
-                  <td>
-                    <span className="sb-kind">{e.parent_kind}</span>{" "}
-                    <span className="sb-mono muted">{shortId(e.parent_id)}</span>
-                  </td>
-                  <td>
-                    <span className="sb-rel">{e.relation}</span>
-                  </td>
-                  <td>
-                    <span className="sb-kind">{e.child_kind}</span>{" "}
-                    <span className="sb-mono muted">{shortId(e.child_id)}</span>
-                  </td>
-                  <td className="muted">{fmtTime(e.created_at)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+        <LineageGraph data={data} />
       </section>
 
       <section className="panel">

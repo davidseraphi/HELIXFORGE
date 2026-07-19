@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   DEMO_GENBANK,
@@ -9,6 +9,7 @@ import {
   riskClass,
   sbApi,
   type Design,
+  type Design360Data,
   type ImportManifest,
   type QueueItem,
 } from "./lib";
@@ -61,14 +62,14 @@ export function SynthBioApp() {
 
   return (
     <div className="sb-app">
-      <header className="papp-head">
-        <div className="app-glyph lg">Sb</div>
+      <header className="sb-head">
+        <div className="sb-logo">Sb</div>
         <div>
           <h1>HelixSynthBio</h1>
           <p className="muted">Sequence design registry · localhost:8111</p>
         </div>
-        <div className={`app-state ${health}`} style={{ marginLeft: "auto" }}>
-          <span className="app-dot" />
+        <div className={`sb-live ${health}`} style={{ marginLeft: "auto" }}>
+          <span className="sb-live-dot" />
           {health === "checking" ? "…" : "live"}
         </div>
       </header>
@@ -104,17 +105,37 @@ export function SynthBioApp() {
 
 /* ————————————————— Registry ————————————————— */
 
+type SortKey = "updated" | "created" | "accession";
+const RISK_FILTERS = ["all", "unknown", "allowed", "restricted", "blocked"] as const;
+
 function RegistryTab({ onError, onFlash }: { onError: (m: string) => void; onFlash: (m: string) => void }) {
   const router = useRouter();
   const [rows, setRows] = useState<Design[]>([]);
+  const [risk, setRisk] = useState<Record<string, string>>({});
+  const [riskLoaded, setRiskLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [query, setQuery] = useState("");
+  const [riskFilter, setRiskFilter] = useState<(typeof RISK_FILTERS)[number]>("all");
+  const [sortKey, setSortKey] = useState<SortKey>("updated");
 
   const load = useCallback(async () => {
     try {
       const j = await sbApi("/v1/registry/designs");
-      setRows(listOf<Design>(j));
+      const items = listOf<Design>(j);
+      setRows(items);
+      // lazily resolve each design's effective risk (list payload has no risk field)
+      setRiskLoaded(false);
+      const entries = await Promise.all(
+        items.map((d) =>
+          sbApi<{ data: Design360Data }>(`/v1/registry/designs/${d.id}`)
+            .then((r) => [d.id, r.data.effective_risk] as const)
+            .catch(() => [d.id, "unknown"] as const),
+        ),
+      );
+      setRisk(Object.fromEntries(entries));
+      setRiskLoaded(true);
     } catch (e) {
       onError(String(e instanceof Error ? e.message : e));
     } finally {
@@ -125,6 +146,26 @@ function RegistryTab({ onError, onFlash }: { onError: (m: string) => void; onFla
   useEffect(() => {
     load();
   }, [load]);
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    let out = rows.filter((d) => {
+      if (q && !d.name.toLowerCase().includes(q) && !d.accession.toLowerCase().includes(q)) {
+        return false;
+      }
+      if (riskFilter !== "all" && riskLoaded && (risk[d.id] ?? "unknown") !== riskFilter) {
+        return false;
+      }
+      return true;
+    });
+    out = [...out].sort((a, b) => {
+      if (sortKey === "accession") return a.accession.localeCompare(b.accession);
+      const av = sortKey === "updated" ? a.updated_at : a.created_at;
+      const bv = sortKey === "updated" ? b.updated_at : b.created_at;
+      return bv.localeCompare(av); // newest first
+    });
+    return out;
+  }, [rows, query, riskFilter, sortKey, risk, riskLoaded]);
 
   const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -201,34 +242,79 @@ function RegistryTab({ onError, onFlash }: { onError: (m: string) => void; onFla
         </form>
       )}
 
+      <div className="sb-registry-tools">
+        <input
+          className="sb-search"
+          type="search"
+          placeholder="Filter by name or accession…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        <div className="sb-chips" role="group" aria-label="risk filter">
+          {RISK_FILTERS.map((r) => (
+            <button
+              key={r}
+              type="button"
+              className={`sb-filter-chip${riskFilter === r ? " active" : ""}`}
+              onClick={() => setRiskFilter(r)}
+            >
+              {r}
+            </button>
+          ))}
+        </div>
+        <select
+          className="sb-sort"
+          value={sortKey}
+          onChange={(e) => setSortKey(e.target.value as SortKey)}
+          aria-label="sort"
+        >
+          <option value="updated">sort: updated</option>
+          <option value="created">sort: created</option>
+          <option value="accession">sort: accession</option>
+        </select>
+        <span className="muted sb-count">
+          {visible.length} of {rows.length}
+          {!riskLoaded && rows.length > 0 ? " · resolving risk…" : ""}
+        </span>
+      </div>
+
       <table className="etable">
         <thead>
           <tr>
             <th>accession</th>
             <th>name</th>
-            <th className="num">v</th>
-            <th>status</th>
+            <th className="num">version</th>
+            <th>risk</th>
             <th>updated</th>
           </tr>
         </thead>
         <tbody>
-          {!loading && rows.length === 0 && (
+          {!loading && visible.length === 0 && (
             <tr>
               <td colSpan={5} className="empty">
-                No designs yet — create the first one.
+                {rows.length === 0 ? "No designs yet — create the first one." : "No designs match the current filters."}
               </td>
             </tr>
           )}
-          {rows.map((d) => (
+          {visible.map((d) => (
             <tr
               key={d.id}
               className="sb-rowlink"
               onClick={() => router.push(`/products/helix-synthbio/designs/${d.id}`)}
             >
-              <td className="sb-mono">{d.accession}</td>
+              <td className="sb-mono">
+                <a
+                  href={`/products/helix-synthbio/designs/${d.id}`}
+                  onClick={(e) => e.preventDefault()}
+                >
+                  {d.accession}
+                </a>
+              </td>
               <td>{d.name}</td>
-              <td className="num">{d.current_version}</td>
-              <td className={`status s-${d.status}`}>{d.status}</td>
+              <td className="num">v{d.current_version}</td>
+              <td>
+                <span className={riskClass(risk[d.id] ?? "unknown")}>{risk[d.id] ?? "…"}</span>
+              </td>
               <td className="muted">{fmtTime(d.updated_at)}</td>
             </tr>
           ))}

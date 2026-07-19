@@ -6,5 +6,9 @@ export default async function Design360Page({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  return <Design360 id={id} />;
+  return (
+    <div className="sb-theme">
+      <Design360 id={id} />
+    </div>
+  );
 }
