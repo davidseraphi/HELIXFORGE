@@ -811,4 +811,101 @@ mod tests {
         assert_eq!(restored.status, "terminated");
         assert!(restored.deleted_at.is_none());
     }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn cohorts_rejected_on_deleted_study() {
+        let (state, _guard) = locked_state().await;
+        let tenant_id = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = VitaRepo::new(pool.clone());
+
+        let study = repo
+            .create_parent(tenant_id, "Doomed study", "", serde_json::json!({}))
+            .await
+            .expect("create study");
+        repo.soft_delete_study(tenant_id, study.id)
+            .await
+            .expect("delete study");
+
+        // 8 racing cohort creates on a soft-deleted study all fail.
+        let mut handles = Vec::new();
+        for _ in 0..8u32 {
+            let repo = repo.clone();
+            handles.push(tokio::spawn(async move {
+                repo.create_child(tenant_id, study.id, "leak", "", serde_json::json!({}))
+                    .await
+            }));
+        }
+        let mut rejected = 0usize;
+        for h in handles {
+            match h.await.expect("create task panicked") {
+                Ok(_) => panic!("cohort created on a deleted study"),
+                Err(e) if e.code == shared_core::ErrorCode::NotFound => rejected += 1,
+                Err(e) => panic!("unexpected create error: {e}"),
+            }
+        }
+        assert_eq!(rejected, 8, "all racing creates must be rejected");
+
+        let cohorts = repo
+            .list_children(tenant_id, study.id)
+            .await
+            .expect("list cohorts");
+        assert_eq!(cohorts.len(), 0, "no cohort may leak onto a deleted study");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn concurrent_complete_single_winner() {
+        let (state, _guard) = locked_state().await;
+        let tenant_id = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = VitaRepo::new(pool.clone());
+
+        let study = repo
+            .create_parent(tenant_id, "Race complete", "", serde_json::json!({}))
+            .await
+            .expect("create study");
+        repo.recruit_study(tenant_id, study.id)
+            .await
+            .expect("recruit study");
+
+        // 8 racing completes of one recruiting study with no draft cohorts.
+        let mut handles = Vec::new();
+        for _ in 0..8u32 {
+            let repo = repo.clone();
+            handles.push(tokio::spawn(async move {
+                repo.complete_study(tenant_id, study.id).await
+            }));
+        }
+        let mut winners = 0usize;
+        let mut rejected = 0usize;
+        for h in handles {
+            match h.await.expect("complete task panicked") {
+                Ok(_) => winners += 1,
+                Err(e)
+                    if e.code == shared_core::ErrorCode::Conflict
+                        || e.code == shared_core::ErrorCode::Validation =>
+                {
+                    rejected += 1
+                }
+                Err(e) => panic!("unexpected complete error: {e}"),
+            }
+        }
+        assert_eq!(winners, 1, "exactly one racing complete may win");
+        assert_eq!(rejected, 7, "all losers must be rejected");
+
+        let studies = repo.list_parents(tenant_id).await.expect("list studies");
+        let row = studies
+            .iter()
+            .find(|s| s.id == study.id)
+            .expect("study listed");
+        assert_eq!(row.status, "completed");
+    }
 }

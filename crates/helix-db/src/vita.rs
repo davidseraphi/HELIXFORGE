@@ -311,11 +311,13 @@ impl VitaRepo {
             .ok_or_else(|| HelixError::not_found("study not found"))?;
         let next = next_study_status(&study.status, "recruit")?;
         let now = Utc::now();
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<StudyRow> = sqlx::query_as(&format!(
             r#"
             UPDATE vita.studies
             SET status = $1, recruiting_at = $2, updated_at = $2
-            WHERE tenant_id = $3 AND id = $4 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND id = $4 AND status = $5 AND deleted_at IS NULL
             {STUDY_RETURNING}
             "#
         ))
@@ -323,15 +325,21 @@ impl VitaRepo {
         .bind(now)
         .bind(tenant_id.as_uuid())
         .bind(study_id)
+        .bind(&study.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("vita recruit study: {e}")))?;
 
         row.map(StudyRow::into_study)
-            .ok_or_else(|| HelixError::not_found("study not found"))
+            .ok_or_else(|| HelixError::conflict("study changed during recruit; retry"))
     }
 
     /// Complete a recruiting study. Rejected while draft cohorts remain.
+    /// The recruiting-status and no-draft-cohorts guards are part of the
+    /// UPDATE itself, so a concurrent complete/terminate or a cohort
+    /// created mid-flight cannot slip through a check-then-act window; the
+    /// earlier reads only shape the error returned for the steady-state
+    /// cases.
     pub async fn complete_study(&self, tenant_id: TenantId, study_id: Uuid) -> HelixResult<Study> {
         let study = self
             .get_parent(tenant_id, study_id)
@@ -358,7 +366,12 @@ impl VitaRepo {
             r#"
             UPDATE vita.studies
             SET status = $1, completed_at = $2, updated_at = $2
-            WHERE tenant_id = $3 AND id = $4 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND id = $4 AND status = 'recruiting' AND deleted_at IS NULL
+              AND NOT EXISTS (
+                  SELECT 1 FROM vita.cohorts c
+                  WHERE c.tenant_id = $3 AND c.parent_id = $4
+                    AND c.status = 'draft' AND c.deleted_at IS NULL
+              )
             {STUDY_RETURNING}
             "#
         ))
@@ -370,8 +383,9 @@ impl VitaRepo {
         .await
         .map_err(|e| HelixError::dependency(format!("vita complete study: {e}")))?;
 
-        row.map(StudyRow::into_study)
-            .ok_or_else(|| HelixError::not_found("study not found"))
+        row.map(StudyRow::into_study).ok_or_else(|| {
+            HelixError::conflict("study changed during complete or gained a draft cohort; retry")
+        })
     }
 
     pub async fn terminate_study(&self, tenant_id: TenantId, study_id: Uuid) -> HelixResult<Study> {
@@ -381,11 +395,13 @@ impl VitaRepo {
             .ok_or_else(|| HelixError::not_found("study not found"))?;
         let next = next_study_status(&study.status, "terminate")?;
         let now = Utc::now();
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<StudyRow> = sqlx::query_as(&format!(
             r#"
             UPDATE vita.studies
             SET status = $1, terminated_at = $2, updated_at = $2
-            WHERE tenant_id = $3 AND id = $4 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND id = $4 AND status = $5 AND deleted_at IS NULL
             {STUDY_RETURNING}
             "#
         ))
@@ -393,12 +409,13 @@ impl VitaRepo {
         .bind(now)
         .bind(tenant_id.as_uuid())
         .bind(study_id)
+        .bind(&study.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("vita terminate study: {e}")))?;
 
         row.map(StudyRow::into_study)
-            .ok_or_else(|| HelixError::not_found("study not found"))
+            .ok_or_else(|| HelixError::conflict("study changed during terminate; retry"))
     }
 
     pub async fn soft_delete_study(
@@ -498,17 +515,17 @@ impl VitaRepo {
         body: &str,
         metadata: serde_json::Value,
     ) -> HelixResult<Cohort> {
-        let _parent = self
-            .get_parent(tenant_id, parent_id)
-            .await?
-            .ok_or_else(|| HelixError::not_found("parent not found"))?;
         let id = Uuid::now_v7();
         let created_at = Utc::now();
-        let row: CohortRow = sqlx::query_as(&format!(
+        // The non-deleted-parent guard is part of the INSERT itself: a study
+        // soft-deleted between a separate check and insert cannot leak cohorts.
+        let row: Option<CohortRow> = sqlx::query_as(&format!(
             r#"
             INSERT INTO vita.cohorts
                 (id, tenant_id, parent_id, title, body, status, metadata, created_at, updated_at)
-            VALUES ($1,$2,$3,$4,$5,'draft',$6,$7,$7)
+            SELECT $1,$2,$3,$4,$5,'draft',$6,$7,$7
+            FROM vita.studies s
+            WHERE s.tenant_id = $2 AND s.id = $3 AND s.deleted_at IS NULL
             {COHORT_RETURNING}
             "#
         ))
@@ -519,10 +536,11 @@ impl VitaRepo {
         .bind(body)
         .bind(&metadata)
         .bind(created_at)
-        .fetch_one(&self.pool)
+        .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("vita create child: {e}")))?;
-        Ok(row.into_cohort())
+        row.map(CohortRow::into_cohort)
+            .ok_or_else(|| HelixError::not_found("parent not found"))
     }
 
     pub async fn get_cohort(
@@ -614,11 +632,13 @@ impl VitaRepo {
             .ok_or_else(|| HelixError::not_found("cohort not found"))?;
         let next = next_cohort_status(&cohort.status, "enroll")?;
         let now = Utc::now();
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<CohortRow> = sqlx::query_as(&format!(
             r#"
             UPDATE vita.cohorts
             SET status = $1, enrolled_at = $2, updated_at = $2
-            WHERE tenant_id = $3 AND parent_id = $4 AND id = $5 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND parent_id = $4 AND id = $5 AND status = $6 AND deleted_at IS NULL
             {COHORT_RETURNING}
             "#
         ))
@@ -627,12 +647,13 @@ impl VitaRepo {
         .bind(tenant_id.as_uuid())
         .bind(study_id)
         .bind(cohort_id)
+        .bind(&cohort.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("vita enroll cohort: {e}")))?;
 
         row.map(CohortRow::into_cohort)
-            .ok_or_else(|| HelixError::not_found("cohort not found"))
+            .ok_or_else(|| HelixError::conflict("cohort changed during enroll; retry"))
     }
 
     pub async fn withdraw_cohort(
@@ -647,11 +668,13 @@ impl VitaRepo {
             .ok_or_else(|| HelixError::not_found("cohort not found"))?;
         let next = next_cohort_status(&cohort.status, "withdraw")?;
         let now = Utc::now();
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<CohortRow> = sqlx::query_as(&format!(
             r#"
             UPDATE vita.cohorts
             SET status = $1, withdrawn_at = $2, updated_at = $2
-            WHERE tenant_id = $3 AND parent_id = $4 AND id = $5 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND parent_id = $4 AND id = $5 AND status = $6 AND deleted_at IS NULL
             {COHORT_RETURNING}
             "#
         ))
@@ -660,12 +683,13 @@ impl VitaRepo {
         .bind(tenant_id.as_uuid())
         .bind(study_id)
         .bind(cohort_id)
+        .bind(&cohort.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("vita withdraw cohort: {e}")))?;
 
         row.map(CohortRow::into_cohort)
-            .ok_or_else(|| HelixError::not_found("cohort not found"))
+            .ok_or_else(|| HelixError::conflict("cohort changed during withdraw; retry"))
     }
 
     pub async fn soft_delete_cohort(
