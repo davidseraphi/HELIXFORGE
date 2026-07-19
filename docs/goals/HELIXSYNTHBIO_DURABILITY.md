@@ -48,7 +48,10 @@ proves the gate.
 
 ## Status
 
-- **Active**
+- **Closed / CI-proven**
+- CI run: `29669804701` (**HelixSynthBio durability gate** job green)
+- Proof script: `scripts/helix_synthbio_durability.ps1`
+- Gate proven locally (Windows) and in CI (ubuntu)
 
 ## Out of scope
 

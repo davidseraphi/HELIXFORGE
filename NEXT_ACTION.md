@@ -1,39 +1,39 @@
 # Next action
 
-## Active: HELIXSYNTHBIO-DURABILITY — tenth product through the gate
+## Latest: HELIXSYNTHBIO-DURABILITY closed — tenth product through the gate
 
-Prove the Foundation Integrity durability gate on HelixSynthBio: fresh
-crash, concurrency, and restore, verified locally and in CI. Tenth
-product (after `helix-collab`, `helix-capital`, `helix-commerce`,
-`helix-flow`, `helix-insights`, `helix-edu`, `helix-well`,
-`helix-network`, `helix-forge-studio`).
+HELIXSYNTHBIO-DURABILITY is complete. The implementation passed local
+verification and GitHub Actions run `29669804701` is all green, including
+the new **HelixSynthBio durability gate** job.
 
-Goal doc: `docs/goals/HELIXSYNTHBIO_DURABILITY.md`.
+- Repo: `crates/helix-db/src/synthbio.rs` (atomic `create_child`
+  INSERT...SELECT; guarded `approve_design` / `submit_design` /
+  `return_design` / `transition_sim`)
+- Tests: `projects/helix-synthbio/backend/src/main.rs`
+  (`sims_rejected_on_deleted_design`, `concurrent_approve_single_winner`)
+- Proof: `scripts/helix_synthbio_durability.ps1` (forced-kill + restore)
+- CI: `.github/workflows/ci.yml` `synthbio-durability` job
+- Docs: `docs/goals/HELIXSYNTHBIO_DURABILITY.md`, `DECISION_LOG.md`
 
-### Scope
+### What was delivered
 
-`create_child` checked the parent design in a separate SELECT before the
-sim INSERT; `approve_design` counted completed sims and checked review
-status in separate statements from the UPDATE; submit/return and the sim
-transitions carry no expected-from status guard. This packet folds the
-guards into the writes and proves the gate.
+- non-deleted-parent guard enforced inside the sim INSERT; a design
+  soft-deleted mid-flight can no longer leak sims
+- approve is one guarded UPDATE (review + not deleted + EXISTS completed
+  sim); submit/return and sim transitions carry expected-from status in
+  the WHERE
+- concurrency proof: 8 racing creates on a deleted design all rejected;
+  8 racing approves → exactly one winner
+- crash proof: acknowledged approved design survives a forced kill of the
+  API
+- restore proof: schema dump roundtrip with equal counts + content hashes
+- `helix-synthbio` recorded in `durability_gate_proven_products`
 
-### Definition of done
+### Active goal
 
-1. `create_child` inserts with `INSERT ... SELECT` against a non-deleted
-   design — one statement.
-2. `approve_design` is a single guarded `UPDATE` (review + not deleted +
-   `EXISTS` completed sim).
-3. `submit_design`, `return_design`, `transition_sim` carry expected-from
-   status in the `WHERE`.
-4. Ignored tests `sims_rejected_on_deleted_design` and
-   `concurrent_approve_single_winner` pass locally and in CI.
-5. `scripts/helix_synthbio_durability.ps1` proves lifecycle, forced-kill
-   survival, and schema restore roundtrip.
-6. `synthbio-durability` CI job in `.github/workflows/ci.yml`.
-7. `cargo test --workspace --all-features` and
-   `cargo clippy --workspace --all-targets -- -D warnings` clean.
+None. HELIXSYNTHBIO-DURABILITY is closed.
 
 ### Next action
 
-Push the implementation and watch CI to green.
+Founder selects the next explicit named goal. Open: durability gates for
+the remaining 11 products.

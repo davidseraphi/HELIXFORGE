@@ -1,5 +1,47 @@
 # Decision log (append-only)
 
+## 2026-07-19 — HELIXSYNTHBIO-DURABILITY closed; tenth product through the gate
+
+- Completed the HelixSynthBio durability-gate packet (`helix-synthbio`
+  added to `durability_gate_proven_products`):
+  - **Check-then-insert window closed:** `SynthbioRepo::create_child` now
+    enforces the non-deleted parent design condition inside the INSERT
+    itself (`INSERT ... SELECT`), so a design soft-deleted in between can
+    no longer leak sims (`crates/helix-db/src/synthbio.rs`).
+  - **Guarded transitions:** `approve_design` is a single guarded
+    `UPDATE` requiring `status = 'review'`, not deleted, and `EXISTS` at
+    least one non-deleted completed sim; `submit_design`, `return_design`,
+    and the sim `transition_sim` carry their expected-from status in the
+    `WHERE` — a concurrent transition now loses with a conflict instead
+    of overwriting.
+  - New ignored Postgres integration tests:
+    `sims_rejected_on_deleted_design` (after soft-deleting a design, 8
+    concurrent sim creates all rejected; no sim leaks in) and
+    `concurrent_approve_single_winner` (8 racing approves of one
+    in-review design → exactly one success, 7 rejected, design ends
+    approved).
+  - `scripts/helix_synthbio_durability.ps1` proves:
+    design/submit/sim/start/complete/approve lifecycle; an acknowledged
+    approved design surviving an immediate forced kill of the API
+    (status, approved_at, and completed sim fully present after restart);
+    and a `synthbio` schema `pg_dump` roundtrip into a scratch database
+    with equal design/sim counts and equal content hashes.
+  - `synthbio-durability` CI job running the ignored integration tests
+    and the proof script.
+- Verification:
+  - `cargo fmt --all -- --check` clean.
+  - `cargo clippy --workspace --all-targets -- -D warnings` clean.
+  - `cargo test --workspace --all-features` clean.
+  - Race proofs pass against live Postgres; durability script passes
+    locally (Windows) and in CI (ubuntu).
+  - GitHub Actions run `29669804701` is all green, including the new
+    **HelixSynthBio durability gate** job and all 19 product smoke jobs.
+- Commits `12755c1` (activation) and `ff1f6e7` (implementation) pushed to
+  `main`.
+- `PROJECT_STATE.json` and `NEXT_ACTION.md` updated; `helix-synthbio`
+  recorded in `durability_gate_proven_products`.
+- Next action: founder selects the next explicit named goal.
+
 ## 2026-07-19 — HELIXFORGESTUDIO-DURABILITY closed; ninth product through the gate
 
 - Completed the HelixForge Studio durability-gate packet (`helix-forge-studio`
