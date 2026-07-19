@@ -40,7 +40,10 @@ transaction with the profile rows locked, and proves the gate.
 
 ## Status
 
-- **Active**
+- **Closed / CI-proven**
+- CI run: `29668195166` (**HelixNetwork durability gate** job green)
+- Proof script: `scripts/helix_network_durability.ps1`
+- Gate proven locally (Windows) and in CI (ubuntu)
 
 ## Out of scope
 

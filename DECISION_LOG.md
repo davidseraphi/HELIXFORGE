@@ -1,5 +1,42 @@
 # Decision log (append-only)
 
+## 2026-07-19 — HELIXNETWORK-DURABILITY closed; eighth product through the gate
+
+- Completed the HelixNetwork durability-gate packet (`helix-network` added
+  to `durability_gate_proven_products`):
+  - **Check-then-act window closed:** `NetworkRepo::request_connection`
+    now runs the profile checks (locked `FOR UPDATE`), the blocked-pair
+    check, the existing-row check, and the insert or revive update in one
+    transaction — a profile deactivated or a pair blocked between the old
+    separate statements can no longer silently accept a request
+    (`crates/helix-db/src/network.rs`).
+  - New ignored Postgres integration tests:
+    `concurrent_accepts_single_winner` (8 racing accepts of one connection
+    → exactly one success, 7 rejected, connection ends accepted) and
+    `concurrent_requests_same_pair` (8 racing requests for one ordered
+    pair → one success, 7 conflicts, exactly one connection row).
+  - `scripts/helix_network_durability.ps1` proves: profile/request/accept/
+    opportunity lifecycle; an acknowledged accepted connection surviving
+    an immediate forced kill of the API (status, message, and both
+    profile ids present after restart); and a `network` schema `pg_dump`
+    roundtrip into a scratch database with equal
+    profile/connection/opportunity counts and equal content hashes.
+  - `network-durability` CI job running the ignored integration tests and
+    the proof script.
+- Verification:
+  - `cargo fmt --all -- --check` clean.
+  - `cargo clippy --workspace --all-targets -- -D warnings` clean.
+  - `cargo test --workspace --all-features` clean.
+  - Race proofs pass against live Postgres; durability script passes
+    locally (Windows) and in CI (ubuntu).
+  - GitHub Actions run `29668195166` is all green, including the new
+    **HelixNetwork durability gate** job and all 19 product smoke jobs.
+- Commits `a51bc47` (activation) and `faa0085` (implementation) pushed to
+  `main`.
+- `PROJECT_STATE.json` and `NEXT_ACTION.md` updated; `helix-network`
+  recorded in `durability_gate_proven_products`.
+- Next action: founder selects the next explicit named goal.
+
 ## 2026-07-19 — HELIXWELL-DURABILITY closed; seventh product through the gate
 
 - Completed the HelixWell durability-gate packet (`helix-well` added to
