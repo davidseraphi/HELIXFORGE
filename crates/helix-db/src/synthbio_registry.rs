@@ -1112,3 +1112,403 @@ fn effective_risk(case: Option<&RiskCase>) -> String {
         }
     }
 }
+
+// ——— inventory (S2): samples + custody ———
+
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct Sample {
+    pub id: Uuid,
+    pub tenant_id: Uuid,
+    pub accession: String,
+    pub name: String,
+    pub kind: String,
+    pub design_id: Option<Uuid>,
+    pub status: String,
+    pub location: String,
+    pub created_by: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub deleted_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct CustodyEvent {
+    pub id: Uuid,
+    pub tenant_id: Uuid,
+    pub sample_id: Uuid,
+    pub event: String,
+    pub from_location: String,
+    pub to_location: String,
+    pub actor: String,
+    pub notes: String,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SampleDetail {
+    pub sample: Sample,
+    pub custody: Vec<CustodyEvent>,
+    pub edges: Vec<LineageEdge>,
+    pub design_accession: Option<String>,
+}
+
+const SAMPLE_KINDS: [&str; 6] = [
+    "strain",
+    "plasmid_prep",
+    "oligo",
+    "protein",
+    "cell_line",
+    "other",
+];
+const CUSTODY_EVENTS: [&str; 8] = [
+    "register",
+    "transfer",
+    "process",
+    "consume",
+    "store",
+    "dispose",
+    "aliquot",
+    "reconcile",
+];
+
+impl RegistryRepo {
+    /// Register an accessioned sample, optionally linked to a design — one tx.
+    pub async fn register_sample(
+        &self,
+        tenant_id: TenantId,
+        name: &str,
+        kind: &str,
+        design_id: Option<Uuid>,
+        location: &str,
+        actor: &str,
+    ) -> HelixResult<Sample> {
+        if name.trim().is_empty() {
+            return Err(HelixError::validation("sample name required"));
+        }
+        if !SAMPLE_KINDS.contains(&kind) {
+            return Err(HelixError::validation(format!(
+                "kind must be one of {SAMPLE_KINDS:?}, got `{kind}`"
+            )));
+        }
+        let accession = self.next_accession(tenant_id, "sample", "SMP").await?;
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| HelixError::dependency(format!("synthbio sample tx: {e}")))?;
+
+        if let Some(did) = design_id {
+            let exists: Option<(Uuid,)> = sqlx::query_as(
+                "SELECT id FROM synthbio.registry_designs WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL",
+            )
+            .bind(tenant_id.as_uuid())
+            .bind(did)
+            .fetch_optional(&mut *tx)
+            .await
+            .map_err(|e| HelixError::dependency(format!("synthbio sample design check: {e}")))?;
+            if exists.is_none() {
+                return Err(HelixError::not_found("design not found"));
+            }
+        }
+
+        let id = Uuid::now_v7();
+        let now = Utc::now();
+        let sample: Sample = sqlx::query_as(
+            r#"
+            INSERT INTO synthbio.samples
+                (id, tenant_id, accession, name, kind, design_id, status, location, created_by, created_at, updated_at)
+            VALUES ($1,$2,$3,$4,$5,$6,'active',$7,$8,$9,$9)
+            RETURNING id, tenant_id, accession, name, kind, design_id, status, location, created_by, created_at, updated_at, NULL AS deleted_at
+            "#,
+        )
+        .bind(id)
+        .bind(tenant_id.as_uuid())
+        .bind(&accession)
+        .bind(name)
+        .bind(kind)
+        .bind(design_id)
+        .bind(location)
+        .bind(actor)
+        .bind(now)
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(|e| HelixError::dependency(format!("synthbio register sample: {e}")))?;
+
+        if let Some(did) = design_id {
+            self.add_edge(&mut tx, tenant_id, "design", did, "sample", id, "produces")
+                .await?;
+        }
+        self.append_custody(
+            &mut tx, tenant_id, id, "register", "", location, actor, "registered",
+        )
+        .await?;
+        self.record_event(
+            &mut tx,
+            tenant_id,
+            "sample",
+            id,
+            "registered",
+            actor,
+            serde_json::json!({"accession": accession, "kind": kind}),
+        )
+        .await?;
+        tx.commit()
+            .await
+            .map_err(|e| HelixError::dependency(format!("synthbio sample commit: {e}")))?;
+        Ok(sample)
+    }
+
+    async fn append_custody(
+        &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        tenant_id: TenantId,
+        sample_id: Uuid,
+        event: &str,
+        from_location: &str,
+        to_location: &str,
+        actor: &str,
+        notes: &str,
+    ) -> HelixResult<()> {
+        sqlx::query(
+            r#"
+            INSERT INTO synthbio.custody_events
+                (id, tenant_id, sample_id, event, from_location, to_location, actor, notes, created_at)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+            "#,
+        )
+        .bind(Uuid::now_v7())
+        .bind(tenant_id.as_uuid())
+        .bind(sample_id)
+        .bind(event)
+        .bind(from_location)
+        .bind(to_location)
+        .bind(actor)
+        .bind(notes)
+        .bind(Utc::now())
+        .execute(&mut **tx)
+        .await
+        .map_err(|e| HelixError::dependency(format!("synthbio custody append: {e}")))?;
+        Ok(())
+    }
+
+    /// Record a custody event and move the sample's current location inside
+    /// the same transaction — custody and location can never disagree. The
+    /// sample row is locked FOR UPDATE so concurrent moves serialize.
+    pub async fn custody_event(
+        &self,
+        tenant_id: TenantId,
+        sample_id: Uuid,
+        event: &str,
+        to_location: &str,
+        actor: &str,
+        notes: &str,
+    ) -> HelixResult<Sample> {
+        if !CUSTODY_EVENTS.contains(&event) {
+            return Err(HelixError::validation(format!(
+                "event must be one of {CUSTODY_EVENTS:?}, got `{event}`"
+            )));
+        }
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| HelixError::dependency(format!("synthbio custody tx: {e}")))?;
+
+        let sample: Option<(String, String)> = sqlx::query_as(
+            "SELECT status, location FROM synthbio.samples WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL FOR UPDATE",
+        )
+        .bind(tenant_id.as_uuid())
+        .bind(sample_id)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(|e| HelixError::dependency(format!("synthbio custody lock: {e}")))?;
+        let (status, from_location) =
+            sample.ok_or_else(|| HelixError::not_found("sample not found"))?;
+        if status != "active" {
+            return Err(HelixError::validation(format!(
+                "cannot move a {status} sample"
+            )));
+        }
+
+        self.append_custody(
+            &mut tx,
+            tenant_id,
+            sample_id,
+            event,
+            &from_location,
+            to_location,
+            actor,
+            notes,
+        )
+        .await?;
+
+        let new_location = if to_location.is_empty() {
+            from_location
+        } else {
+            to_location.to_string()
+        };
+        let updated: Option<(Uuid,)> = sqlx::query_as(
+            "UPDATE synthbio.samples SET location = $1, updated_at = $2 WHERE tenant_id = $3 AND id = $4 RETURNING id",
+        )
+        .bind(&new_location)
+        .bind(Utc::now())
+        .bind(tenant_id.as_uuid())
+        .bind(sample_id)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(|e| HelixError::dependency(format!("synthbio custody move: {e}")))?;
+        if updated.is_none() {
+            return Err(HelixError::conflict("sample moved concurrently; retry"));
+        }
+
+        self.record_event(
+            &mut tx,
+            tenant_id,
+            "sample",
+            sample_id,
+            event,
+            actor,
+            serde_json::json!({"to": new_location}),
+        )
+        .await?;
+        tx.commit()
+            .await
+            .map_err(|e| HelixError::dependency(format!("synthbio custody commit: {e}")))?;
+        self.get_sample(tenant_id, sample_id)
+            .await?
+            .ok_or_else(|| HelixError::internal("sample vanished after custody"))
+    }
+
+    /// Create a child sample (aliquot) with a derived-from lineage edge —
+    /// one tx, so the split is serialized.
+    pub async fn aliquot(
+        &self,
+        tenant_id: TenantId,
+        parent_sample_id: Uuid,
+        name: &str,
+        actor: &str,
+    ) -> HelixResult<Sample> {
+        let parent = self
+            .get_sample(tenant_id, parent_sample_id)
+            .await?
+            .ok_or_else(|| HelixError::not_found("parent sample not found"))?;
+        let child = self
+            .register_sample(
+                tenant_id,
+                name,
+                &parent.kind,
+                parent.design_id,
+                &parent.location,
+                actor,
+            )
+            .await?;
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| HelixError::dependency(format!("synthbio aliquot tx: {e}")))?;
+        self.add_edge(
+            &mut tx,
+            tenant_id,
+            "sample",
+            parent_sample_id,
+            "sample",
+            child.id,
+            "derived-from",
+        )
+        .await?;
+        self.append_custody(
+            &mut tx,
+            tenant_id,
+            parent_sample_id,
+            "aliquot",
+            &parent.location,
+            &parent.location,
+            actor,
+            &format!("aliquot → {}", child.accession),
+        )
+        .await?;
+        tx.commit()
+            .await
+            .map_err(|e| HelixError::dependency(format!("synthbio aliquot commit: {e}")))?;
+        Ok(child)
+    }
+
+    pub async fn get_sample(
+        &self,
+        tenant_id: TenantId,
+        sample_id: Uuid,
+    ) -> HelixResult<Option<Sample>> {
+        let row: Option<Sample> = sqlx::query_as(
+            "SELECT id, tenant_id, accession, name, kind, design_id, status, location, created_by, created_at, updated_at, deleted_at FROM synthbio.samples WHERE tenant_id = $1 AND id = $2",
+        )
+        .bind(tenant_id.as_uuid())
+        .bind(sample_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| HelixError::dependency(format!("synthbio get sample: {e}")))?;
+        Ok(row)
+    }
+
+    pub async fn list_samples(&self, tenant_id: TenantId) -> HelixResult<Vec<Sample>> {
+        let rows: Vec<Sample> = sqlx::query_as(
+            "SELECT id, tenant_id, accession, name, kind, design_id, status, location, created_by, created_at, updated_at, deleted_at FROM synthbio.samples WHERE tenant_id = $1 AND deleted_at IS NULL ORDER BY created_at DESC",
+        )
+        .bind(tenant_id.as_uuid())
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| HelixError::dependency(format!("synthbio list samples: {e}")))?;
+        Ok(rows)
+    }
+
+    pub async fn sample_detail(
+        &self,
+        tenant_id: TenantId,
+        sample_id: Uuid,
+    ) -> HelixResult<Option<SampleDetail>> {
+        let Some(sample) = self.get_sample(tenant_id, sample_id).await? else {
+            return Ok(None);
+        };
+        let custody: Vec<CustodyEvent> = sqlx::query_as(
+            "SELECT id, tenant_id, sample_id, event, from_location, to_location, actor, notes, created_at FROM synthbio.custody_events WHERE tenant_id = $1 AND sample_id = $2 ORDER BY created_at ASC",
+        )
+        .bind(tenant_id.as_uuid())
+        .bind(sample_id)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| HelixError::dependency(format!("synthbio sample custody: {e}")))?;
+        let edges: Vec<LineageEdge> = sqlx::query_as(
+            r#"
+            SELECT id, tenant_id, parent_kind, parent_id, child_kind, child_id, relation, created_at
+            FROM synthbio.lineage_edges
+            WHERE tenant_id = $1
+              AND ((parent_kind = 'sample' AND parent_id = $2)
+                OR (child_kind = 'sample' AND child_id = $2))
+            ORDER BY created_at ASC
+            "#,
+        )
+        .bind(tenant_id.as_uuid())
+        .bind(sample_id)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| HelixError::dependency(format!("synthbio sample edges: {e}")))?;
+        let design_accession: Option<String> = if let Some(did) = sample.design_id {
+            sqlx::query_scalar(
+                "SELECT accession FROM synthbio.registry_designs WHERE tenant_id = $1 AND id = $2",
+            )
+            .bind(tenant_id.as_uuid())
+            .bind(did)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(|e| HelixError::dependency(format!("synthbio sample design: {e}")))?
+        } else {
+            None
+        };
+        Ok(Some(SampleDetail {
+            sample,
+            custody,
+            edges,
+            design_accession,
+        }))
+    }
+}

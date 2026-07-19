@@ -27,6 +27,13 @@ pub fn routes() -> Router<AppState> {
         .route("/v1/registry/designs/{id}/risk/review", post(review_risk))
         .route("/v1/registry/risk/queue", get(risk_queue))
         .route("/v1/registry/import", post(import_records))
+        .route(
+            "/v1/inventory/samples",
+            get(list_samples).post(register_sample),
+        )
+        .route("/v1/inventory/samples/{id}", get(get_sample))
+        .route("/v1/inventory/samples/{id}/custody", post(custody_event))
+        .route("/v1/inventory/samples/{id}/aliquot", post(aliquot))
 }
 
 // ——— payloads ———
@@ -330,4 +337,143 @@ async fn get_bundle(
         .await?
         .ok_or_else(|| shared_core::HelixError::not_found("design not found"))?;
     Ok(Json(ApiResponse::ok(serde_json::json!(bundle))))
+}
+
+// ——— inventory ———
+
+#[derive(Deserialize)]
+struct RegisterSampleReq {
+    name: String,
+    #[serde(default = "default_kind")]
+    kind: String,
+    #[serde(default)]
+    design_id: Option<Uuid>,
+    #[serde(default)]
+    location: String,
+}
+
+#[derive(Deserialize)]
+struct CustodyReq {
+    event: String,
+    #[serde(default)]
+    to_location: String,
+    #[serde(default)]
+    notes: String,
+}
+
+#[derive(Deserialize)]
+struct AliquotReq {
+    name: String,
+}
+
+fn default_kind() -> String {
+    "other".into()
+}
+
+async fn register_sample(
+    State(state): State<AppState>,
+    RequireAuth(p): RequireAuth,
+    Json(body): Json<RegisterSampleReq>,
+) -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
+    p.require_scope(shared_core::tenancy::Scope::Write)?;
+    let pool = require_pool(&state)?;
+    let repo = RegistryRepo::new(pool);
+    let actor = actor(&p);
+    let sample = repo
+        .register_sample(
+            p.tenant_id,
+            &body.name,
+            &body.kind,
+            body.design_id,
+            &body.location,
+            &actor,
+        )
+        .await?;
+    audit(
+        &state,
+        &p,
+        "synthbio.inventory.register",
+        "synthbio.sample",
+        sample.id,
+        serde_json::json!({"accession": sample.accession, "kind": sample.kind}),
+    )
+    .await?;
+    Ok(Json(ApiResponse::ok(serde_json::json!(sample))))
+}
+
+async fn list_samples(
+    State(state): State<AppState>,
+    RequireAuth(p): RequireAuth,
+) -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
+    p.require_scope(shared_core::tenancy::Scope::Read)?;
+    let pool = require_pool(&state)?;
+    let repo = RegistryRepo::new(pool);
+    let items = repo.list_samples(p.tenant_id).await?;
+    Ok(Json(ApiResponse::ok(serde_json::json!({
+        "durable": true,
+        "items": items
+    }))))
+}
+
+async fn get_sample(
+    State(state): State<AppState>,
+    RequireAuth(p): RequireAuth,
+    Path(id): Path<Uuid>,
+) -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
+    p.require_scope(shared_core::tenancy::Scope::Read)?;
+    let pool = require_pool(&state)?;
+    let repo = RegistryRepo::new(pool);
+    let detail = repo
+        .sample_detail(p.tenant_id, id)
+        .await?
+        .ok_or_else(|| shared_core::HelixError::not_found("sample not found"))?;
+    Ok(Json(ApiResponse::ok(serde_json::json!(detail))))
+}
+
+async fn custody_event(
+    State(state): State<AppState>,
+    RequireAuth(p): RequireAuth,
+    Path(id): Path<Uuid>,
+    Json(body): Json<CustodyReq>,
+) -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
+    p.require_scope(shared_core::tenancy::Scope::Write)?;
+    let pool = require_pool(&state)?;
+    let repo = RegistryRepo::new(pool);
+    let actor = actor(&p);
+    let sample = repo
+        .custody_event(p.tenant_id, id, &body.event, &body.to_location, &actor, &body.notes)
+        .await?;
+    audit(
+        &state,
+        &p,
+        "synthbio.inventory.custody",
+        "synthbio.sample",
+        id,
+        serde_json::json!({"event": body.event, "to": body.to_location}),
+    )
+    .await?;
+    Ok(Json(ApiResponse::ok(serde_json::json!(sample))))
+}
+
+async fn aliquot(
+    State(state): State<AppState>,
+    RequireAuth(p): RequireAuth,
+    Path(id): Path<Uuid>,
+    Json(body): Json<AliquotReq>,
+) -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
+    p.require_scope(shared_core::tenancy::Scope::Write)?;
+    let pool = require_pool(&state)?;
+    let repo = RegistryRepo::new(pool);
+    let actor = actor(&p);
+    let child = repo.aliquot(p.tenant_id, id, &body.name, &actor).await?;
+    audit(
+        &state,
+        &p,
+        "synthbio.inventory.aliquot",
+        "synthbio.sample",
+        child.id,
+        serde_json::json!({"parent": id, "accession": child.accession}),
+    )
+    .await?;
+    Ok(Json(ApiResponse::ok(serde_json::json!(child))))
 }

@@ -1258,4 +1258,159 @@ ORIGIN
             .iter()
             .any(|c| c["role_so"] == "SO:0000167" && c["strand"] == -1));
     }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn inventory_sample_custody_lineage() {
+        let (state, _guard) = locked_state().await;
+        let tenant_id = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = helix_db::RegistryRepo::new(pool.clone());
+
+        let suffix = Uuid::now_v7().simple().to_string();
+        let design = repo
+            .create_design(
+                tenant_id,
+                &format!("pInv-{suffix}"),
+                "",
+                "internal",
+                &registry_input("ACGTACGT"),
+                "tester",
+            )
+            .await
+            .expect("create design");
+
+        let sample = repo
+            .register_sample(
+                tenant_id,
+                &format!("prep-{suffix}"),
+                "plasmid_prep",
+                Some(design.id),
+                "freezer-A/1-B",
+                "tester",
+            )
+            .await
+            .expect("register sample");
+        assert!(sample.accession.starts_with("SMP-"), "{}", sample.accession);
+        assert_eq!(sample.location, "freezer-A/1-B");
+
+        // Custody and location move in one transaction.
+        let moved = repo
+            .custody_event(
+                tenant_id,
+                sample.id,
+                "transfer",
+                "bench-2",
+                "tester",
+                "to bench for digestion",
+            )
+            .await
+            .expect("transfer");
+        assert_eq!(moved.location, "bench-2");
+
+        let detail = repo
+            .sample_detail(tenant_id, sample.id)
+            .await
+            .expect("detail")
+            .expect("sample exists");
+        assert_eq!(
+            detail.design_accession.as_deref(),
+            Some(design.accession.as_str())
+        );
+        assert_eq!(detail.custody.len(), 2);
+        assert_eq!(detail.custody[0].event, "register");
+        assert_eq!(detail.custody[1].event, "transfer");
+        assert_eq!(detail.custody[1].from_location, "freezer-A/1-B");
+        assert_eq!(detail.custody[1].to_location, "bench-2");
+        assert!(detail.edges.iter().any(|e| e.relation == "produces"));
+
+        // Aliquot carries lineage.
+        let child = repo
+            .aliquot(tenant_id, sample.id, &format!("aliquot-{suffix}"), "tester")
+            .await
+            .expect("aliquot");
+        let child_detail = repo
+            .sample_detail(tenant_id, child.id)
+            .await
+            .expect("child detail")
+            .expect("child exists");
+        assert!(child_detail
+            .edges
+            .iter()
+            .any(|e| e.relation == "derived-from"));
+        assert_eq!(child_detail.sample.design_id, Some(design.id));
+
+        // Custody is append-only: a raw UPDATE must be rejected by the trigger.
+        let err = sqlx::query(
+            "UPDATE synthbio.custody_events SET notes = 'tampered' WHERE sample_id = $1",
+        )
+        .bind(sample.id)
+        .execute(pool)
+        .await
+        .expect_err("immutable custody trigger must reject UPDATE");
+        assert!(
+            err.to_string().contains("immutable record"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn inventory_concurrent_custody_serialized() {
+        let (state, _guard) = locked_state().await;
+        let tenant_id = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = helix_db::RegistryRepo::new(pool.clone());
+
+        let suffix = Uuid::now_v7().simple().to_string();
+        let sample = repo
+            .register_sample(
+                tenant_id,
+                &format!("race-{suffix}"),
+                "strain",
+                None,
+                "origin",
+                "tester",
+            )
+            .await
+            .expect("register");
+
+        // 8 racing custody events: all land in the ledger (it is append-only),
+        // and the sample's location equals the LAST committed event's target.
+        let mut handles = Vec::new();
+        for i in 0..8u32 {
+            let repo = repo.clone();
+            handles.push(tokio::spawn(async move {
+                repo
+                    .custody_event(tenant_id, sample.id, "transfer", &format!("loc-{i}"), "tester", "")
+                    .await
+            }));
+        }
+        let mut oks = 0usize;
+        for h in handles {
+            match h.await.expect("custody task panicked") {
+                Ok(_) => oks += 1,
+                Err(e) => panic!("unexpected custody error: {e}"),
+            }
+        }
+        assert_eq!(oks, 8, "every serialized custody event lands");
+
+        let detail = repo
+            .sample_detail(tenant_id, sample.id)
+            .await
+            .expect("detail")
+            .expect("sample exists");
+        assert_eq!(detail.custody.len(), 1 + 8);
+        let last = detail.custody.last().expect("last custody event");
+        assert_eq!(
+            detail.sample.location, last.to_location,
+            "sample location must equal the last committed custody target"
+        );
+    }
 }
