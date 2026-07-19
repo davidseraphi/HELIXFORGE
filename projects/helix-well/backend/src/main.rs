@@ -1062,4 +1062,108 @@ mod tests {
         );
         assert!(restored.deleted_at.is_none());
     }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn logs_rejected_on_paused_habit() {
+        let (state, _guard) = locked_state().await;
+        let p = dev_principal("well-race");
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = WellRepo::new(pool.clone());
+
+        let habit = repo
+            .create_habit(
+                p.tenant_id,
+                p.user_id,
+                "Race habit",
+                "",
+                "daily",
+                1,
+                serde_json::json!({}),
+            )
+            .await
+            .expect("create habit");
+        repo.log_habit(p.tenant_id, p.user_id, habit.id, 1, "baseline")
+            .await
+            .expect("baseline log");
+
+        repo.pause_habit(p.tenant_id, habit.id)
+            .await
+            .expect("pause habit");
+
+        // 8 concurrent log attempts on a paused habit: all rejected.
+        let mut handles = Vec::new();
+        for _ in 0..8u32 {
+            let repo = repo.clone();
+            let tenant_id = p.tenant_id;
+            let user_id = p.user_id;
+            handles.push(tokio::spawn(async move {
+                repo.log_habit(tenant_id, user_id, habit.id, 1, "nope")
+                    .await
+            }));
+        }
+        let mut rejected = 0usize;
+        for h in handles {
+            match h.await.expect("log task panicked") {
+                Err(e) if e.code == shared_core::ErrorCode::Validation => rejected += 1,
+                Ok(_) => panic!("log on a paused habit must be rejected"),
+                Err(e) => panic!("unexpected log error: {e}"),
+            }
+        }
+        assert_eq!(rejected, 8, "every log on a paused habit must fail");
+
+        let logs = repo
+            .list_habit_logs(p.tenant_id, habit.id, 50)
+            .await
+            .expect("list logs");
+        assert_eq!(logs.len(), 1, "only the baseline log may exist");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn concurrent_logs_all_landed() {
+        let (state, _guard) = locked_state().await;
+        let p = dev_principal("well-sum");
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = WellRepo::new(pool.clone());
+
+        let habit = repo
+            .create_habit(
+                p.tenant_id,
+                p.user_id,
+                "Sum habit",
+                "",
+                "daily",
+                1,
+                serde_json::json!({}),
+            )
+            .await
+            .expect("create habit");
+
+        // 8 concurrent logs on an active habit: all land.
+        let mut handles = Vec::new();
+        for i in 0..8u32 {
+            let repo = repo.clone();
+            let tenant_id = p.tenant_id;
+            let user_id = p.user_id;
+            handles.push(tokio::spawn(async move {
+                repo.log_habit(tenant_id, user_id, habit.id, (i % 3 + 1) as i32, "x")
+                    .await
+            }));
+        }
+        for h in handles {
+            h.await
+                .expect("log task panicked")
+                .expect("log on an active habit succeeds");
+        }
+
+        let logs = repo
+            .list_habit_logs(p.tenant_id, habit.id, 50)
+            .await
+            .expect("list logs");
+        assert_eq!(logs.len(), 8, "every concurrent log must land");
+        let total: i32 = logs.iter().map(|l| l.quantity).sum();
+        let expected: i32 = (0..8u32).map(|i| (i % 3 + 1) as i32).sum();
+        assert_eq!(total, expected);
+    }
 }

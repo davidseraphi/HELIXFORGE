@@ -768,23 +768,18 @@ impl WellRepo {
         if quantity < 1 {
             return Err(HelixError::validation("quantity must be >= 1"));
         }
-        let habit = self
-            .get_habit(tenant_id, habit_id)
-            .await?
-            .ok_or_else(|| HelixError::not_found("habit not found"))?;
-        if habit.status != "active" {
-            return Err(HelixError::validation(format!(
-                "habit is not active (status {})",
-                habit.status
-            )));
-        }
         let id = Uuid::now_v7();
         let logged_at = Utc::now();
-        sqlx::query(
+        // The active-habit guard is part of the INSERT itself: a habit
+        // paused between a separate check and insert cannot leak logs.
+        let inserted: Option<(Uuid,)> = sqlx::query_as(
             r#"
             INSERT INTO well.habit_logs
                 (id, tenant_id, habit_id, user_id, quantity, notes, logged_at)
-            VALUES ($1,$2,$3,$4,$5,$6,$7)
+            SELECT $1, $2, $3, $4, $5, $6, $7
+            FROM well.habits h
+            WHERE h.tenant_id = $2 AND h.id = $3 AND h.status = 'active' AND h.deleted_at IS NULL
+            RETURNING id
             "#,
         )
         .bind(id)
@@ -794,9 +789,12 @@ impl WellRepo {
         .bind(quantity)
         .bind(notes)
         .bind(logged_at)
-        .execute(&self.pool)
+        .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("well log habit: {e}")))?;
+        if inserted.is_none() {
+            return Err(HelixError::validation("habit not found or not active"));
+        }
         Ok(HabitLog {
             id,
             tenant_id,
