@@ -308,11 +308,13 @@ impl TerraRepo {
             .ok_or_else(|| HelixError::not_found("field not found"))?;
         let next = next_field_status(&field.status, "activate")?;
         let now = Utc::now();
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<FieldRow> = sqlx::query_as(&format!(
             r#"
             UPDATE terra.fields
             SET status = $1, activated_at = $2, updated_at = $2
-            WHERE tenant_id = $3 AND id = $4 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND id = $4 AND status = $5 AND deleted_at IS NULL
             {FIELD_RETURNING}
             "#
         ))
@@ -320,15 +322,20 @@ impl TerraRepo {
         .bind(now)
         .bind(tenant_id.as_uuid())
         .bind(field_id)
+        .bind(&field.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("terra activate field: {e}")))?;
 
         row.map(FieldRow::into_field)
-            .ok_or_else(|| HelixError::not_found("field not found"))
+            .ok_or_else(|| HelixError::conflict("field changed during activate; retry"))
     }
 
     /// Retire an active field. Rejected while draft observations remain.
+    /// The active-status and no-draft-observations guards are part of the
+    /// UPDATE itself, so a concurrent retire or an observation created
+    /// mid-flight cannot slip through a check-then-act window; the earlier
+    /// reads only shape the error returned for the steady-state cases.
     pub async fn retire_field(&self, tenant_id: TenantId, field_id: Uuid) -> HelixResult<Field> {
         let field = self
             .get_parent(tenant_id, field_id)
@@ -355,7 +362,12 @@ impl TerraRepo {
             r#"
             UPDATE terra.fields
             SET status = $1, retired_at = $2, updated_at = $2
-            WHERE tenant_id = $3 AND id = $4 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND id = $4 AND status = 'active' AND deleted_at IS NULL
+              AND NOT EXISTS (
+                  SELECT 1 FROM terra.observations o
+                  WHERE o.tenant_id = $3 AND o.parent_id = $4
+                    AND o.status = 'draft' AND o.deleted_at IS NULL
+              )
             {FIELD_RETURNING}
             "#
         ))
@@ -367,8 +379,9 @@ impl TerraRepo {
         .await
         .map_err(|e| HelixError::dependency(format!("terra retire field: {e}")))?;
 
-        row.map(FieldRow::into_field)
-            .ok_or_else(|| HelixError::not_found("field not found"))
+        row.map(FieldRow::into_field).ok_or_else(|| {
+            HelixError::conflict("field changed during retire or gained a draft observation; retry")
+        })
     }
 
     pub async fn reopen_field(&self, tenant_id: TenantId, field_id: Uuid) -> HelixResult<Field> {
@@ -378,11 +391,13 @@ impl TerraRepo {
             .ok_or_else(|| HelixError::not_found("field not found"))?;
         let next = next_field_status(&field.status, "reopen")?;
         let now = Utc::now();
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<FieldRow> = sqlx::query_as(&format!(
             r#"
             UPDATE terra.fields
             SET status = $1, retired_at = NULL, updated_at = $2
-            WHERE tenant_id = $3 AND id = $4 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND id = $4 AND status = $5 AND deleted_at IS NULL
             {FIELD_RETURNING}
             "#
         ))
@@ -390,12 +405,13 @@ impl TerraRepo {
         .bind(now)
         .bind(tenant_id.as_uuid())
         .bind(field_id)
+        .bind(&field.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("terra reopen field: {e}")))?;
 
         row.map(FieldRow::into_field)
-            .ok_or_else(|| HelixError::not_found("field not found"))
+            .ok_or_else(|| HelixError::conflict("field changed during reopen; retry"))
     }
 
     pub async fn soft_delete_field(
@@ -496,17 +512,17 @@ impl TerraRepo {
         body: &str,
         metadata: serde_json::Value,
     ) -> HelixResult<Observation> {
-        let _parent = self
-            .get_parent(tenant_id, parent_id)
-            .await?
-            .ok_or_else(|| HelixError::not_found("parent not found"))?;
         let id = Uuid::now_v7();
         let created_at = Utc::now();
-        let row: ObservationRow = sqlx::query_as(&format!(
+        // The non-deleted-parent guard is part of the INSERT itself: a field
+        // soft-deleted between a separate check and insert cannot leak observations.
+        let row: Option<ObservationRow> = sqlx::query_as(&format!(
             r#"
             INSERT INTO terra.observations
                 (id, tenant_id, parent_id, title, body, status, metadata, created_at, updated_at)
-            VALUES ($1,$2,$3,$4,$5,'draft',$6,$7,$7)
+            SELECT $1,$2,$3,$4,$5,'draft',$6,$7,$7
+            FROM terra.fields f
+            WHERE f.tenant_id = $2 AND f.id = $3 AND f.deleted_at IS NULL
             {OBSERVATION_RETURNING}
             "#
         ))
@@ -517,10 +533,11 @@ impl TerraRepo {
         .bind(body)
         .bind(&metadata)
         .bind(created_at)
-        .fetch_one(&self.pool)
+        .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("terra create child: {e}")))?;
-        Ok(row.into_observation())
+        row.map(ObservationRow::into_observation)
+            .ok_or_else(|| HelixError::not_found("parent not found"))
     }
 
     pub async fn get_observation(
@@ -612,11 +629,13 @@ impl TerraRepo {
             .ok_or_else(|| HelixError::not_found("observation not found"))?;
         let next = next_observation_status(&obs.status, "confirm")?;
         let now = Utc::now();
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<ObservationRow> = sqlx::query_as(&format!(
             r#"
             UPDATE terra.observations
             SET status = $1, confirmed_at = $2, updated_at = $2
-            WHERE tenant_id = $3 AND parent_id = $4 AND id = $5 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND parent_id = $4 AND id = $5 AND status = $6 AND deleted_at IS NULL
             {OBSERVATION_RETURNING}
             "#
         ))
@@ -625,12 +644,13 @@ impl TerraRepo {
         .bind(tenant_id.as_uuid())
         .bind(field_id)
         .bind(observation_id)
+        .bind(&obs.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("terra confirm observation: {e}")))?;
 
         row.map(ObservationRow::into_observation)
-            .ok_or_else(|| HelixError::not_found("observation not found"))
+            .ok_or_else(|| HelixError::conflict("observation changed during confirm; retry"))
     }
 
     pub async fn dismiss_observation(
@@ -645,11 +665,13 @@ impl TerraRepo {
             .ok_or_else(|| HelixError::not_found("observation not found"))?;
         let next = next_observation_status(&obs.status, "dismiss")?;
         let now = Utc::now();
+        // The expected-from status is part of the UPDATE: a concurrent
+        // transition in between loses instead of overwriting.
         let row: Option<ObservationRow> = sqlx::query_as(&format!(
             r#"
             UPDATE terra.observations
             SET status = $1, dismissed_at = $2, updated_at = $2
-            WHERE tenant_id = $3 AND parent_id = $4 AND id = $5 AND deleted_at IS NULL
+            WHERE tenant_id = $3 AND parent_id = $4 AND id = $5 AND status = $6 AND deleted_at IS NULL
             {OBSERVATION_RETURNING}
             "#
         ))
@@ -658,12 +680,13 @@ impl TerraRepo {
         .bind(tenant_id.as_uuid())
         .bind(field_id)
         .bind(observation_id)
+        .bind(&obs.status)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| HelixError::dependency(format!("terra dismiss observation: {e}")))?;
 
         row.map(ObservationRow::into_observation)
-            .ok_or_else(|| HelixError::not_found("observation not found"))
+            .ok_or_else(|| HelixError::conflict("observation changed during dismiss; retry"))
     }
 
     pub async fn soft_delete_observation(

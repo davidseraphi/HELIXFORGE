@@ -808,4 +808,105 @@ mod tests {
         assert_eq!(restored.status, "active");
         assert!(restored.deleted_at.is_none());
     }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn observations_rejected_on_deleted_field() {
+        let (state, _guard) = locked_state().await;
+        let tenant_id = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = TerraRepo::new(pool.clone());
+
+        let field = repo
+            .create_parent(tenant_id, "Doomed field", "", serde_json::json!({}))
+            .await
+            .expect("create field");
+        repo.soft_delete_field(tenant_id, field.id)
+            .await
+            .expect("delete field");
+
+        // 8 racing observation creates on a soft-deleted field all fail.
+        let mut handles = Vec::new();
+        for _ in 0..8u32 {
+            let repo = repo.clone();
+            handles.push(tokio::spawn(async move {
+                repo.create_child(tenant_id, field.id, "leak", "", serde_json::json!({}))
+                    .await
+            }));
+        }
+        let mut rejected = 0usize;
+        for h in handles {
+            match h.await.expect("create task panicked") {
+                Ok(_) => panic!("observation created on a deleted field"),
+                Err(e) if e.code == shared_core::ErrorCode::NotFound => rejected += 1,
+                Err(e) => panic!("unexpected create error: {e}"),
+            }
+        }
+        assert_eq!(rejected, 8, "all racing creates must be rejected");
+
+        let observations = repo
+            .list_children(tenant_id, field.id)
+            .await
+            .expect("list observations");
+        assert_eq!(
+            observations.len(),
+            0,
+            "no observation may leak onto a deleted field"
+        );
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn concurrent_retire_single_winner() {
+        let (state, _guard) = locked_state().await;
+        let tenant_id = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = TerraRepo::new(pool.clone());
+
+        let field = repo
+            .create_parent(tenant_id, "Race retire", "", serde_json::json!({}))
+            .await
+            .expect("create field");
+        repo.activate_field(tenant_id, field.id)
+            .await
+            .expect("activate field");
+
+        // 8 racing retires of one active field with no draft observations.
+        let mut handles = Vec::new();
+        for _ in 0..8u32 {
+            let repo = repo.clone();
+            handles.push(tokio::spawn(async move {
+                repo.retire_field(tenant_id, field.id).await
+            }));
+        }
+        let mut winners = 0usize;
+        let mut rejected = 0usize;
+        for h in handles {
+            match h.await.expect("retire task panicked") {
+                Ok(_) => winners += 1,
+                Err(e)
+                    if e.code == shared_core::ErrorCode::Conflict
+                        || e.code == shared_core::ErrorCode::Validation =>
+                {
+                    rejected += 1
+                }
+                Err(e) => panic!("unexpected retire error: {e}"),
+            }
+        }
+        assert_eq!(winners, 1, "exactly one racing retire may win");
+        assert_eq!(rejected, 7, "all losers must be rejected");
+
+        let fields = repo.list_parents(tenant_id).await.expect("list fields");
+        let row = fields
+            .iter()
+            .find(|f| f.id == field.id)
+            .expect("field listed");
+        assert_eq!(row.status, "retired");
+    }
 }
