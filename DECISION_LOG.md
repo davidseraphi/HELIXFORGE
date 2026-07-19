@@ -1,5 +1,48 @@
 # Decision log (append-only)
 
+## 2026-07-19 — HELIXCLIMATEPRIME-DURABILITY closed; fourteenth product through the gate
+
+- Completed the HelixClimate Prime durability-gate packet
+  (`helix-climate-prime` added to `durability_gate_proven_products`):
+  - **Check-then-insert window closed:** `ClimateRepo::create_child` now
+    enforces the non-deleted parent scenario condition inside the INSERT
+    itself (`INSERT ... SELECT`), so a scenario soft-deleted in between
+    can no longer leak scores (`crates/helix-db/src/climate.rs`).
+  - **Guarded transitions:** `archive_scenario` is a single guarded
+    `UPDATE` requiring `status = 'active'`, not deleted, and `NOT EXISTS`
+    a non-deleted draft score; `activate_scenario`, `reopen_scenario`,
+    `assess_score`, and `dismiss_score` carry their expected-from status
+    in the `WHERE` — a concurrent transition now loses with a conflict
+    instead of overwriting.
+  - New ignored Postgres integration tests:
+    `scores_rejected_on_deleted_scenario` (after soft-deleting a
+    scenario, 8 concurrent score creates all rejected; no score leaks
+    in) and `concurrent_archive_single_winner` (8 racing archives of one
+    active scenario → exactly one success, 7 rejected, scenario ends
+    archived).
+  - `scripts/helix_climate_prime_durability.ps1` proves:
+    scenario/activate/score/assess/archive lifecycle; an acknowledged
+    archived scenario surviving an immediate forced kill of the API
+    (status, archived_at, and assessed score fully present after
+    restart); and a `climate` schema `pg_dump` roundtrip into a scratch
+    database with equal scenario/score counts and equal content hashes.
+  - `climate-durability` CI job running the ignored integration tests
+    and the proof script.
+- Verification:
+  - `cargo fmt --all -- --check` clean.
+  - `cargo clippy --workspace --all-targets -- -D warnings` clean.
+  - `cargo test --workspace --all-features` clean.
+  - Race proofs pass against live Postgres; durability script passes
+    locally (Windows) and in CI (ubuntu).
+  - GitHub Actions run `29671780109` is all green, including the new
+    **HelixClimate Prime durability gate** job and all 19 product smoke
+    jobs.
+- Commits `758a247` (activation) and `c66231c` (implementation) pushed to
+  `main`.
+- `PROJECT_STATE.json` and `NEXT_ACTION.md` updated;
+  `helix-climate-prime` recorded in `durability_gate_proven_products`.
+- Next action: founder selects the next explicit named goal.
+
 ## 2026-07-19 — HELIXTERRAPRIME-DURABILITY closed; thirteenth product through the gate
 
 - Completed the HelixTerra Prime durability-gate packet

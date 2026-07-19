@@ -4,10 +4,10 @@
   "stage": "prototype",
   "updated_at": "2026-07-19",
   "active_slice": "category-defining-product-program",
-  "active_goal": "HELIXCLIMATEPRIME-DURABILITY",
-  "active_phase": "helixclimateprime_durability_gate",
-  "previous_goal": "HELIXTERRAPRIME-DURABILITY_CI_PROVEN",
-  "review_gate": "HELIXCLIMATEPRIME-DURABILITY",
+  "active_goal": null,
+  "active_phase": null,
+  "previous_goal": "HELIXCLIMATEPRIME-DURABILITY_CI_PROVEN",
+  "review_gate": null,
   "category_defining_program": {
     "status": "foundation_integrity_umbrella_011.7_closed",
     "root": "docs/product-program",
@@ -22,7 +22,7 @@
       "helix-anvil-standalone"
     ],
     "implementation_started": true,
-    "next_gate": "HELIXCLIMATEPRIME-DURABILITY gate packet"
+    "next_gate": "awaiting_founder_goal_selection"
   },
   "second_wave": {
     "roadmap": "docs/SECOND_WAVE.md",
@@ -83,7 +83,7 @@
     "current_validity": "unverified_after_later_tree_changes"
   },
   "foundation_integrity_current_gate": "011.7_CLOSED",
-  "full_workspace_current_status": "fmt_clippy_test_helm_verify_helixcore_full_pass_helixterraprime_durability_ci_proven_run_29671334631",
+  "full_workspace_current_status": "fmt_clippy_test_helm_verify_helixcore_full_pass_helixclimateprime_durability_ci_proven_run_29671780109",
   "core_services": [
     "gateway",
     "agent-hub",
@@ -130,7 +130,8 @@
     "helix-synthbio",
     "helix-lex-prime",
     "helix-cura-prime",
-    "helix-terra-prime"
+    "helix-terra-prime",
+    "helix-climate-prime"
   ],
   "durability_gate_definition": "fresh crash, concurrency, restore, and Windows/macOS/Linux proof under Foundation Integrity",
   "deferred_products": {
@@ -174,11 +175,11 @@
   "ratified_specs": [],
   "last_smoke": {
     "date": "2026-07-19",
-    "service": "helix-terra-prime",
+    "service": "helix-climate-prime",
     "postgres": true,
     "minio": true,
     "nats": true,
-    "path": "scripts/helix_terra_prime_durability.ps1 PASS \u2014 local + CI"
+    "path": "scripts/helix_climate_prime_durability.ps1 PASS \u2014 local + CI"
   },
   "helix_code_extreme": {
     "phase": "endstate",
