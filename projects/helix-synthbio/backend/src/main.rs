@@ -1,5 +1,7 @@
 //! helix-synthbio API — durable store via helix_db.
 
+mod registry;
+
 use audit_log::AuditEvent;
 use axum::extract::{Path, State};
 use axum::routing::{get, post};
@@ -28,6 +30,7 @@ async fn main() -> HelixResult<()> {
     let state = builder.into_state();
     let app = ServiceBuilder::base_router(state.clone())
         .merge(ProductService::router(state.clone(), product))
+        .merge(registry::routes())
         .merge(domain_routes());
 
     let cfg = shared_core::CoreConfig::from_env("helix-synthbio", 8111)?;
@@ -922,5 +925,333 @@ mod tests {
             .find(|d| d.id == design.id)
             .expect("design listed");
         assert_eq!(row.status, "approved");
+    }
+
+    // ——— Registry (Benchling-grade) ———
+
+    fn registry_input(seq: &str) -> helix_db::VersionInput {
+        helix_db::VersionInput {
+            alphabet: "dna".into(),
+            topology: "circular".into(),
+            source_kind: "manual".into(),
+            source_name: "bench".into(),
+            sequence_text: seq.into(),
+            components: vec![helix_db::Component {
+                name: "prA".into(),
+                role_so: "SO:0000167".into(),
+                start: 10,
+                end: 80,
+                strand: -1,
+                source: "manual".into(),
+            }],
+            provenance: "depositor-claimed".into(),
+            notes: String::new(),
+        }
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn registry_accession_versions_immutable() {
+        let (state, _guard) = locked_state().await;
+        let tenant_id = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = helix_db::RegistryRepo::new(pool.clone());
+
+        let suffix = Uuid::now_v7().simple().to_string();
+        let design = repo
+            .create_design(
+                tenant_id,
+                &format!("pRegistry-{suffix}"),
+                "gate proof",
+                "internal",
+                &registry_input("ACGTACGTACGTACGT"),
+                "tester",
+            )
+            .await
+            .expect("create design");
+        assert!(design.accession.starts_with("DSN-"), "{}", design.accession);
+        assert_eq!(design.current_version, 1);
+
+        let v2 = repo
+            .add_version(
+                tenant_id,
+                design.id,
+                &registry_input("ACGTACGTACGTACGTGGGG"),
+                "tester",
+            )
+            .await
+            .expect("add version");
+        assert_eq!(v2.version, 2);
+
+        let view = repo
+            .design_360(tenant_id, design.id)
+            .await
+            .expect("360")
+            .expect("design exists");
+        assert_eq!(view.design.current_version, 2);
+        assert_eq!(view.versions.len(), 2);
+        assert!(view
+            .edges
+            .iter()
+            .any(|e| e.relation == "derived-from" && e.child_id == v2.id));
+        assert!(view.events.iter().any(|e| e.event_kind == "versioned"));
+        assert_ne!(view.versions[0].content_hash, view.versions[1].content_hash);
+
+        // DB-enforced immutability: no update path exists, and a raw UPDATE
+        // must be rejected by the trigger.
+        let err =
+            sqlx::query("UPDATE synthbio.design_versions SET notes = 'tampered' WHERE id = $1")
+                .bind(v2.id)
+                .execute(pool)
+                .await
+                .expect_err("immutable trigger must reject UPDATE");
+        assert!(
+            err.to_string().contains("immutable record"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn registry_concurrent_accession_distinct() {
+        let (state, _guard) = locked_state().await;
+        let tenant_id = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = helix_db::RegistryRepo::new(pool.clone());
+
+        let suffix = Uuid::now_v7().simple().to_string();
+        let mut handles = Vec::new();
+        for i in 0..16u32 {
+            let repo = repo.clone();
+            let suffix = suffix.clone();
+            handles.push(tokio::spawn(async move {
+                repo.create_design(
+                    tenant_id,
+                    &format!("pRace-{suffix}-{i}"),
+                    "",
+                    "internal",
+                    &registry_input("ACGTACGT"),
+                    "tester",
+                )
+                .await
+            }));
+        }
+        let mut accessions = std::collections::HashSet::new();
+        for h in handles {
+            let d = h
+                .await
+                .expect("create task panicked")
+                .expect("create design");
+            assert!(
+                accessions.insert(d.accession.clone()),
+                "duplicate accession {}",
+                d.accession
+            );
+        }
+        assert_eq!(accessions.len(), 16);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn registry_risk_review_guards() {
+        let (state, _guard) = locked_state().await;
+        let tenant_id = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = helix_db::RegistryRepo::new(pool.clone());
+
+        let suffix = Uuid::now_v7().simple().to_string();
+        let design = repo
+            .create_design(
+                tenant_id,
+                &format!("pRisk-{suffix}"),
+                "",
+                "internal",
+                &registry_input("ACGTACGT"),
+                "tester",
+            )
+            .await
+            .expect("create design");
+
+        // Fresh case is unknown; unknown is never safe.
+        let case = repo
+            .ensure_risk_case(tenant_id, design.id)
+            .await
+            .expect("ensure case");
+        assert_eq!(case.state, "unknown");
+
+        // A decision without a named reviewer is refused.
+        let err = repo
+            .review_risk(
+                tenant_id,
+                design.id,
+                &helix_db::ReviewDecision {
+                    state: "allowed".into(),
+                    intended_use: "bench research".into(),
+                    policy_version: "v1".into(),
+                    reasons: vec![],
+                    conditions: String::new(),
+                    expires_at: None,
+                },
+                "",
+            )
+            .await
+            .expect_err("reviewer required");
+        assert_eq!(err.code, shared_core::ErrorCode::Validation);
+
+        // 8 racing decisions on one case: exactly one wins.
+        let mut handles = Vec::new();
+        for _ in 0..8u32 {
+            let repo = repo.clone();
+            handles.push(tokio::spawn(async move {
+                repo.review_risk(
+                    tenant_id,
+                    design.id,
+                    &helix_db::ReviewDecision {
+                        state: "allowed".into(),
+                        intended_use: "bench research".into(),
+                        policy_version: "v1".into(),
+                        reasons: vec!["public backbone".into()],
+                        conditions: String::new(),
+                        expires_at: None,
+                    },
+                    "Dr. Ada Biosafety",
+                )
+                .await
+            }));
+        }
+        let mut winners = 0usize;
+        let mut rejected = 0usize;
+        for h in handles {
+            match h.await.expect("review task panicked") {
+                Ok(_) => winners += 1,
+                Err(e)
+                    if e.code == shared_core::ErrorCode::Conflict
+                        || e.code == shared_core::ErrorCode::Validation =>
+                {
+                    rejected += 1
+                }
+                Err(e) => panic!("unexpected review error: {e}"),
+            }
+        }
+        assert_eq!(winners, 1, "exactly one racing decision may win");
+        assert_eq!(rejected, 7, "all losers must be rejected");
+
+        let case = repo
+            .get_risk_case(tenant_id, design.id)
+            .await
+            .expect("get case")
+            .expect("case exists");
+        assert_eq!(case.state, "allowed");
+        assert_eq!(case.reviewer.as_deref(), Some("Dr. Ada Biosafety"));
+        assert!(case.design_version_id.is_some(), "decision pins a version");
+
+        // An expired decision decays to unknown in the 360 view.
+        let case2 = repo
+            .review_risk(
+                tenant_id,
+                design.id,
+                &helix_db::ReviewDecision {
+                    state: "restricted".into(),
+                    intended_use: "bench research".into(),
+                    policy_version: "v1".into(),
+                    reasons: vec![],
+                    conditions: String::new(),
+                    expires_at: Some(chrono::Utc::now() - chrono::Duration::hours(1)),
+                },
+                "Dr. Ada Biosafety",
+            )
+            .await
+            .expect("re-review");
+        assert_eq!(case2.state, "restricted");
+        let view = repo
+            .design_360(tenant_id, design.id)
+            .await
+            .expect("360")
+            .expect("design exists");
+        assert_eq!(view.effective_risk, "unknown", "expired decays to unknown");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn registry_import_quarantine_manifest() {
+        let (state, _guard) = locked_state().await;
+        let tenant_id = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = helix_db::RegistryRepo::new(pool.clone());
+
+        let fixture = r#"LOCUS       pGOOD-001              120 bp    DNA     circular SYN 19-JUL-2026
+DEFINITION  Good plasmid.
+ACCESSION   pGOOD-001
+FEATURES             Location/Qualifiers
+     source          1..120
+     promoter        complement(10..80)
+                     /gene="prA"
+     CDS             join(100..300,500..900)
+                     /product="demo enzyme"
+ORIGIN
+        1 acgtacgtac gtacgtacgt acgtacgtac gtacgtacgt acgtacgtac gtacgtacgt
+       61 acgtacgtac gtacgtacgt acgtacgtac gtacgtacgt acgtacgtac gtacgtacgt
+//
+LOCUS       pGOOD-002              120 bp    DNA     linear   SYN 19-JUL-2026
+DEFINITION  Second good record.
+ACCESSION   pGOOD-002
+FEATURES             Location/Qualifiers
+     source          1..120
+ORIGIN
+        1 acgtacgtac gtacgtacgt acgtacgtac gtacgtacgt acgtacgtac gtacgtacgt
+       61 acgtacgtac gtacgtacgt acgtacgtac gtacgtacgt acgtacgtac gtacgtacgt
+//
+LOCUS       pBAD                   999 bp    DNA     linear   SYN 19-JUL-2026
+DEFINITION  Broken record (length lie).
+ACCESSION   pBAD
+ORIGIN
+        1 acgtacgtac gtacgtacgt acgtacgtac gtacgtacgt acgtacgtac gtacgtacgt
+       61 acgtacgtac gtacgtacgt acgtacgtac gtacgtacgt acgtacgtac gtacgtacgt
+//
+"#;
+        let manifest = repo
+            .import_records(tenant_id, "genbank", fixture, "tester")
+            .await
+            .expect("import");
+        assert_eq!(manifest.total_records, 3);
+        assert_eq!(manifest.accepted_count, 2);
+        assert_eq!(manifest.rejected_count, 1);
+        assert_eq!(
+            manifest.accepted_count + manifest.rejected_count,
+            manifest.total_records,
+            "accepted + rejected must sum to input"
+        );
+        assert_eq!(manifest.rejected[0].record, "pBAD");
+        assert!(manifest.rejected[0].reason.contains("999"));
+
+        let good = &manifest.accepted[0];
+        assert!(good.accession.starts_with("DSN-"));
+        let view = repo
+            .design_360(tenant_id, good.id)
+            .await
+            .expect("360")
+            .expect("design exists");
+        let v = &view.versions[0];
+        assert_eq!(v.source_kind, "genbank");
+        assert_eq!(v.sequence_length, 120);
+        assert_eq!(v.provenance, "depositor-claimed");
+        let comps = v.components.as_array().expect("components array");
+        assert_eq!(comps.len(), 2, "promoter + CDS become components");
+        assert!(comps.iter().any(|c| c["role_so"] == "SO:0000316"));
+        assert!(comps
+            .iter()
+            .any(|c| c["role_so"] == "SO:0000167" && c["strand"] == -1));
     }
 }

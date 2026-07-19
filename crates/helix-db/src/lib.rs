@@ -36,6 +36,8 @@ pub mod quantum;
 pub mod regions;
 pub mod studio;
 pub mod synthbio;
+pub mod synthbio_genbank;
+pub mod synthbio_registry;
 pub mod tenants;
 pub mod terra;
 pub mod vault_objects;
@@ -129,6 +131,11 @@ pub use studio::{
 pub use synthbio::{
     next_design_status, next_sim_status, Design, DesignUpdate, SimRun, SimUpdate, SynthbioRepo,
     SynthbioSummaryRow,
+};
+pub use synthbio_registry::{
+    Component, Design360, DesignVersion, EvidenceBundle, ImportManifest, ImportRejected,
+    LineageEdge, LineageEvent, RegistryDesign, RegistryRepo, ReviewDecision, RiskCase,
+    VersionInput,
 };
 pub use tenants::{TenantRecord, TenantRepo, TenantStatus};
 pub use terra::{
