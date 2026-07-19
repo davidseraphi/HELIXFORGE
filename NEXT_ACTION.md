@@ -1,41 +1,46 @@
 # Next action
 
-## Latest: HELIXPULSE-DURABILITY closed — twentieth product through the gate
+## Active: HELIXCODE-DURABILITY — twenty-first and final product through the gate
 
-HELIXPULSE-DURABILITY is complete. The implementation passed local
-verification and GitHub Actions run `29686421129` is all green, including
-the new **HelixPulse durability gate** job.
+Prove the Foundation Integrity durability gate on HelixCode: fresh
+crash, concurrency, and restore, verified locally and in CI. Final
+product (after `helix-collab`, `helix-capital`, `helix-commerce`,
+`helix-flow`, `helix-insights`, `helix-edu`, `helix-well`,
+`helix-network`, `helix-forge-studio`, `helix-synthbio`,
+`helix-lex-prime`, `helix-cura-prime`, `helix-terra-prime`,
+`helix-climate-prime`, `helix-orbit-prime`, `helix-quantum-forge`,
+`helix-vita-prime`, `helix-grid-prime`, `helix-nova-labs`,
+`helix-pulse`).
 
-- Repo: `crates/helix-db/src/pulse.rs` (atomic `create_incident`
-  INSERT...SELECT; guarded `pause_monitor` / `activate_monitor` /
-  `resume_monitor` / `transition_incident`)
-- Tests: `projects/helix-pulse/backend/src/main.rs`
-  (`incidents_rejected_on_deleted_monitor`,
-  `concurrent_pause_single_winner`)
-- Proof: `scripts/helix_pulse_durability.ps1` (forced-kill + restore)
-- CI: `.github/workflows/ci.yml` `pulse-durability` job
-- Docs: `docs/goals/HELIXPULSE_DURABILITY.md`, `DECISION_LOG.md`
+Goal doc: `docs/goals/HELIXCODE_DURABILITY.md`.
 
-### What was delivered
+### Scope
 
-- non-deleted-parent guard enforced inside the incident INSERT; a
-  monitor soft-deleted mid-flight can no longer leak incidents
-- pause is one guarded UPDATE (active + not deleted + NOT EXISTS open
-  incident); activate/resume and acknowledge/resolve carry
-  expected-from status in the WHERE
-- concurrency proof: 8 racing creates on a deleted monitor all
-  rejected; 8 racing pauses → exactly one winner
-- crash proof: acknowledged paused monitor survives a forced kill of the
-  API
-- restore proof: schema dump roundtrip with equal counts + content
-  hashes
-- `helix-pulse` recorded in `durability_gate_proven_products`
+`finish_pipeline_run` / `finish_agent_job` wrote terminal state with
+unguarded discarded UPDATEs — concurrent finishes both "won" and a
+finish could overwrite a cancel. `create_workspace` / `create_pipeline`
+relied on handler read-first + FK, producing 500s instead of clean
+not-founds. The API also did not boot under current axum
+(`.nest_service("/", ...)` panic). All fixed and proven.
 
-### Active goal
+### Definition of done
 
-None. HELIXPULSE-DURABILITY is closed.
+1. `finish_pipeline_run` / `finish_agent_job` are guarded UPDATEs with
+   `AND finished_at IS NULL` + `RETURNING`; concurrent finish →
+   conflict.
+2. `create_workspace` / `create_pipeline` insert with
+   `INSERT ... SELECT` against the tenant's repo.
+3. API boots via `fallback_service` in
+   `projects/helix-code/backend/src/main.rs`.
+4. Ignored tests `concurrent_finish_pipeline_run_single_winner`,
+   `concurrent_finish_agent_job_single_winner`,
+   `children_rejected_on_missing_repo` pass locally and in CI.
+5. `scripts/helix_code_durability.ps1` proves lifecycle, forced-kill
+   survival, and schema restore roundtrip.
+6. `code-durability` CI job in `.github/workflows/ci.yml`.
+7. `cargo test --workspace --all-features` and
+   `cargo clippy --workspace --all-targets -- -D warnings` clean.
 
 ### Next action
 
-Founder selects the next explicit named goal. Open: durability gate for
-the final product (helix-code).
+Push the implementation and watch CI to green.
