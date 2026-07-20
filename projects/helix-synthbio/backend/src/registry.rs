@@ -1028,7 +1028,7 @@ async fn link_stage(
 }
 
 async fn list_pathways(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     RequireAuth(p): RequireAuth,
 ) -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
     p.require_scope(shared_core::tenancy::Scope::Read)?;
