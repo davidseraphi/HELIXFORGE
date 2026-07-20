@@ -99,8 +99,23 @@ TorchServe (dead) · "self-hosted HuggingFace Hub" (doesn't exist) · Ray
 Serve / BentoML at our scale · Flyte / Kubeflow (control-plane tax) ·
 Dagster/Airflow here · TileDB-SOMA as primary format today (evaluate at
 atlas scale; h5ad interchange, Zarr for hot serving) · BioNeMo NIMs as
-source of truth (fine as accelerators) · Bazel/Nx/meta-builders · Pact
-broker · GitFlow · SLSA L3 · self-hosted runners.
+source of truth (fine as accelerators) · Pact broker · GitFlow · SLSA L3 ·
+self-hosted runners.
+
+### Deferred, with explicit adoption triggers (not rejected)
+
+**Bazel / Nx / meta-build orchestrators.** Today the native toolchains
+*are* the build graph (cargo workspace, pnpm+turbo, uv) and are already
+incremental; the primary dev machine is Windows, which is Bazel's weakest
+platform tier (rules_rust on MSVC carries real friction); and hub-and-spoke
+deliberately keeps each repo moderate — Bazel's sweet spot is the giant
+single monorepo. **Adopt Bazel when any trigger fires:** one repo exceeds
+~40 polyglot components · CI wall-time > ~40 min despite path-filtering and
+caching · heavy cross-language codegen arrives (protobuf/gRPC across
+Rust+TS+Python) · remote-cache CI savings exceed the ops cost. **Door held
+open for free:** lockfiles everywhere, pinned toolchains, hermetic CI
+steps, no network in tests — the same hygiene SLSA L2 and the air-gap
+bundle already require, so the later migration is cheap.
 
 ---
 
@@ -110,7 +125,8 @@ Component-first top level, domain-first inside components (the PostHog/
 Supabase pattern — verified against live repos, not layout dogma):
 
 - One workspace per ecosystem: root `Cargo.toml`, `pnpm-workspace.yaml`,
-  `uv` workspace. Wired by a root `justfile`. No meta-build orchestrator.
+  `uv` workspace. Wired by a root `justfile`. Meta-build orchestrator only
+  when a §2 trigger fires.
 - `db/migrations/` owned by exactly one tool (sqlx), one runner.
 - Every top-level folder has a README naming its owner and toolchain.
 - Docs Diátaxis-sorted: `docs/reference/` (OpenAPI-generated — never
