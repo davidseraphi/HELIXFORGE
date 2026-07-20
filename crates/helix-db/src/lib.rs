@@ -133,11 +133,11 @@ pub use synthbio::{
     SynthbioSummaryRow,
 };
 pub use synthbio_registry::{
-    Claim, ClaimDetail, Component, CustodyEvent, Design360, DesignNote, DesignVersion,
-    EvidenceBundle, EvidenceLink, ImportManifest, ImportRejected, Journey, JourneyDetail,
-    JourneyStage, LineageEdge, LineageEvent, Measurement, MeasurementInput, PathwayStage,
-    PathwayTemplate, RegistryDesign, RegistryRepo, ReviewDecision, RiskCase, Sample,
-    SampleDetail, Signature, StageCheck, StageWithCheck, VersionInput, pathway_templates,
+    pathway_templates, Claim, ClaimDetail, Component, CustodyEvent, Design360, DesignNote,
+    DesignVersion, EvidenceBundle, EvidenceLink, ImportManifest, ImportRejected, Journey,
+    JourneyDetail, JourneyStage, LineageEdge, LineageEvent, Measurement, MeasurementInput,
+    PathwayStage, PathwayTemplate, RegistryDesign, RegistryRepo, ReviewDecision, RiskCase, Sample,
+    SampleDetail, Signature, StageCheck, StageWithCheck, VersionInput,
 };
 pub use tenants::{TenantRecord, TenantRepo, TenantStatus};
 pub use terra::{

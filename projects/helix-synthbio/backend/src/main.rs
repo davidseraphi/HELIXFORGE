@@ -1920,11 +1920,21 @@ ORIGIN
         assert_eq!(detail.stages[0].stage.status, "current");
         assert_eq!(detail.stages[1].stage.status, "pending");
         assert!(!detail.stages[0].check.met);
-        assert!(!detail.stages[0].check.missing.is_empty(), "teacher says what's missing");
+        assert!(
+            !detail.stages[0].check.missing.is_empty(),
+            "teacher says what's missing"
+        );
 
         // 1. Source.
         let source = repo
-            .register_sample(tenant_id, &format!("plant-{suffix}"), "other", None, "rack", "tester")
+            .register_sample(
+                tenant_id,
+                &format!("plant-{suffix}"),
+                "other",
+                None,
+                "rack",
+                "tester",
+            )
             .await
             .expect("register source");
         repo.link_stage_target(tenant_id, journey.id, 0, "sample", source.id, "tester")
@@ -1980,7 +1990,14 @@ ORIGIN
 
         // 5. Build: a sample from anywhere else is refused with the reason.
         let foreign = repo
-            .register_sample(tenant_id, &format!("foreign-{suffix}"), "strain", None, "", "tester")
+            .register_sample(
+                tenant_id,
+                &format!("foreign-{suffix}"),
+                "strain",
+                None,
+                "",
+                "tester",
+            )
             .await
             .expect("register foreign");
         let err = repo
@@ -2078,7 +2095,10 @@ ORIGIN
             "demo completes every stage"
         );
         let design_id = detail.stages[2].stage.target_id.expect("design linked");
-        let claims = repo.list_claims(tenant_id, design_id).await.expect("claims");
+        let claims = repo
+            .list_claims(tenant_id, design_id)
+            .await
+            .expect("claims");
         assert_eq!(claims.len(), 1);
         assert_eq!(claims[0].claim.status, "accepted");
         assert_eq!(claims[0].evidence.len(), 1);

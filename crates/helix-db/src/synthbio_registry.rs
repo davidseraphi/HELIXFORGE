@@ -2882,7 +2882,11 @@ impl RegistryRepo {
         let done_count = checks.iter().filter(|c| c.met).count();
         let total = checks.len();
         let current = checks.iter().position(|c| !c.met).unwrap_or(total) as i32;
-        let new_status = if done_count == total { "completed" } else { "active" };
+        let new_status = if done_count == total {
+            "completed"
+        } else {
+            "active"
+        };
         sqlx::query(
             "UPDATE synthbio.journeys SET current_stage = $1, status = $2, updated_at = $3 WHERE tenant_id = $4 AND id = $5",
         )
@@ -2936,7 +2940,10 @@ impl RegistryRepo {
                 },
                 STAGE_ROUTE => {
                     if journey.route_choice != "undecided" {
-                        StageCheck { met: true, missing: String::new() }
+                        StageCheck {
+                            met: true,
+                            missing: String::new(),
+                        }
                     } else {
                         StageCheck {
                             met: false,
@@ -2959,7 +2966,10 @@ impl RegistryRepo {
                             let case = self.get_risk_case(tenant_id, did).await?;
                             let effective = effective_risk(case.as_ref());
                             if effective == "allowed" || effective == "restricted" {
-                                StageCheck { met: true, missing: String::new() }
+                                StageCheck {
+                                    met: true,
+                                    missing: String::new(),
+                                }
                             } else if effective == "blocked" {
                                 StageCheck {
                                     met: false,
@@ -2968,7 +2978,9 @@ impl RegistryRepo {
                             } else {
                                 StageCheck {
                                     met: false,
-                                    missing: "risk review pending — a named human authority must decide".into(),
+                                    missing:
+                                        "risk review pending — a named human authority must decide"
+                                            .into(),
                                 }
                             }
                         }
@@ -2995,11 +3007,15 @@ impl RegistryRepo {
                             .await
                             .map_err(|e| HelixError::dependency(format!("synthbio test check: {e}")))?;
                             if accepted.is_some() {
-                                StageCheck { met: true, missing: String::new() }
+                                StageCheck {
+                                    met: true,
+                                    missing: String::new(),
+                                }
                             } else {
                                 StageCheck {
                                     met: false,
-                                    missing: "no accepted measurement on the build sample yet".into(),
+                                    missing: "no accepted measurement on the build sample yet"
+                                        .into(),
                                 }
                             }
                         }
@@ -3022,7 +3038,10 @@ impl RegistryRepo {
                             .await
                             .map_err(|e| HelixError::dependency(format!("synthbio evidence check: {e}")))?;
                             if accepted.is_some() {
-                                StageCheck { met: true, missing: String::new() }
+                                StageCheck {
+                                    met: true,
+                                    missing: String::new(),
+                                }
                             } else {
                                 StageCheck {
                                     met: false,
@@ -3095,8 +3114,15 @@ impl RegistryRepo {
                 actor,
             )
             .await?;
-        self.link_stage_target(tenant_id, journey.id, STAGE_SOURCE, "sample", source.id, actor)
-            .await?;
+        self.link_stage_target(
+            tenant_id,
+            journey.id,
+            STAGE_SOURCE,
+            "sample",
+            source.id,
+            actor,
+        )
+        .await?;
 
         // 2. Route.
         self.set_route(tenant_id, journey.id, "extraction", actor)
@@ -3140,8 +3166,15 @@ impl RegistryRepo {
                 actor,
             )
             .await?;
-        self.link_stage_target(tenant_id, journey.id, STAGE_DESIGN, "design", design.id, actor)
-            .await?;
+        self.link_stage_target(
+            tenant_id,
+            journey.id,
+            STAGE_DESIGN,
+            "design",
+            design.id,
+            actor,
+        )
+        .await?;
 
         // 4. Risk.
         self.review_risk(
@@ -3151,7 +3184,10 @@ impl RegistryRepo {
                 state: "allowed".into(),
                 intended_use: "topical balm research (demo)".into(),
                 policy_version: "biosafety-v1".into(),
-                reasons: vec!["public backbone (demo)".into(), "no sequences of concern (demo)".into()],
+                reasons: vec![
+                    "public backbone (demo)".into(),
+                    "no sequences of concern (demo)".into(),
+                ],
                 conditions: String::new(),
                 expires_at: None,
                 expected_state: Some("unknown".into()),
@@ -3171,8 +3207,15 @@ impl RegistryRepo {
                 actor,
             )
             .await?;
-        self.link_stage_target(tenant_id, journey.id, STAGE_BUILD, "sample", build.id, actor)
-            .await?;
+        self.link_stage_target(
+            tenant_id,
+            journey.id,
+            STAGE_BUILD,
+            "sample",
+            build.id,
+            actor,
+        )
+        .await?;
 
         // 6. Test.
         let m = self

@@ -904,7 +904,13 @@ async fn create_journey(
     let repo = RegistryRepo::new(pool);
     let actor = actor(&p);
     let journey = repo
-        .create_journey(p.tenant_id, &body.title, &body.intent, &body.pathway_key, &actor)
+        .create_journey(
+            p.tenant_id,
+            &body.title,
+            &body.intent,
+            &body.pathway_key,
+            &actor,
+        )
         .await?;
     audit(
         &state,
@@ -1009,7 +1015,14 @@ async fn link_stage(
     let repo = RegistryRepo::new(pool);
     let actor = actor(&p);
     let detail = repo
-        .link_stage_target(p.tenant_id, id, index, &body.target_kind, body.target_id, &actor)
+        .link_stage_target(
+            p.tenant_id,
+            id,
+            index,
+            &body.target_kind,
+            body.target_id,
+            &actor,
+        )
         .await?;
     Ok(Json(ApiResponse::ok(serde_json::json!(detail))))
 }
