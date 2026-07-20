@@ -36,16 +36,15 @@ durability gate:
 
 ### Active goal
 
-SynthBio depth program (founder-driven): parity floor is in, the
-intent-first layer is in. Product is live at
-`http://localhost:3000/products/helix-synthbio` (Journeys tab).
+**SYNTHBIO EXTRACTION (hub-and-spoke).** SynthBio graduates out of the
+monorepo into `PROJECTS/synthbio` as the first standalone product repo.
+Canonical plan: `docs/architecture/SYNTHBIO_EXTRACTION_PLAN.md`.
+Decision recorded: DECISION_LOG 2026-07-20.
 
 ### Next action
 
-Founder picks the next slice. Candidates, in rough priority:
-
-1. Interactive sequence editor + notebook ELN (finishes total parity)
-2. Node federation — signed bundle exchange between orgs (the
-   ecosystem-node idea from the rethink discussion)
-3. SBOL3 export
-4. Apply the parity + journeys standard to a second product
+Phase 1 — Hub prep: CODEOWNERS + branch rulesets on HELIXFORGE `main`;
+console learns `external: true` product entries (launcher deep-link);
+synthbio catalog entry marked external. Exit: hub CI green with synthbio
+marked external-but-present. Then phases 2–5 per the plan; phase 6 resumes
+the vision roadmap (epigenomics data plane first) inside the spoke.

@@ -1,5 +1,26 @@
 # Decision log (append-only)
 
+## 2026-07-20 — EXTRACTION: hub-and-spoke adopted; SynthBio becomes the first standalone product repo
+
+- Founder decision: products underscoped inside the monorepo will graduate
+  into their own repositories under `PROJECTS/`, starting with SynthBio.
+  Integration philosophy: **integration without one app** — shared identity,
+  shared trust plane, federation. Never a re-merge.
+- HELIXFORGE remains the **hub**: crates, services, console-as-launcher,
+  trust plane, and the 20 other products until each graduates.
+- Canonical plan: `docs/architecture/SYNTHBIO_EXTRACTION_PLAN.md` —
+  research-grounded stack audit (keep/add/avoid), product repo standard,
+  platform contract v1, database split (product DB + baseline migration),
+  AI-honesty layer (protected main, CODEOWNERS tripwires, per-agent
+  identities, evidence-over-assertion, writer/reviewer), and phases 0–6
+  with exit criteria.
+- Key stack calls: Python compute plane added (FastAPI, pydantic strict,
+  Python never writes the system-of-record DB); MLflow registry + checkpoint
+  mirror; Nextflow as pipeline executor under the job-engine control plane;
+  htsget/range-request genomics data plane on MinIO; k3s-tiered offline
+  deployment. TorchServe/Ray Serve/Flyte/Dagster/Bazel/Pact-broker
+  explicitly rejected.
+
 ## 2026-07-20 — SCOPE CORRECTION: SynthBio is a full biology workbench, not a trust layer
 
 Founder directive, recorded verbatim in substance:
