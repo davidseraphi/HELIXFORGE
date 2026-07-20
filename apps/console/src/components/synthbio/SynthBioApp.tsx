@@ -12,13 +12,17 @@ import {
   type Design,
   type Design360Data,
   type ImportManifest,
+  type Journey,
+  type JourneyDetailData,
+  type Pathway,
   type QueueItem,
   type Sample,
 } from "./lib";
 
-type Tab = "registry" | "risk" | "import" | "samples";
+type Tab = "journeys" | "registry" | "risk" | "import" | "samples";
 
 const TABS: { key: Tab; label: string }[] = [
+  { key: "journeys", label: "Journeys" },
   { key: "registry", label: "Registry" },
   { key: "risk", label: "Risk Review" },
   { key: "import", label: "Import" },
@@ -26,7 +30,7 @@ const TABS: { key: Tab; label: string }[] = [
 ];
 
 export function SynthBioApp() {
-  const [tab, setTab] = useState<Tab>("registry");
+  const [tab, setTab] = useState<Tab>("journeys");
   const [health, setHealth] = useState<"checking" | "up" | "down">("checking");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -97,6 +101,7 @@ export function SynthBioApp() {
           ))}
         </nav>
         <main className="sb-main">
+          {tab === "journeys" && <JourneysTab onError={fail} onFlash={flash} />}
           {tab === "registry" && <RegistryTab onError={fail} onFlash={flash} />}
           {tab === "risk" && <RiskTab onError={fail} onFlash={flash} />}
           {tab === "import" && <ImportTab onError={fail} />}
@@ -860,6 +865,189 @@ function SamplesTab({ onError, onFlash }: { onError: (m: string) => void; onFlas
               </td>
               <td className="sb-mono">{s.location || "—"}</td>
               <td className="muted">{fmtTime(s.created_at)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
+/* ————————————————— Journeys (guided pathways) ————————————————— */
+
+function JourneysTab({ onError, onFlash }: { onError: (m: string) => void; onFlash: (m: string) => void }) {
+  const router = useRouter();
+  const [journeys, setJourneys] = useState<Journey[]>([]);
+  const [pathways, setPathways] = useState<Pathway[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [pathwayKey, setPathwayKey] = useState("");
+  const [busy, setBusy] = useState<"" | "create" | "demo">("");
+
+  const load = useCallback(async () => {
+    try {
+      const [pj, jj] = await Promise.all([sbApi("/v1/pathways"), sbApi("/v1/journeys")]);
+      const ps = listOf<Pathway>(pj);
+      setPathways(ps);
+      setJourneys(listOf<Journey>(jj));
+      setPathwayKey((k) => k || ps[0]?.key || "");
+    } catch (e) {
+      onError(String(e instanceof Error ? e.message : e));
+    } finally {
+      setLoading(false);
+    }
+  }, [onError]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const create = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(e.currentTarget).entries()) as Record<string, string>;
+    if (!pathwayKey) {
+      onError("Pick a pathway first.");
+      return;
+    }
+    setBusy("create");
+    try {
+      const j = await sbApi<{ data: Journey }>("/v1/journeys", {
+        method: "POST",
+        body: JSON.stringify({
+          title: f.title,
+          pathway_key: pathwayKey,
+          ...(f.intent ? { intent: f.intent } : {}),
+        }),
+      });
+      onFlash(`Journey ${j.data.accession} started`);
+      router.push(`/products/helix-synthbio/journeys/${j.data.id}`);
+    } catch (err) {
+      onError(String(err instanceof Error ? err.message : err));
+      setBusy("");
+    }
+  };
+
+  const demo = async () => {
+    setBusy("demo");
+    try {
+      const j = await sbApi<{ data: JourneyDetailData }>("/v1/journeys/demo", { method: "POST" });
+      onFlash(`Demo journey ${j.data.journey.accession} built`);
+      router.push(`/products/helix-synthbio/journeys/${j.data.journey.id}`);
+    } catch (err) {
+      onError(String(err instanceof Error ? err.message : err));
+      setBusy("");
+    }
+  };
+
+  const sorted = [...journeys].sort((a, b) => b.created_at.localeCompare(a.created_at));
+
+  return (
+    <section className="panel sb-panel-flush">
+      <div className="panel-head">
+        <h2>guided journeys</h2>
+        <div className="sb-m-head-tools">
+          <button className="btn" disabled={busy === "demo"} onClick={demo}>
+            {busy === "demo" ? "Building demo…" : "Run demo journey"}
+          </button>
+          <button className="btn primary" onClick={() => setShowCreate((v) => !v)}>
+            {showCreate ? "Close" : "New journey"}
+          </button>
+        </div>
+      </div>
+
+      {showCreate && (
+        <form className="sb-journey-create" onSubmit={create}>
+          <div className="sb-meta-k">pathway</div>
+          <div className="sb-path-cards">
+            {pathways.map((p) => (
+              <button
+                key={p.key}
+                type="button"
+                className={`sb-path-card${pathwayKey === p.key ? " active" : ""}`}
+                onClick={() => setPathwayKey(p.key)}
+              >
+                <h3>{p.title || p.key}</h3>
+                <p>{p.description}</p>
+                <span className="muted">{p.stages.length} stages</span>
+              </button>
+            ))}
+          </div>
+          <div className="create-form sb-form-wide sb-journey-fields">
+            <label>
+              <span>Title *</span>
+              <input name="title" placeholder="e.g. lavender balm for dry skin" required />
+            </label>
+            <label className="sb-span-all">
+              <span>Intent</span>
+              <textarea
+                name="intent"
+                rows={2}
+                placeholder="What are you trying to make, in one sentence?"
+              />
+            </label>
+            <button className="btn primary" disabled={busy === "create"} type="submit">
+              {busy === "create" ? "Starting…" : "Start journey"}
+            </button>
+          </div>
+        </form>
+      )}
+
+      <table className="etable">
+        <thead>
+          <tr>
+            <th>accession</th>
+            <th>title</th>
+            <th>status</th>
+            <th>progress</th>
+            <th>created</th>
+          </tr>
+        </thead>
+        <tbody>
+          {loading &&
+            [0, 1, 2].map((i) => (
+              <tr key={`skel-${i}`}>
+                <td colSpan={5}>
+                  <div className="sb-skel" style={{ height: "1rem" }} />
+                </td>
+              </tr>
+            ))}
+          {!loading && sorted.length === 0 && (
+            <tr>
+              <td colSpan={5} className="empty">
+                No journeys yet — start one, or run the demo.
+              </td>
+            </tr>
+          )}
+          {sorted.map((j) => (
+            <tr
+              key={j.id}
+              className="sb-rowlink"
+              onClick={() => router.push(`/products/helix-synthbio/journeys/${j.id}`)}
+            >
+              <td className="sb-mono">
+                <a
+                  href={`/products/helix-synthbio/journeys/${j.id}`}
+                  onClick={(e) => e.preventDefault()}
+                >
+                  {j.accession}
+                </a>
+              </td>
+              <td>{j.title}</td>
+              <td>
+                <span className={`status s-${j.status}`}>{j.status}</span>
+              </td>
+              <td>
+                <span className="sb-progress" title={`${j.current_stage} of 7 stages done`}>
+                  <span className="sb-progress-bar">
+                    <span
+                      className="sb-progress-fill"
+                      style={{ width: `${Math.min(100, (j.current_stage / 7) * 100)}%` }}
+                    />
+                  </span>
+                  <span className="muted sb-progress-text">{j.current_stage}/7</span>
+                </span>
+              </td>
+              <td className="muted">{fmtTime(j.created_at)}</td>
             </tr>
           ))}
         </tbody>

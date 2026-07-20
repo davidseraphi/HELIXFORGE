@@ -2710,6 +2710,315 @@ h1 {
   min-width: 280px;
 }
 
+/* ——— journeys ——— */
+
+/* loading skeleton pulse */
+.sb-theme .sb-skel {
+  background: linear-gradient(90deg, var(--sb-hairline) 25%, #f1f5f9 50%, var(--sb-hairline) 75%);
+  background-size: 200% 100%;
+  border-radius: 8px;
+  animation: sb-skel 1.2s ease infinite;
+}
+
+@keyframes sb-skel {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* journey status */
+.sb-theme .status.s-completed {
+  color: var(--sb-allowed);
+}
+
+/* pathway picker cards (new-journey form) */
+.sb-theme .sb-journey-create {
+  margin-bottom: 1.1rem;
+}
+
+.sb-theme .sb-path-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.8rem;
+  margin: 0.4rem 0 0.9rem;
+}
+
+.sb-theme .sb-path-card {
+  text-align: left;
+  background: var(--sb-paper);
+  border: 1px solid var(--sb-hairline);
+  border-radius: 10px;
+  padding: 0.8rem 0.95rem;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.sb-theme .sb-path-card:hover {
+  border-color: rgba(13, 148, 136, 0.5);
+}
+
+.sb-theme .sb-path-card.active {
+  border-color: var(--sb-accent);
+  background: rgba(13, 148, 136, 0.06);
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.1);
+}
+
+.sb-theme .sb-path-card h3 {
+  font-size: 0.9rem;
+  margin: 0 0 0.3rem;
+  color: var(--sb-ink);
+}
+
+.sb-theme .sb-path-card p {
+  font-size: 0.78rem;
+  color: var(--sb-muted);
+  margin: 0 0 0.4rem;
+}
+
+.sb-theme .sb-journey-fields {
+  margin-bottom: 0;
+}
+
+/* progress bar in the journeys list */
+.sb-theme .sb-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sb-theme .sb-progress-bar {
+  width: 90px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--sb-hairline);
+  overflow: hidden;
+  display: inline-block;
+}
+
+.sb-theme .sb-progress-fill {
+  display: block;
+  height: 100%;
+  background: var(--sb-accent);
+  border-radius: 999px;
+}
+
+.sb-theme .sb-progress-text {
+  font-size: 0.74rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 7-stage pipeline visualization */
+.sb-theme .sb-pipe {
+  display: flex;
+  align-items: flex-start;
+  margin: 0.4rem 0 1.2rem;
+}
+
+.sb-theme .sb-pipe-cell {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.sb-theme .sb-pipe-cell:first-child {
+  flex: 0 0 auto;
+}
+
+.sb-theme .sb-pipe-cell:first-child .sb-pipe-node {
+  align-items: flex-start;
+}
+
+.sb-theme .sb-pipe-link {
+  flex: 1;
+  height: 2px;
+  background: var(--sb-hairline);
+  margin-top: 15px;
+}
+
+.sb-theme .sb-pipe-link.fill {
+  background: var(--sb-accent);
+}
+
+.sb-theme .sb-pipe-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  width: 88px;
+  flex: none;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.sb-theme .sb-pipe-dot {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 0.8rem;
+  border: 2px solid var(--sb-hairline);
+  color: var(--sb-muted);
+  background: var(--sb-surface);
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.sb-theme .sb-pipe-node:hover .sb-pipe-dot {
+  border-color: rgba(13, 148, 136, 0.55);
+}
+
+.sb-theme .sb-pipe-node.done .sb-pipe-dot {
+  border-color: var(--sb-allowed);
+  background: rgba(5, 150, 105, 0.12);
+  color: var(--sb-allowed);
+}
+
+.sb-theme .sb-pipe-node.cur .sb-pipe-dot {
+  border-color: var(--sb-accent);
+  color: var(--sb-accent-ink);
+  box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.15);
+}
+
+.sb-theme .sb-pipe-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--sb-muted);
+  text-align: center;
+  line-height: 1.25;
+}
+
+.sb-theme .sb-pipe-node.done .sb-pipe-label,
+.sb-theme .sb-pipe-node.cur .sb-pipe-label {
+  color: var(--sb-ink-2);
+}
+
+/* stage cards */
+.sb-theme .sb-stage-card {
+  scroll-margin-top: 5rem;
+}
+
+.sb-theme .sb-stage-card.cur {
+  border-color: rgba(13, 148, 136, 0.5);
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.08);
+}
+
+.sb-theme .sb-stage-expl {
+  font-size: 0.84rem;
+  margin-bottom: 0.8rem;
+}
+
+.sb-theme .sb-stage-seg {
+  margin-bottom: 0.8rem;
+}
+
+.sb-theme .sb-target-link {
+  font-size: 0.78rem;
+}
+
+.sb-theme .sb-auto-note p {
+  font-size: 0.84rem;
+  margin: 0 0 0.5rem;
+}
+
+.sb-theme .sb-build-hint {
+  font-size: 0.76rem;
+  margin: 0;
+}
+
+/* dependency guidance (check.missing) */
+.sb-theme .sb-guide {
+  background: rgba(180, 83, 9, 0.07);
+  border: 1px solid rgba(180, 83, 9, 0.3);
+  color: var(--sb-restricted);
+  border-radius: 9px;
+  padding: 0.5rem 0.8rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 0.8rem;
+}
+
+/* stage status chips (used with .sb-chip) */
+.sb-theme .sb-st-done {
+  color: var(--sb-allowed);
+  border-color: rgba(5, 150, 105, 0.4);
+  background: rgba(5, 150, 105, 0.08);
+}
+
+.sb-theme .sb-st-current {
+  color: var(--sb-accent-ink);
+  border-color: rgba(13, 148, 136, 0.45);
+  background: rgba(13, 148, 136, 0.08);
+}
+
+.sb-theme .sb-st-pending {
+  color: var(--sb-unknown);
+  border-color: rgba(100, 116, 139, 0.4);
+  background: rgba(100, 116, 139, 0.08);
+}
+
+/* route choice cards */
+.sb-theme .sb-route-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.9rem;
+}
+
+.sb-theme .sb-route-card {
+  text-align: left;
+  background: var(--sb-paper);
+  border: 1px solid var(--sb-hairline);
+  border-radius: 10px;
+  padding: 0.9rem 1rem;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.sb-theme .sb-route-card:hover:not(:disabled) {
+  border-color: rgba(13, 148, 136, 0.55);
+  background: rgba(13, 148, 136, 0.05);
+}
+
+.sb-theme .sb-route-card:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.sb-theme .sb-route-card h3 {
+  font-size: 0.9rem;
+  margin: 0 0 0.3rem;
+  color: var(--sb-ink);
+}
+
+.sb-theme .sb-route-card p {
+  font-size: 0.78rem;
+  color: var(--sb-muted);
+  margin: 0;
+}
+
+/* completion banner */
+.sb-theme .sb-complete {
+  background: rgba(5, 150, 105, 0.07);
+  border: 1px solid rgba(5, 150, 105, 0.35);
+  color: var(--sb-ink-2);
+  border-radius: 12px;
+  padding: 0.85rem 1.05rem;
+  font-size: 0.86rem;
+  margin-bottom: 1rem;
+}
+
+.sb-theme .sb-complete-chain {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.55rem;
+}
+
 /* ——— responsive ——— */
 
 @media (max-width: 720px) {

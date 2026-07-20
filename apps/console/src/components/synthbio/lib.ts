@@ -282,6 +282,70 @@ export function signatureSealClass(meaning: string): string {
   return `sb-seal-${(SIGNATURE_MEANINGS as readonly string[]).includes(meaning) ? meaning : "reviewed"}`;
 }
 
+/* ——— Journeys (guided pathways) ——— */
+
+export type PathwayStage = {
+  stage_key: string;
+  title: string;
+  explanation: string;
+  mode: string;
+};
+
+export type Pathway = {
+  key: string;
+  title: string;
+  description: string;
+  stages: PathwayStage[];
+};
+
+export type Journey = {
+  id: string;
+  accession: string;
+  title: string;
+  intent: string;
+  pathway_key: string;
+  route_choice: string;
+  status: string;
+  current_stage: number;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type JourneyCheck = { met: boolean; missing: string };
+
+/** One stage row inside the journey detail payload (check is embedded). */
+export type JourneyStageRow = {
+  id: string;
+  journey_id: string;
+  stage_index: number;
+  stage_key: string;
+  status: string;
+  summary: string;
+  target_kind: string | null;
+  target_id: string | null;
+  check: JourneyCheck;
+  created_at: string;
+  updated_at: string;
+};
+
+export type JourneyDetailData = { journey: Journey; stages: JourneyStageRow[] };
+
+export const JOURNEY_STAGE_KEYS = [
+  "source",
+  "route",
+  "design",
+  "risk",
+  "build",
+  "test",
+  "evidence",
+] as const;
+
+/** Status chip class for a journey stage; unknown statuses fall back to pending slate. */
+export function journeyStageClass(status: string): string {
+  return `sb-chip sb-st-${["done", "current", "pending"].includes(status) ? status : "pending"}`;
+}
+
 /** Fetch through the BFF proxy; throws Error with the server's message on failure. */
 export async function sbApi<T = unknown>(path: string, init?: RequestInit): Promise<T> {
   const r = await fetch(`/api/p/helix-synthbio${path}`, init);
