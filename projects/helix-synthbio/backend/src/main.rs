@@ -1885,4 +1885,202 @@ ORIGIN
             .expect("design signatures");
         assert_eq!(sigs.len(), 3, "approved + witnessed + version review");
     }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn journey_full_walk() {
+        let (state, _guard) = locked_state().await;
+        let tenant_id = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = helix_db::RegistryRepo::new(pool.clone());
+
+        let suffix = Uuid::now_v7().simple().to_string();
+        let journey = repo
+            .create_journey(
+                tenant_id,
+                &format!("Walk-{suffix}"),
+                "make something testable",
+                "plant-to-topical",
+                "tester",
+            )
+            .await
+            .expect("create journey");
+        assert!(journey.accession.starts_with("JRN-"));
+        assert_eq!(journey.current_stage, 0);
+
+        let detail = repo
+            .journey_detail(tenant_id, journey.id)
+            .await
+            .expect("detail")
+            .expect("journey exists");
+        assert_eq!(detail.stages.len(), 7);
+        assert_eq!(detail.stages[0].stage.status, "current");
+        assert_eq!(detail.stages[1].stage.status, "pending");
+        assert!(!detail.stages[0].check.met);
+        assert!(!detail.stages[0].check.missing.is_empty(), "teacher says what's missing");
+
+        // 1. Source.
+        let source = repo
+            .register_sample(tenant_id, &format!("plant-{suffix}"), "other", None, "rack", "tester")
+            .await
+            .expect("register source");
+        repo.link_stage_target(tenant_id, journey.id, 0, "sample", source.id, "tester")
+            .await
+            .expect("link source");
+
+        // 2. Route (guarded single choice).
+        repo.set_route(tenant_id, journey.id, "extraction", "tester")
+            .await
+            .expect("set route");
+        let err = repo
+            .set_route(tenant_id, journey.id, "engineered_microbe", "tester")
+            .await
+            .expect_err("route cannot change once chosen");
+        assert_eq!(err.code, shared_core::ErrorCode::Conflict);
+
+        // 3. Design.
+        let design = repo
+            .create_design(
+                tenant_id,
+                &format!("pWalk-{suffix}"),
+                "",
+                "internal",
+                &registry_input("ACGTACGT"),
+                "tester",
+            )
+            .await
+            .expect("create design");
+        repo.link_stage_target(tenant_id, journey.id, 2, "design", design.id, "tester")
+            .await
+            .expect("link design");
+
+        // 4. Risk: auto-completes after the decision.
+        repo.review_risk(
+            tenant_id,
+            design.id,
+            &helix_db::ReviewDecision {
+                state: "allowed".into(),
+                intended_use: "walk".into(),
+                policy_version: "v1".into(),
+                reasons: vec![],
+                conditions: String::new(),
+                expires_at: None,
+                expected_state: Some("unknown".into()),
+            },
+            "Dr. Ada Biosafety",
+        )
+        .await
+        .expect("review");
+        repo.refresh_journey(tenant_id, journey.id)
+            .await
+            .expect("refresh");
+
+        // 5. Build: a sample from anywhere else is refused with the reason.
+        let foreign = repo
+            .register_sample(tenant_id, &format!("foreign-{suffix}"), "strain", None, "", "tester")
+            .await
+            .expect("register foreign");
+        let err = repo
+            .link_stage_target(tenant_id, journey.id, 4, "sample", foreign.id, "tester")
+            .await
+            .expect_err("foreign sample refused");
+        assert_eq!(err.code, shared_core::ErrorCode::Validation);
+
+        let build = repo
+            .register_sample(
+                tenant_id,
+                &format!("build-{suffix}"),
+                "plasmid_prep",
+                Some(design.id),
+                "bench",
+                "tester",
+            )
+            .await
+            .expect("register build");
+        repo.link_stage_target(tenant_id, journey.id, 4, "sample", build.id, "tester")
+            .await
+            .expect("link build");
+
+        // 6. Test: auto-completes on an accepted measurement.
+        let m = repo
+            .record_measurement(
+                tenant_id,
+                &helix_db::MeasurementInput {
+                    sample_id: build.id,
+                    design_version_id: None,
+                    kind: "absorbance".into(),
+                    method: "plate".into(),
+                    value: Some(0.9),
+                    unit: "AU".into(),
+                    uncertainty: None,
+                    raw: serde_json::json!({}),
+                },
+                "tester",
+            )
+            .await
+            .expect("record");
+        repo.transition_measurement(tenant_id, m.id, "accept", "tester")
+            .await
+            .expect("accept");
+
+        // 7. Evidence: auto-completes on an attested claim.
+        let claim = repo
+            .create_claim(tenant_id, design.id, "walk claim", "tester")
+            .await
+            .expect("claim");
+        repo.attest_claim(tenant_id, claim.id, "Dr. Ada PI")
+            .await
+            .expect("attest");
+
+        let detail = repo
+            .journey_detail(tenant_id, journey.id)
+            .await
+            .expect("detail")
+            .expect("journey exists");
+        assert_eq!(detail.journey.status, "completed");
+        assert!(
+            detail.stages.iter().all(|s| s.stage.status == "done"),
+            "all seven stages done: {:?}",
+            detail
+                .stages
+                .iter()
+                .map(|s| (&s.stage.stage_key, &s.stage.status))
+                .collect::<Vec<_>>()
+        );
+
+        // Refresh is idempotent.
+        repo.refresh_journey(tenant_id, journey.id)
+            .await
+            .expect("idempotent refresh");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires HelixCore data plane (Postgres)"]
+    async fn journey_demo_end_to_end() {
+        let (state, _guard) = locked_state().await;
+        let tenant_id = TenantId::from_uuid(Uuid::new_v5(
+            &Uuid::NAMESPACE_DNS,
+            b"helixforge-tenant:local-dev",
+        ));
+        let pool = state.clients.db.as_ref().expect("Postgres required");
+        let repo = helix_db::RegistryRepo::new(pool.clone());
+
+        let detail = repo
+            .demo_journey(tenant_id, "tester")
+            .await
+            .expect("demo journey");
+        assert_eq!(detail.journey.status, "completed");
+        assert!(
+            detail.stages.iter().all(|s| s.stage.status == "done"),
+            "demo completes every stage"
+        );
+        let design_id = detail.stages[2].stage.target_id.expect("design linked");
+        let claims = repo.list_claims(tenant_id, design_id).await.expect("claims");
+        assert_eq!(claims.len(), 1);
+        assert_eq!(claims[0].claim.status, "accepted");
+        assert_eq!(claims[0].evidence.len(), 1);
+    }
 }

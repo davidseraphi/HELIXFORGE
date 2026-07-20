@@ -2374,3 +2374,851 @@ impl RegistryRepo {
         Ok(rows)
     }
 }
+
+// ——— journeys: intent-first goals decomposed into checkable stages ———
+
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct Journey {
+    pub id: Uuid,
+    pub tenant_id: Uuid,
+    pub accession: String,
+    pub title: String,
+    pub intent: String,
+    pub pathway_key: String,
+    pub route_choice: String,
+    pub status: String,
+    pub current_stage: i32,
+    pub created_by: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub deleted_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct JourneyStage {
+    pub id: Uuid,
+    pub tenant_id: Uuid,
+    pub journey_id: Uuid,
+    pub stage_index: i32,
+    pub stage_key: String,
+    pub status: String,
+    pub target_kind: Option<String>,
+    pub target_id: Option<Uuid>,
+    pub summary: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StageCheck {
+    pub met: bool,
+    pub missing: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StageWithCheck {
+    #[serde(flatten)]
+    pub stage: JourneyStage,
+    pub check: StageCheck,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JourneyDetail {
+    pub journey: Journey,
+    pub stages: Vec<StageWithCheck>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PathwayStage {
+    pub stage_key: String,
+    pub title: String,
+    pub explanation: String,
+    pub mode: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PathwayTemplate {
+    pub key: String,
+    pub title: String,
+    pub description: String,
+    pub stages: Vec<PathwayStage>,
+}
+
+const STAGE_SOURCE: usize = 0;
+const STAGE_ROUTE: usize = 1;
+const STAGE_DESIGN: usize = 2;
+const STAGE_RISK: usize = 3;
+const STAGE_BUILD: usize = 4;
+const STAGE_TEST: usize = 5;
+const STAGE_EVIDENCE: usize = 6;
+
+/// The pathway templates — the teaching layer. Explanations are the product.
+pub fn pathway_templates() -> Vec<PathwayTemplate> {
+    vec![
+        PathwayTemplate {
+            key: "plant-to-topical".into(),
+            title: "Plant → topical product".into(),
+            description: "From a plant or natural source to a testable topical candidate, with risk review and evidence at every step.".into(),
+            stages: spine_stages(),
+        },
+        PathwayTemplate {
+            key: "microbe-to-ingredient".into(),
+            title: "Microbe → ingredient".into(),
+            description: "From an engineered or wild microbe to a characterized ingredient or compound.".into(),
+            stages: spine_stages(),
+        },
+        PathwayTemplate {
+            key: "blank".into(),
+            title: "Blank journey".into(),
+            description: "The same seven-stage spine with no domain framing — for any idea you want to make testable.".into(),
+            stages: spine_stages(),
+        },
+    ]
+}
+
+fn spine_stages() -> Vec<PathwayStage> {
+    vec![
+        PathwayStage {
+            stage_key: "source".into(),
+            title: "Source material".into(),
+            explanation: "Register the plant or starting material as a sample. Provenance starts here — where it came from, who provided it.".into(),
+            mode: "link_sample".into(),
+        },
+        PathwayStage {
+            stage_key: "route".into(),
+            title: "Choose the route".into(),
+            explanation: "Extract the active compound from the plant, or engineer a microbe to produce it. This choice shapes everything downstream.".into(),
+            mode: "route_choice".into(),
+        },
+        PathwayStage {
+            stage_key: "design".into(),
+            title: "Design the construct".into(),
+            explanation: "The genetic design or extraction plan — versioned and immutable. Import a GenBank file or author it here.".into(),
+            mode: "link_design".into(),
+        },
+        PathwayStage {
+            stage_key: "risk".into(),
+            title: "Risk review".into(),
+            explanation: "A named human biosafety authority decides. Unknown is never safe — missing evidence blocks until a person reviews it.".into(),
+            mode: "auto_risk".into(),
+        },
+        PathwayStage {
+            stage_key: "build".into(),
+            title: "Build the physical form".into(),
+            explanation: "The physical prep, strain, or extract — a sample derived from the design, with custody.".into(),
+            mode: "link_build_sample".into(),
+        },
+        PathwayStage {
+            stage_key: "test".into(),
+            title: "Test it".into(),
+            explanation: "Measurements with method, unit, and uncertainty. An accepted measurement is the first real evidence.".into(),
+            mode: "auto_test".into(),
+        },
+        PathwayStage {
+            stage_key: "evidence".into(),
+            title: "Claim and prove".into(),
+            explanation: "What does the evidence actually support? Claims link to supporting and conflicting results, attested by a named human.".into(),
+            mode: "auto_claim".into(),
+        },
+    ]
+}
+
+impl RegistryRepo {
+    /// Create a journey: accessioned goal with its stage spine instantiated.
+    pub async fn create_journey(
+        &self,
+        tenant_id: TenantId,
+        title: &str,
+        intent: &str,
+        pathway_key: &str,
+        actor: &str,
+    ) -> HelixResult<Journey> {
+        if title.trim().is_empty() {
+            return Err(HelixError::validation("journey title required"));
+        }
+        let template = pathway_templates()
+            .into_iter()
+            .find(|p| p.key == pathway_key)
+            .ok_or_else(|| HelixError::validation(format!("unknown pathway `{pathway_key}`")))?;
+        let accession = self.next_accession(tenant_id, "journey", "JRN").await?;
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| HelixError::dependency(format!("synthbio journey tx: {e}")))?;
+
+        let id = Uuid::now_v7();
+        let now = Utc::now();
+        let journey: Journey = sqlx::query_as(
+            r#"
+            INSERT INTO synthbio.journeys
+                (id, tenant_id, accession, title, intent, pathway_key, route_choice, status,
+                 current_stage, created_by, created_at, updated_at)
+            VALUES ($1,$2,$3,$4,$5,$6,'undecided','active',0,$7,$8,$8)
+            RETURNING id, tenant_id, accession, title, intent, pathway_key, route_choice,
+                      status, current_stage, created_by, created_at, updated_at, NULL AS deleted_at
+            "#,
+        )
+        .bind(id)
+        .bind(tenant_id.as_uuid())
+        .bind(&accession)
+        .bind(title)
+        .bind(intent)
+        .bind(pathway_key)
+        .bind(actor)
+        .bind(now)
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(|e| HelixError::dependency(format!("synthbio create journey: {e}")))?;
+
+        for (i, stage) in template.stages.iter().enumerate() {
+            let status = if i == 0 { "current" } else { "pending" };
+            sqlx::query(
+                r#"
+                INSERT INTO synthbio.journey_stages
+                    (id, tenant_id, journey_id, stage_index, stage_key, status, summary, created_at, updated_at)
+                VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8)
+                "#,
+            )
+            .bind(Uuid::now_v7())
+            .bind(tenant_id.as_uuid())
+            .bind(id)
+            .bind(i as i32)
+            .bind(&stage.stage_key)
+            .bind(status)
+            .bind(&stage.title)
+            .bind(now)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| HelixError::dependency(format!("synthbio journey stage: {e}")))?;
+        }
+
+        self.record_event(
+            &mut tx,
+            tenant_id,
+            "journey",
+            id,
+            "created",
+            actor,
+            serde_json::json!({"accession": accession, "pathway": pathway_key}),
+        )
+        .await?;
+        tx.commit()
+            .await
+            .map_err(|e| HelixError::dependency(format!("synthbio journey commit: {e}")))?;
+        Ok(journey)
+    }
+
+    pub async fn get_journey(
+        &self,
+        tenant_id: TenantId,
+        journey_id: Uuid,
+    ) -> HelixResult<Option<Journey>> {
+        let row: Option<Journey> = sqlx::query_as(
+            "SELECT id, tenant_id, accession, title, intent, pathway_key, route_choice, status, current_stage, created_by, created_at, updated_at, deleted_at FROM synthbio.journeys WHERE tenant_id = $1 AND id = $2",
+        )
+        .bind(tenant_id.as_uuid())
+        .bind(journey_id)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| HelixError::dependency(format!("synthbio get journey: {e}")))?;
+        Ok(row)
+    }
+
+    pub async fn list_journeys(&self, tenant_id: TenantId) -> HelixResult<Vec<Journey>> {
+        let rows: Vec<Journey> = sqlx::query_as(
+            "SELECT id, tenant_id, accession, title, intent, pathway_key, route_choice, status, current_stage, created_by, created_at, updated_at, deleted_at FROM synthbio.journeys WHERE tenant_id = $1 AND deleted_at IS NULL ORDER BY created_at DESC",
+        )
+        .bind(tenant_id.as_uuid())
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| HelixError::dependency(format!("synthbio list journeys: {e}")))?;
+        Ok(rows)
+    }
+
+    async fn journey_stages(
+        &self,
+        tenant_id: TenantId,
+        journey_id: Uuid,
+    ) -> HelixResult<Vec<JourneyStage>> {
+        let rows: Vec<JourneyStage> = sqlx::query_as(
+            "SELECT id, tenant_id, journey_id, stage_index, stage_key, status, target_kind, target_id, summary, created_at, updated_at FROM synthbio.journey_stages WHERE tenant_id = $1 AND journey_id = $2 ORDER BY stage_index ASC",
+        )
+        .bind(tenant_id.as_uuid())
+        .bind(journey_id)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| HelixError::dependency(format!("synthbio journey stages: {e}")))?;
+        Ok(rows)
+    }
+
+    /// Set the route choice and mark the route stage done — a guarded
+    /// UPDATE so a concurrent route change loses.
+    pub async fn set_route(
+        &self,
+        tenant_id: TenantId,
+        journey_id: Uuid,
+        route: &str,
+        actor: &str,
+    ) -> HelixResult<Journey> {
+        if !["extraction", "engineered_microbe"].contains(&route) {
+            return Err(HelixError::validation(
+                "route must be extraction | engineered_microbe",
+            ));
+        }
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| HelixError::dependency(format!("synthbio route tx: {e}")))?;
+        let updated: Option<(Uuid,)> = sqlx::query_as(
+            "UPDATE synthbio.journeys SET route_choice = $1, updated_at = $2 WHERE tenant_id = $3 AND id = $4 AND status = 'active' AND route_choice = 'undecided' RETURNING id",
+        )
+        .bind(route)
+        .bind(Utc::now())
+        .bind(tenant_id.as_uuid())
+        .bind(journey_id)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(|e| HelixError::dependency(format!("synthbio set route: {e}")))?;
+        if updated.is_none() {
+            return Err(HelixError::conflict(
+                "route already chosen or journey not active",
+            ));
+        }
+        self.mark_stage_done(&mut tx, tenant_id, journey_id, STAGE_ROUTE, None, None)
+            .await?;
+        self.record_event(
+            &mut tx,
+            tenant_id,
+            "journey",
+            journey_id,
+            "route_chosen",
+            actor,
+            serde_json::json!({"route": route}),
+        )
+        .await?;
+        tx.commit()
+            .await
+            .map_err(|e| HelixError::dependency(format!("synthbio route commit: {e}")))?;
+        self.refresh_journey(tenant_id, journey_id).await?;
+        self.get_journey(tenant_id, journey_id)
+            .await?
+            .ok_or_else(|| HelixError::internal("journey vanished"))
+    }
+
+    async fn mark_stage_done(
+        &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        tenant_id: TenantId,
+        journey_id: Uuid,
+        stage_index: usize,
+        target_kind: Option<&str>,
+        target_id: Option<Uuid>,
+    ) -> HelixResult<()> {
+        sqlx::query(
+            r#"
+            UPDATE synthbio.journey_stages
+            SET status = 'done', target_kind = COALESCE($1, target_kind),
+                target_id = COALESCE($2, target_id), updated_at = $3
+            WHERE tenant_id = $4 AND journey_id = $5 AND stage_index = $6 AND status != 'done'
+            "#,
+        )
+        .bind(target_kind)
+        .bind(target_id)
+        .bind(Utc::now())
+        .bind(tenant_id.as_uuid())
+        .bind(journey_id)
+        .bind(stage_index as i32)
+        .execute(&mut **tx)
+        .await
+        .map_err(|e| HelixError::dependency(format!("synthbio stage done: {e}")))?;
+        Ok(())
+    }
+
+    /// Link a stage's artifact. Source and build take samples; design takes
+    /// a design. Build samples must be produced from the journey's design —
+    /// a sample from anywhere else is refused with the reason.
+    pub async fn link_stage_target(
+        &self,
+        tenant_id: TenantId,
+        journey_id: Uuid,
+        stage_index: usize,
+        target_kind: &str,
+        target_id: Uuid,
+        actor: &str,
+    ) -> HelixResult<JourneyDetail> {
+        let stages = self.journey_stages(tenant_id, journey_id).await?;
+        let stage = stages
+            .get(stage_index)
+            .ok_or_else(|| HelixError::not_found("stage not found"))?;
+        if stage.status == "done" {
+            return Err(HelixError::conflict("stage already complete"));
+        }
+        let journey = self
+            .get_journey(tenant_id, journey_id)
+            .await?
+            .ok_or_else(|| HelixError::not_found("journey not found"))?;
+        if journey.status != "active" {
+            return Err(HelixError::validation("journey is not active"));
+        }
+
+        match (stage_index, target_kind) {
+            (STAGE_SOURCE, "sample") => {
+                self.require_sample(tenant_id, target_id).await?;
+            }
+            (STAGE_DESIGN, "design") => {
+                let design = self
+                    .get_design(tenant_id, target_id)
+                    .await?
+                    .ok_or_else(|| HelixError::not_found("design not found"))?;
+                if design.deleted_at.is_some() {
+                    return Err(HelixError::not_found("design not found"));
+                }
+            }
+            (STAGE_BUILD, "sample") => {
+                let sample = self.require_sample(tenant_id, target_id).await?;
+                let design_target = stages
+                    .get(STAGE_DESIGN)
+                    .and_then(|s| s.target_id)
+                    .ok_or_else(|| HelixError::validation("link the design first"))?;
+                if sample.design_id != Some(design_target) {
+                    return Err(HelixError::validation(
+                        "this sample is not built from the journey's design",
+                    ));
+                }
+            }
+            (STAGE_ROUTE | STAGE_RISK | STAGE_TEST | STAGE_EVIDENCE, _) => {
+                return Err(HelixError::validation(
+                    "this stage completes automatically when its check passes",
+                ));
+            }
+            _ => {
+                return Err(HelixError::validation(format!(
+                    "stage {stage_index} does not take a `{target_kind}` artifact",
+                )));
+            }
+        }
+
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| HelixError::dependency(format!("synthbio link tx: {e}")))?;
+        self.mark_stage_done(
+            &mut tx,
+            tenant_id,
+            journey_id,
+            stage_index,
+            Some(target_kind),
+            Some(target_id),
+        )
+        .await?;
+        self.add_edge(
+            &mut tx,
+            tenant_id,
+            "journey",
+            journey_id,
+            target_kind,
+            target_id,
+            "uses",
+        )
+        .await?;
+        self.record_event(
+            &mut tx,
+            tenant_id,
+            "journey",
+            journey_id,
+            "stage_linked",
+            actor,
+            serde_json::json!({"stage": stage_index, "target_kind": target_kind}),
+        )
+        .await?;
+        tx.commit()
+            .await
+            .map_err(|e| HelixError::dependency(format!("synthbio link commit: {e}")))?;
+        self.refresh_journey(tenant_id, journey_id).await?;
+        self.journey_detail(tenant_id, journey_id)
+            .await?
+            .ok_or_else(|| HelixError::internal("journey vanished"))
+    }
+
+    async fn require_sample(&self, tenant_id: TenantId, sample_id: Uuid) -> HelixResult<Sample> {
+        let sample = self
+            .get_sample(tenant_id, sample_id)
+            .await?
+            .ok_or_else(|| HelixError::not_found("sample not found"))?;
+        if sample.deleted_at.is_some() {
+            return Err(HelixError::not_found("sample not found"));
+        }
+        Ok(sample)
+    }
+
+    /// Recompute the journey: auto-checks (risk, test, evidence) mark done
+    /// when their conditions pass; the current pointer moves to the first
+    /// incomplete stage; a fully-done journey completes.
+    pub async fn refresh_journey(&self, tenant_id: TenantId, journey_id: Uuid) -> HelixResult<()> {
+        let journey = self
+            .get_journey(tenant_id, journey_id)
+            .await?
+            .ok_or_else(|| HelixError::not_found("journey not found"))?;
+        if journey.status != "active" {
+            return Ok(());
+        }
+        let stages = self.journey_stages(tenant_id, journey_id).await?;
+        let checks = self.evaluate_stages(tenant_id, &journey, &stages).await?;
+
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| HelixError::dependency(format!("synthbio refresh tx: {e}")))?;
+        for (i, check) in checks.iter().enumerate() {
+            if check.met && stages.get(i).is_some_and(|s| s.status != "done") {
+                self.mark_stage_done(&mut tx, tenant_id, journey_id, i, None, None)
+                    .await?;
+            }
+        }
+        let done_count = checks.iter().filter(|c| c.met).count();
+        let total = checks.len();
+        let current = checks.iter().position(|c| !c.met).unwrap_or(total) as i32;
+        let new_status = if done_count == total { "completed" } else { "active" };
+        sqlx::query(
+            "UPDATE synthbio.journeys SET current_stage = $1, status = $2, updated_at = $3 WHERE tenant_id = $4 AND id = $5",
+        )
+        .bind(current)
+        .bind(new_status)
+        .bind(Utc::now())
+        .bind(tenant_id.as_uuid())
+        .bind(journey_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| HelixError::dependency(format!("synthbio refresh update: {e}")))?;
+        if new_status == "completed" {
+            self.record_event(
+                &mut tx,
+                tenant_id,
+                "journey",
+                journey_id,
+                "completed",
+                "system",
+                serde_json::json!({}),
+            )
+            .await?;
+        }
+        tx.commit()
+            .await
+            .map_err(|e| HelixError::dependency(format!("synthbio refresh commit: {e}")))?;
+        Ok(())
+    }
+
+    /// The teacher: per stage, whether its check passes right now and, if
+    /// not, exactly what's missing.
+    async fn evaluate_stages(
+        &self,
+        tenant_id: TenantId,
+        journey: &Journey,
+        stages: &[JourneyStage],
+    ) -> HelixResult<Vec<StageCheck>> {
+        let mut out = Vec::with_capacity(stages.len());
+        for (i, stage) in stages.iter().enumerate() {
+            if stage.status == "done" {
+                out.push(StageCheck {
+                    met: true,
+                    missing: String::new(),
+                });
+                continue;
+            }
+            let check = match i {
+                STAGE_SOURCE => StageCheck {
+                    met: false,
+                    missing: "register and link the source sample".into(),
+                },
+                STAGE_ROUTE => {
+                    if journey.route_choice != "undecided" {
+                        StageCheck { met: true, missing: String::new() }
+                    } else {
+                        StageCheck {
+                            met: false,
+                            missing: "choose extraction or an engineered microbe".into(),
+                        }
+                    }
+                }
+                STAGE_DESIGN => StageCheck {
+                    met: false,
+                    missing: "create or import and link the design".into(),
+                },
+                STAGE_RISK => {
+                    let design_id = stages.get(STAGE_DESIGN).and_then(|s| s.target_id);
+                    match design_id {
+                        None => StageCheck {
+                            met: false,
+                            missing: "link the design first".into(),
+                        },
+                        Some(did) => {
+                            let case = self.get_risk_case(tenant_id, did).await?;
+                            let effective = effective_risk(case.as_ref());
+                            if effective == "allowed" || effective == "restricted" {
+                                StageCheck { met: true, missing: String::new() }
+                            } else if effective == "blocked" {
+                                StageCheck {
+                                    met: false,
+                                    missing: "risk review decided blocked — a named authority must revisit".into(),
+                                }
+                            } else {
+                                StageCheck {
+                                    met: false,
+                                    missing: "risk review pending — a named human authority must decide".into(),
+                                }
+                            }
+                        }
+                    }
+                }
+                STAGE_BUILD => StageCheck {
+                    met: false,
+                    missing: "register and link the build sample derived from the design".into(),
+                },
+                STAGE_TEST => {
+                    let sample_id = stages.get(STAGE_BUILD).and_then(|s| s.target_id);
+                    match sample_id {
+                        None => StageCheck {
+                            met: false,
+                            missing: "link the build sample first".into(),
+                        },
+                        Some(sid) => {
+                            let accepted: Option<(Uuid,)> = sqlx::query_as(
+                                "SELECT id FROM synthbio.measurements WHERE tenant_id = $1 AND sample_id = $2 AND status = 'accepted' AND deleted_at IS NULL LIMIT 1",
+                            )
+                            .bind(tenant_id.as_uuid())
+                            .bind(sid)
+                            .fetch_optional(&self.pool)
+                            .await
+                            .map_err(|e| HelixError::dependency(format!("synthbio test check: {e}")))?;
+                            if accepted.is_some() {
+                                StageCheck { met: true, missing: String::new() }
+                            } else {
+                                StageCheck {
+                                    met: false,
+                                    missing: "no accepted measurement on the build sample yet".into(),
+                                }
+                            }
+                        }
+                    }
+                }
+                STAGE_EVIDENCE => {
+                    let design_id = stages.get(STAGE_DESIGN).and_then(|s| s.target_id);
+                    match design_id {
+                        None => StageCheck {
+                            met: false,
+                            missing: "link the design first".into(),
+                        },
+                        Some(did) => {
+                            let accepted: Option<(Uuid,)> = sqlx::query_as(
+                                "SELECT id FROM synthbio.claims WHERE tenant_id = $1 AND design_id = $2 AND status = 'accepted' AND deleted_at IS NULL LIMIT 1",
+                            )
+                            .bind(tenant_id.as_uuid())
+                            .bind(did)
+                            .fetch_optional(&self.pool)
+                            .await
+                            .map_err(|e| HelixError::dependency(format!("synthbio evidence check: {e}")))?;
+                            if accepted.is_some() {
+                                StageCheck { met: true, missing: String::new() }
+                            } else {
+                                StageCheck {
+                                    met: false,
+                                    missing: "no attested claim on the design yet".into(),
+                                }
+                            }
+                        }
+                    }
+                }
+                _ => StageCheck {
+                    met: false,
+                    missing: "unknown stage".into(),
+                },
+            };
+            out.push(check);
+        }
+        Ok(out)
+    }
+
+    pub async fn journey_detail(
+        &self,
+        tenant_id: TenantId,
+        journey_id: Uuid,
+    ) -> HelixResult<Option<JourneyDetail>> {
+        // Reading a journey re-evaluates the auto stages (risk/test/evidence)
+        // so the detail is always current — refresh is idempotent.
+        if self.get_journey(tenant_id, journey_id).await?.is_none() {
+            return Ok(None);
+        }
+        self.refresh_journey(tenant_id, journey_id).await?;
+        let journey = self
+            .get_journey(tenant_id, journey_id)
+            .await?
+            .ok_or_else(|| HelixError::not_found("journey not found"))?;
+        let stages = self.journey_stages(tenant_id, journey_id).await?;
+        let checks = self.evaluate_stages(tenant_id, &journey, &stages).await?;
+        let stages = stages
+            .into_iter()
+            .zip(checks)
+            .map(|(stage, check)| StageWithCheck { stage, check })
+            .collect();
+        Ok(Some(JourneyDetail { journey, stages }))
+    }
+
+    /// The hello-world journey: a complete, real, checkable example built
+    /// end-to-end with demo provenance — one click, every guard firing.
+    pub async fn demo_journey(
+        &self,
+        tenant_id: TenantId,
+        actor: &str,
+    ) -> HelixResult<JourneyDetail> {
+        let journey = self
+            .create_journey(
+                tenant_id,
+                "Demo: lavender balm for dry skin",
+                "Make a soothing topical balm from lavender — the full guided path",
+                "plant-to-topical",
+                actor,
+            )
+            .await?;
+
+        // 1. Source.
+        let source = self
+            .register_sample(
+                tenant_id,
+                "Lavender flowers (demo)",
+                "other",
+                None,
+                "greenhouse/dry-rack",
+                actor,
+            )
+            .await?;
+        self.link_stage_target(tenant_id, journey.id, STAGE_SOURCE, "sample", source.id, actor)
+            .await?;
+
+        // 2. Route.
+        self.set_route(tenant_id, journey.id, "extraction", actor)
+            .await?;
+
+        // 3. Design.
+        let input = VersionInput {
+            alphabet: "dna".into(),
+            topology: "circular".into(),
+            source_kind: "manual".into(),
+            source_name: "demo journey".into(),
+            sequence_text: "ACGTACGTACGTACGTACGTACGTACGTACGTACGTACGT".into(),
+            components: vec![
+                Component {
+                    name: "T7 promoter".into(),
+                    role_so: "SO:0000167".into(),
+                    start: 5,
+                    end: 24,
+                    strand: 1,
+                    source: "demo journey".into(),
+                },
+                Component {
+                    name: "lav-enzyme CDS".into(),
+                    role_so: "SO:0000316".into(),
+                    start: 26,
+                    end: 40,
+                    strand: 1,
+                    source: "demo journey".into(),
+                },
+            ],
+            provenance: "demo journey".into(),
+            notes: "demo construct for the guided journey".into(),
+        };
+        let design = self
+            .create_design(
+                tenant_id,
+                "pLAV-BALM-001 (demo)",
+                "lavender balm expression construct (demo)",
+                "internal",
+                &input,
+                actor,
+            )
+            .await?;
+        self.link_stage_target(tenant_id, journey.id, STAGE_DESIGN, "design", design.id, actor)
+            .await?;
+
+        // 4. Risk.
+        self.review_risk(
+            tenant_id,
+            design.id,
+            &ReviewDecision {
+                state: "allowed".into(),
+                intended_use: "topical balm research (demo)".into(),
+                policy_version: "biosafety-v1".into(),
+                reasons: vec!["public backbone (demo)".into(), "no sequences of concern (demo)".into()],
+                conditions: String::new(),
+                expires_at: None,
+                expected_state: Some("unknown".into()),
+            },
+            "Demo Biosafety Officer",
+        )
+        .await?;
+
+        // 5. Build.
+        let build = self
+            .register_sample(
+                tenant_id,
+                "Lavender balm prep A (demo)",
+                "plasmid_prep",
+                Some(design.id),
+                "bench-1",
+                actor,
+            )
+            .await?;
+        self.link_stage_target(tenant_id, journey.id, STAGE_BUILD, "sample", build.id, actor)
+            .await?;
+
+        // 6. Test.
+        let m = self
+            .record_measurement(
+                tenant_id,
+                &MeasurementInput {
+                    sample_id: build.id,
+                    design_version_id: None,
+                    kind: "absorbance".into(),
+                    method: "plate reader (demo)".into(),
+                    value: Some(0.87),
+                    unit: "AU".into(),
+                    uncertainty: Some(0.02),
+                    raw: serde_json::json!({"plate": "demo-A1"}),
+                },
+                actor,
+            )
+            .await?;
+        self.transition_measurement(tenant_id, m.id, "accept", actor)
+            .await?;
+
+        // 7. Evidence.
+        let claim = self
+            .create_claim(
+                tenant_id,
+                design.id,
+                "Lavender balm prep A tolerates 37C incubation (demo)",
+                actor,
+            )
+            .await?;
+        self.link_evidence(
+            tenant_id,
+            claim.id,
+            "measurement",
+            m.id,
+            "supports",
+            "demo plate shows stable signal",
+            actor,
+        )
+        .await?;
+        self.attest_claim(tenant_id, claim.id, "Demo Principal Investigator")
+            .await?;
+
+        self.refresh_journey(tenant_id, journey.id).await?;
+        self.journey_detail(tenant_id, journey.id)
+            .await?
+            .ok_or_else(|| HelixError::internal("demo journey vanished"))
+    }
+}

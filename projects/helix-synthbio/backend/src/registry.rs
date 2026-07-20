@@ -55,6 +55,13 @@ pub fn routes() -> Router<AppState> {
             "/v1/registry/designs/{id}/signatures",
             get(design_signatures),
         )
+        .route("/v1/journeys", get(list_journeys).post(create_journey))
+        .route("/v1/journeys/demo", post(demo_journey))
+        .route("/v1/journeys/{id}", get(get_journey))
+        .route("/v1/journeys/{id}/route", post(set_route))
+        .route("/v1/journeys/{id}/refresh", post(refresh_journey))
+        .route("/v1/journeys/{id}/stages/{index}/link", post(link_stage))
+        .route("/v1/pathways", get(list_pathways))
 }
 
 // ——— payloads ———
@@ -855,6 +862,164 @@ async fn design_signatures(
     let pool = require_pool(&state)?;
     let repo = RegistryRepo::new(pool);
     let items = repo.design_signatures(p.tenant_id, id).await?;
+    Ok(Json(ApiResponse::ok(serde_json::json!({
+        "durable": true,
+        "items": items
+    }))))
+}
+
+// ——— journeys ———
+
+#[derive(Deserialize)]
+struct JourneyReq {
+    title: String,
+    #[serde(default)]
+    intent: String,
+    #[serde(default = "default_pathway")]
+    pathway_key: String,
+}
+
+#[derive(Deserialize)]
+struct RouteReq {
+    route: String,
+}
+
+#[derive(Deserialize)]
+struct LinkReq {
+    target_kind: String,
+    target_id: Uuid,
+}
+
+fn default_pathway() -> String {
+    "plant-to-topical".into()
+}
+
+async fn create_journey(
+    State(state): State<AppState>,
+    RequireAuth(p): RequireAuth,
+    Json(body): Json<JourneyReq>,
+) -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
+    p.require_scope(shared_core::tenancy::Scope::Write)?;
+    let pool = require_pool(&state)?;
+    let repo = RegistryRepo::new(pool);
+    let actor = actor(&p);
+    let journey = repo
+        .create_journey(p.tenant_id, &body.title, &body.intent, &body.pathway_key, &actor)
+        .await?;
+    audit(
+        &state,
+        &p,
+        "synthbio.journey.create",
+        "synthbio.journey",
+        journey.id,
+        serde_json::json!({"accession": journey.accession, "pathway": journey.pathway_key}),
+    )
+    .await?;
+    Ok(Json(ApiResponse::ok(serde_json::json!(journey))))
+}
+
+async fn demo_journey(
+    State(state): State<AppState>,
+    RequireAuth(p): RequireAuth,
+) -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
+    p.require_scope(shared_core::tenancy::Scope::Write)?;
+    let pool = require_pool(&state)?;
+    let repo = RegistryRepo::new(pool);
+    let actor = actor(&p);
+    let detail = repo.demo_journey(p.tenant_id, &actor).await?;
+    audit(
+        &state,
+        &p,
+        "synthbio.journey.demo",
+        "synthbio.journey",
+        detail.journey.id,
+        serde_json::json!({"accession": detail.journey.accession}),
+    )
+    .await?;
+    Ok(Json(ApiResponse::ok(serde_json::json!(detail))))
+}
+
+async fn list_journeys(
+    State(state): State<AppState>,
+    RequireAuth(p): RequireAuth,
+) -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
+    p.require_scope(shared_core::tenancy::Scope::Read)?;
+    let pool = require_pool(&state)?;
+    let repo = RegistryRepo::new(pool);
+    let items = repo.list_journeys(p.tenant_id).await?;
+    Ok(Json(ApiResponse::ok(serde_json::json!({
+        "durable": true,
+        "items": items
+    }))))
+}
+
+async fn get_journey(
+    State(state): State<AppState>,
+    RequireAuth(p): RequireAuth,
+    Path(id): Path<Uuid>,
+) -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
+    p.require_scope(shared_core::tenancy::Scope::Read)?;
+    let pool = require_pool(&state)?;
+    let repo = RegistryRepo::new(pool);
+    let detail = repo
+        .journey_detail(p.tenant_id, id)
+        .await?
+        .ok_or_else(|| shared_core::HelixError::not_found("journey not found"))?;
+    Ok(Json(ApiResponse::ok(serde_json::json!(detail))))
+}
+
+async fn set_route(
+    State(state): State<AppState>,
+    RequireAuth(p): RequireAuth,
+    Path(id): Path<Uuid>,
+    Json(body): Json<RouteReq>,
+) -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
+    p.require_scope(shared_core::tenancy::Scope::Write)?;
+    let pool = require_pool(&state)?;
+    let repo = RegistryRepo::new(pool);
+    let actor = actor(&p);
+    let journey = repo.set_route(p.tenant_id, id, &body.route, &actor).await?;
+    Ok(Json(ApiResponse::ok(serde_json::json!(journey))))
+}
+
+async fn refresh_journey(
+    State(state): State<AppState>,
+    RequireAuth(p): RequireAuth,
+    Path(id): Path<Uuid>,
+) -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
+    p.require_scope(shared_core::tenancy::Scope::Write)?;
+    let pool = require_pool(&state)?;
+    let repo = RegistryRepo::new(pool);
+    repo.refresh_journey(p.tenant_id, id).await?;
+    let detail = repo
+        .journey_detail(p.tenant_id, id)
+        .await?
+        .ok_or_else(|| shared_core::HelixError::not_found("journey not found"))?;
+    Ok(Json(ApiResponse::ok(serde_json::json!(detail))))
+}
+
+async fn link_stage(
+    State(state): State<AppState>,
+    RequireAuth(p): RequireAuth,
+    Path((id, index)): Path<(Uuid, usize)>,
+    Json(body): Json<LinkReq>,
+) -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
+    p.require_scope(shared_core::tenancy::Scope::Write)?;
+    let pool = require_pool(&state)?;
+    let repo = RegistryRepo::new(pool);
+    let actor = actor(&p);
+    let detail = repo
+        .link_stage_target(p.tenant_id, id, index, &body.target_kind, body.target_id, &actor)
+        .await?;
+    Ok(Json(ApiResponse::ok(serde_json::json!(detail))))
+}
+
+async fn list_pathways(
+    State(state): State<AppState>,
+    RequireAuth(p): RequireAuth,
+) -> Result<Json<ApiResponse<serde_json::Value>>, ApiError> {
+    p.require_scope(shared_core::tenancy::Scope::Read)?;
+    let items = helix_db::pathway_templates();
     Ok(Json(ApiResponse::ok(serde_json::json!({
         "durable": true,
         "items": items
