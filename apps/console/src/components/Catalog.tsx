@@ -32,6 +32,9 @@ function productWebUrl(slug: string, port: number): string | null {
   if (slug === "helix-collab") {
     return process.env.NEXT_PUBLIC_COLLAB_WEB ?? "http://127.0.0.1:3101";
   }
+  if (slug === "helix-synthbio") {
+    return process.env.NEXT_PUBLIC_SYNTHBIO_WEB ?? "http://127.0.0.1:3201";
+  }
   void port;
   return null;
 }
