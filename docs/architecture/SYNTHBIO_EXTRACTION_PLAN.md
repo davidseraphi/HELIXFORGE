@@ -112,10 +112,52 @@ deliberately keeps each repo moderate — Bazel's sweet spot is the giant
 single monorepo. **Adopt Bazel when any trigger fires:** one repo exceeds
 ~40 polyglot components · CI wall-time > ~40 min despite path-filtering and
 caching · heavy cross-language codegen arrives (protobuf/gRPC across
-Rust+TS+Python) · remote-cache CI savings exceed the ops cost. **Door held
-open for free:** lockfiles everywhere, pinned toolchains, hermetic CI
-steps, no network in tests — the same hygiene SLSA L2 and the air-gap
-bundle already require, so the later migration is cheap.
+Rust+TS+Python) · remote-cache CI savings exceed the ops cost.
+
+**Migration is designed-for, not hoped-for.** Painful Bazel migrations are
+caused by five specific conditions; each is designed out now — at zero
+extra cost, because the same rules are already required by SLSA L2 and the
+air-gap bundle:
+
+1. **Lockfile discipline everywhere** (Cargo.lock committed, pnpm-lock.yaml,
+   uv.lock) → third-party deps become *generatable* at migration time:
+   `crate_universe` renders Cargo.lock, `npm_translate_lock` renders
+   pnpm-lock, `pip_parse` renders the Python lock. Nobody hand-writes
+   dependency BUILD files.
+2. **Hermeticity hygiene from day one:** no network in unit tests, no
+   ambient env except declared config, no absolute machine paths, all
+   codegen via declared scripts with declared inputs/outputs. Hermeticity
+   is the #1 migration killer — and it's required for the offline bundle
+   and provenance anyway.
+3. **Explicit package boundaries:** one component = one folder = one
+   manifest; TS path aliases map 1:1 to packages; Python src-layout; no
+   cross-component file imports. Gazelle (with its Python/JS plugins) then
+   auto-generates and maintains per-package BUILD files.
+4. **Single toolchain source of truth:** `rust-toolchain.toml`, `.nvmrc`,
+   uv python pin — Bazel toolchains read these later.
+5. **Test classification from day one:** unit (hermetic) vs integration
+   (needs services) marked natively per ecosystem (cargo filters, pytest
+   markers, vitest patterns). Integration tests run via Testcontainers
+   (already §3); under Bazel they either declare the docker socket or stay
+   as a separate CI job — an accepted pattern.
+6. **Build logic centralized in the justfile;** CI calls recipes, never
+   inline shell → migrating means changing recipe bodies, not untangling
+   CI YAML.
+
+**Insurance policy — shadow Bazel build from Phase 2.** `MODULE.bazel` +
+lockfile-generated dep repos + Gazelle, wired as a **non-blocking** CI job
+on `ubuntu-latest` (Bazelisk). It proves hermeticity continuously; when a
+trigger fires, flip it to required — migration becomes a flag flip instead
+of archaeology. Native toolchains remain the Windows-friendly dev inner
+loop; Bazel is the CI/release build.
+
+**Why this is AI-executable:** with the rules above, migration is a
+mechanical loop — run Gazelle, `bazel build //...`, fix the precise error
+Bazel reports, repeat — with a binary pass/fail signal, the exact
+verification-loop shape agents execute best. Nightmare migrations are the
+ones where dependencies are implicit and the agent must guess; these rules
+eliminate guessing. If any rule above proves unenforceable in practice, the
+fallback is to adopt Bazel at Phase 2 instead of deferring.
 
 ---
 
@@ -237,8 +279,10 @@ Exit: hub CI green with synthbio marked external-but-present.
 **Phase 2 — Spoke skeleton.**
 New repo `PROJECTS/synthbio`: layout per §3, workspaces, justfile,
 README, ADR-0001, AGENTS.md + AI_POLICY.md, full CI matrix (with empty
-Python placeholder), branch protection + CODEOWNERS, release-please.
-Exit: empty-repo CI green end-to-end.
+Python placeholder), branch protection + CODEOWNERS, release-please,
+**shadow Bazel build** (non-blocking CI job per §2).
+Exit: empty-repo CI green end-to-end; shadow Bazel job running (allowed
+to fail, reported).
 
 **Phase 3 — The move.**
 `services/api` ← `projects/helix-synthbio/backend`; `crates/` ← the three
