@@ -1,5 +1,33 @@
 # Decision log (append-only)
 
+## 2026-07-20 — SCOPE CORRECTION: SynthBio is a full biology workbench, not a trust layer
+
+Founder directive, recorded verbatim in substance:
+
+- The biology app (SynthBio) is **all things biology** — a complete,
+  AI-native science workbench in the spirit of Claude-for-science-style
+  products: data, compute, simulation, ML models, analysis, literature,
+  and an agent interface as a primary surface. The registry / custody /
+  claims / journeys work shipped so far is the **trust substrate under
+  the workbench, not the product**.
+- Biology is **one module**; math, physics, chemistry, etc. follow on
+  the same substrate (`service_kit` + shared planes per module).
+- Ambition: the bedrock platform for the biotech industry in Uganda and
+  Africa at large. Decisions must be scoped at that horizon.
+- Standing instruction: **do not underscope**. Feature questions are to
+  be answered at full-platform ambition. Engineering honesty about
+  cost, dependencies, and sequencing remains required — but as build
+  order, never as a reason to shrink the vision.
+
+Consequences for open threads:
+
+- The epigenomics data plane (ENCODE/4DN ingest, ATAC→Hi-C prediction)
+  is a **core capability**, not a "later wedge".
+- Corpus-scale retrieval (SIRA-class methods) is core knowledge-plane
+  infrastructure once we index public biological data and literature.
+- The AI copilot is a first-class interface grounded in tools and live
+  app state — not a "thin" add-on.
+
 ## 2026-07-19 — HELIXCODE-NUMBERING + HELIXCODE-REFS-CAS closed; code hardening complete
 
 - Completed both HelixCode follow-up packets in one implementation
