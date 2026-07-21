@@ -35,9 +35,6 @@ pub mod pulse;
 pub mod quantum;
 pub mod regions;
 pub mod studio;
-pub mod synthbio;
-pub mod synthbio_genbank;
-pub mod synthbio_registry;
 pub mod tenants;
 pub mod terra;
 pub mod vault_objects;
@@ -127,17 +124,6 @@ pub use regions::{RegionRecord, RegionRepo};
 pub use studio::{
     next_app_status, next_page_status, App, AppUpdate, Page, PageUpdate, StudioRepo,
     StudioSummaryRow,
-};
-pub use synthbio::{
-    next_design_status, next_sim_status, Design, DesignUpdate, SimRun, SimUpdate, SynthbioRepo,
-    SynthbioSummaryRow,
-};
-pub use synthbio_registry::{
-    pathway_templates, Claim, ClaimDetail, Component, CustodyEvent, Design360, DesignNote,
-    DesignVersion, EvidenceBundle, EvidenceLink, ImportManifest, ImportRejected, Journey,
-    JourneyDetail, JourneyStage, LineageEdge, LineageEvent, Measurement, MeasurementInput,
-    PathwayStage, PathwayTemplate, RegistryDesign, RegistryRepo, ReviewDecision, RiskCase, Sample,
-    SampleDetail, Signature, StageCheck, StageWithCheck, VersionInput,
 };
 pub use tenants::{TenantRecord, TenantRepo, TenantStatus};
 pub use terra::{

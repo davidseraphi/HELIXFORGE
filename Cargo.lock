@@ -2781,25 +2781,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "helix_synthbio_api"
-version = "0.1.0"
-dependencies = [
- "agent_framework",
- "audit_log",
- "axum",
- "chrono",
- "helix_db",
- "serde",
- "serde_json",
- "service_kit",
- "shared_core",
- "sqlx",
- "tokio",
- "tracing",
- "uuid",
-]
-
-[[package]]
 name = "helix_terra_prime_api"
 version = "0.1.0"
 dependencies = [

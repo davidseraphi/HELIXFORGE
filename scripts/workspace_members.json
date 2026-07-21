@@ -25,7 +25,6 @@
     "projects/helix-well/backend",
     "projects/helix-network/backend",
     "projects/helix-forge-studio/backend",
-    "projects/helix-synthbio/backend",
     "projects/helix-lex-prime/backend",
     "projects/helix-cura-prime/backend",
     "projects/helix-terra-prime/backend",
@@ -106,13 +105,6 @@
       "description": "No-code/low-code AI app & internal tool builder",
       "order": 10,
       "tier": "standard"
-    },
-    {
-      "slug": "helix-synthbio",
-      "title": "HelixSynthBio",
-      "description": "Synthetic biology design & virtual wet-lab",
-      "order": 11,
-      "tier": "frontier"
     },
     {
       "slug": "helix-lex-prime",
