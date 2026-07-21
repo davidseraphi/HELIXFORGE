@@ -1,9 +1,41 @@
 # Next action
 
-## Latest: HELIXSYNTHBIO parity program + JOURNEYS engine closed
+## Latest: SYNTHBIO EXTRACTED — hub-and-spoke is live
 
-SynthBio is no longer a thin app. Two programs landed on top of the
-durability gate:
+Phases 1–3 of `docs/architecture/SYNTHBIO_EXTRACTION_PLAN.md` are done:
+
+- **Phase 1 (hub prep):** CODEOWNERS tripwires, `main` protected (required
+  checks, admins enforced), console learned external products. PR #1.
+- **Phase 2 (spoke skeleton):** `PROJECTS/synthbio` — component-first
+  layout, three ecosystems (Rust/TS/Python), full CI standard,
+  release-please, shadow Bazel, AGENTS.md + AI_POLICY.md. Private repo
+  `davidseraphi/synthbio`, `main` protected.
+- **Phase 3 (the move):** API + `synthbio_db` data layer + migration chain
+  (`0001_baseline`) + standalone web app. Two-pool topology
+  (`DATABASE_URL` hub trust plane / `SYNTHBIO_DATABASE_URL` product
+  domain). Data copied with exact parity; product API on :8111, web on
+  :3201, hub console deep-links (307). Hub-slim merged (PR #2, `6563ddc`).
+- **Phase 4 (hardening):** in flight on `phase4-hardening` — RFC 9457
+  errors, Idempotency-Key, cursor pagination, OpenAPI + contract CI.
+
+## Active goal
+
+**Phase 5 — cutover ritual (founder).** Checklist:
+`PROJECTS/synthbio/docs/how-to/cutover.md`. Top item: **fix GitHub
+billing** — Actions on the private synthbio repo are blocked ("recent
+account payments have failed / spending limit"); product CI is staged to
+go green the moment it's fixed. Then ratify review requirements, then
+(optionally) drop the legacy hub `synthbio` schema.
+
+## Next action
+
+Founder runs the phase-5 checklist. Agent resume point after sign-off:
+phase 6 — epigenomics data plane in the spoke (ENCODE/4DN ingest →
+htsget serving → ATAC→Hi-C inference → validation as measurements).
+
+---
+
+## Archive: HELIXSYNTHBIO parity program + JOURNEYS engine (pre-extraction)
 
 **Benchling parity (7 slices, commits `02b2d50`…`891653d`)**
 
@@ -20,31 +52,10 @@ durability gate:
 **Journeys engine — the intent-first rethink (commits `4b98e63`,
 `6bee1b5` (fmt), `d2b8e31` (UI))**
 
-- `0063_synthbio_journeys.sql`: `synthbio.journeys` (JRN accession,
-  pathway_key, route_choice, status, current_stage) + `journey_stages`
-- `RegistryRepo`: `create_journey`, `demo_journey` (lavender balm,
-  end-to-end), `set_route` (single guarded choice, 409 on re-choice),
-  `link_stage_target` (build sample must derive from the journey's
-  design — 422 otherwise), `refresh_journey` (auto-completes
-  risk/test/evidence), `journey_detail` (refreshes on every read;
-  stages zipped with live checks — the "teacher" missing strings)
-- API: `/v1/journeys*`, `/v1/pathways`; 14 ignored tests green incl.
-  `journey_full_walk` + `journey_demo_end_to_end`
-- UI: Journeys is the first rail tab of SynthBio; detail page
-  `/products/helix-synthbio/journeys/[id]` — seven-stage pipeline viz,
-  per-stage guidance + action forms, one-click demo journey
-
-### Active goal
-
-**SYNTHBIO EXTRACTION (hub-and-spoke).** SynthBio graduates out of the
-monorepo into `PROJECTS/synthbio` as the first standalone product repo.
-Canonical plan: `docs/architecture/SYNTHBIO_EXTRACTION_PLAN.md`.
-Decision recorded: DECISION_LOG 2026-07-20.
-
-### Next action
-
-Phase 1 — Hub prep: CODEOWNERS + branch rulesets on HELIXFORGE `main`;
-console learns `external: true` product entries (launcher deep-link);
-synthbio catalog entry marked external. Exit: hub CI green with synthbio
-marked external-but-present. Then phases 2–5 per the plan; phase 6 resumes
-the vision roadmap (epigenomics data plane first) inside the spoke.
+- `0063_synthbio_journeys.sql`: `synthbio.journeys` + `journey_stages`
+- `RegistryRepo`: create/demo/set_route/link_stage_target/refresh/detail;
+  guarded route choice (409), build-must-derive-from-design (422),
+  auto-completing risk/test/evidence stages, teacher strings on read
+- API: `/v1/journeys*`, `/v1/pathways`; 14 ignored tests green
+- UI: Journeys first rail tab; seven-stage pipeline viz with per-stage
+  guidance + actions; one-click demo journey
