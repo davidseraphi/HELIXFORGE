@@ -15,8 +15,10 @@ Phases 1–3 of `docs/architecture/SYNTHBIO_EXTRACTION_PLAN.md` are done:
   (`DATABASE_URL` hub trust plane / `SYNTHBIO_DATABASE_URL` product
   domain). Data copied with exact parity; product API on :8111, web on
   :3201, hub console deep-links (307). Hub-slim merged (PR #2, `6563ddc`).
-- **Phase 4 (hardening):** in flight on `phase4-hardening` — RFC 9457
-  errors, Idempotency-Key, cursor pagination, OpenAPI + contract CI.
+- **Phase 4 (hardening):** merged in the spoke (PR #4) — RFC 9457
+  problem+json errors, Idempotency-Key replay (migration 0002), cursor
+  pagination, OpenAPI 3.1 + Scalar docs + contract CI (Schemathesis
+  5950/5950 locally; four real bugs fixed). Live-verified on :8111.
 
 ## Active goal
 
