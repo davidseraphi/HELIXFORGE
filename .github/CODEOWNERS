@@ -1,0 +1,15 @@
+# CODEOWNERS — HELIXFORGE hub
+# Default owner for everything.
+* @davidseraphi
+
+# Platform-critical / hard-to-reverse paths. Changes here must be
+# signed off by the founder — this is the tripwire that makes
+# agent-authored changes to the gates themselves visible.
+/.github/workflows/ @davidseraphi
+/.github/CODEOWNERS @davidseraphi
+/crates/helix-db/migrations/ @davidseraphi
+/infra/ @davidseraphi
+/deploy/ @davidseraphi
+/services/auth-adapter/ @davidseraphi
+/services/vault-service/ @davidseraphi
+/crates/audit-log/ @davidseraphi

@@ -325,6 +325,7 @@ export const PRODUCTS: ProductDef[] = [
     slug: "helix-synthbio",
     title: "HelixSynthBio",
     port: 8111,
+    external: "http://127.0.0.1:3201",
     glyph: "Sb",
     blurb: "Synthetic biology design & virtual wet-lab",
     parent: {
