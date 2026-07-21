@@ -1,5 +1,13 @@
 # Decision log (append-only)
 
+## 2026-07-20 — hub-slim: helix-synthbio extracted to PROJECTS/synthbio
+
+The product's backend crate, helix-db modules, console UI slice, CI jobs
+(`synthbio-durability`, `synthbio-smoke`), helper scripts, and product docs
+moved to the standalone repo at `PROJECTS/synthbio`. Migration history
+(0010/0046/0058–0063) stays applied in the hub chain. The console keeps an
+external catalog entry and deep-links to the product at http://127.0.0.1:3201.
+
 ## 2026-07-20 — EXTRACTION: hub-and-spoke adopted; SynthBio becomes the first standalone product repo
 
 - Founder decision: products underscoped inside the monorepo will graduate

@@ -19,7 +19,7 @@ $env:HELIX_WEBHOOK_ALLOW_UNSIGNED = if ($env:HELIX_WEBHOOK_ALLOW_UNSIGNED) { $en
 $products = @(
   "helix_collab_api", "helix_code_api", "helix_flow_api", "helix_insights_api",
   "helix_commerce_api", "helix_edu_api", "helix_capital_api", "helix_well_api",
-  "helix_network_api", "helix_forge_studio_api", "helix_synthbio_api",
+  "helix_network_api", "helix_forge_studio_api",
   "helix_lex_prime_api", "helix_cura_prime_api", "helix_terra_prime_api",
   "helix_climate_prime_api", "helix_orbit_prime_api", "helix_quantum_forge_api",
   "helix_vita_prime_api", "helix_grid_prime_api", "helix_nova_labs_api",

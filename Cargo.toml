@@ -28,7 +28,6 @@ members = [
   "projects/helix-well/backend",
   "projects/helix-network/backend",
   "projects/helix-forge-studio/backend",
-  "projects/helix-synthbio/backend",
   "projects/helix-lex-prime/backend",
   "projects/helix-cura-prime/backend",
   "projects/helix-terra-prime/backend",
